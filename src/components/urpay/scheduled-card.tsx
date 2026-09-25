@@ -7,7 +7,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowUpRight, CalendarClock, CalendarPlus, Loader2, ReceiptText, Send, XCircle,
+  ArrowUpRight, CalendarClock, CalendarPlus, Loader2, Pencil, ReceiptText,
+  Send, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useT, type Lang } from "@/lib/i18n";
 import { EmptyState, PinDialog } from "./parts";
+import type { ScheduledItem } from "@/lib/urpay";
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -87,6 +89,7 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
   const [feed, setFeed] = useState<ScheduledFeed | null>(null);
   const [failed, setFailed] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<ScheduledItem | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   /* bumped after create/cancel → reload without waiting for refreshKey */
   const [signal, setSignal] = useState(0);
@@ -268,6 +271,17 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
                   variant="ghost"
                   size="icon"
                   disabled={busyId === item.id}
+                  onClick={() => setEditing(item)}
+                  className="rounded-xl h-9 w-9 shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  aria-label={t("scheduled.editBtn")}
+                  title={t("scheduled.editBtn")}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={busyId === item.id}
                   onClick={() => cancelItem(item.id)}
                   className="rounded-xl h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   aria-label={t("scheduled.cancelBtn")}
@@ -335,6 +349,12 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
         open={addOpen}
         onOpenChange={setAddOpen}
         onCreated={() => setSignal((s) => s + 1)}
+      />
+
+      <EditScheduleDialog
+        item={editing}
+        onClose={() => setEditing(null)}
+        onEdited={() => setSignal((s) => s + 1)}
       />
     </>
   );
@@ -645,6 +665,223 @@ function ScheduleDialog({
         amount={valid ? amountNum : undefined}
         confirmText={t("scheduled.pinConfirm")}
         onConfirm={confirmSchedule}
+      />
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* EditScheduleDialog — change amount and/or run time of a pending     */
+/* mandate (PIN-verified, same presets as creation).                   */
+/* ------------------------------------------------------------------ */
+
+type EditWhen = "keep" | "tomorrow" | "3days" | "firstOfMonth" | "custom";
+
+function EditScheduleDialog({
+  item,
+  onClose,
+  onEdited,
+}: {
+  item: ScheduledItem | null;
+  onClose: () => void;
+  onEdited: () => void;
+}) {
+  const { token } = useSession();
+  const { toast } = useToast();
+  const { t, lang } = useT();
+  const [amount, setAmount] = useState("");
+  const [when, setWhen] = useState<EditWhen>("keep");
+  const [customWhen, setCustomWhen] = useState("");
+  const [pinOpen, setPinOpen] = useState(false);
+  /* render-time reset on item change (lint-safe, no effect) */
+  const [wasItem, setWasItem] = useState(item);
+  if (item !== wasItem) {
+    setWasItem(item);
+    if (item) {
+      setAmount(String(item.amount));
+      setWhen("keep");
+      setCustomWhen("");
+      setPinOpen(false);
+    }
+  }
+
+  const open = item !== null;
+  const amountNum = Number(amount);
+
+  function computeExecuteAt(): Date | null {
+    if (!item) return null;
+    if (when === "keep") return new Date(item.next_run_at);
+    const base = new Date();
+    if (when === "tomorrow") {
+      const d = new Date(base);
+      d.setDate(d.getDate() + 1);
+      d.setHours(9, 0, 0, 0);
+      return d;
+    }
+    if (when === "3days") return new Date(base.getTime() + 3 * 86_400_000);
+    if (when === "firstOfMonth") {
+      return new Date(base.getFullYear(), base.getMonth() + 1, 1, 9, 0, 0, 0);
+    }
+    if (!customWhen) return null;
+    const d = new Date(customWhen);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const executeAt = computeExecuteAt();
+  const amountChanged = !!item && amountNum !== item.amount;
+  const whenChanged = !!item && when !== "keep";
+  const valid =
+    !!item &&
+    executeAt !== null &&
+    amountNum >= 1000 &&
+    amountNum <= 5_000_000 &&
+    (amountChanged || whenChanged);
+
+  async function confirmEdit(pin: string): Promise<string | null> {
+    if (!token || !item || !executeAt || !valid) return t("common.unexpectedError");
+    try {
+      const res = await urpay.scheduledEdit(token, item.id, {
+        ...(amountChanged ? { amount: amountNum } : {}),
+        ...(whenChanged ? { execute_at: executeAt.toISOString() } : {}),
+        pin,
+      });
+      toast({
+        title: t("scheduled.editToastTitle"),
+        description: `${res.scheduled.label} · ${fmtDateTime(res.scheduled.next_run_at, lang)}`,
+      });
+      setPinOpen(false);
+      onClose();
+      onEdited();
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : t("common.opFailed");
+    }
+  }
+
+  return (
+    <>
+      <Dialog open={open && !pinOpen} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="max-w-sm rounded-3xl max-h-[85vh] overflow-y-auto scrollbar-slim">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <CalendarClock className="h-[18px] w-[18px]" />
+              </span>
+              {t("scheduled.editDialogTitle")}
+            </DialogTitle>
+            <DialogDescription>{t("scheduled.editDialogDesc")}</DialogDescription>
+          </DialogHeader>
+
+          {item && (
+            <div className="space-y-4">
+              {/* current mandate summary */}
+              <div className="rounded-2xl border border-border/60 bg-secondary/40 px-4 py-3">
+                <p className="font-bold text-sm">{item.label}</p>
+                <p className="text-[0.7rem] text-muted-foreground mt-0.5 num">
+                  {fmtIQD(item.amount, true, lang)} · {fmtDateTime(item.next_run_at, lang)}
+                </p>
+              </div>
+
+              {/* new amount */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {t("scheduled.editAmountLabel")}
+                </p>
+                <div className="relative">
+                  <Input
+                    dir="ltr"
+                    inputMode="numeric"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                    className="num text-left text-lg font-bold pe-12"
+                  />
+                  <span className="absolute inset-y-0 end-4 flex items-center text-xs font-semibold text-muted-foreground">
+                    {t("common.iqd")}
+                  </span>
+                </div>
+              </div>
+
+              {/* new when */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {t("scheduled.editWhenLabel")}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWhen("keep")}
+                    aria-pressed={when === "keep"}
+                    className={`flex items-center justify-center gap-1.5 ${chip(when === "keep")}`}
+                  >
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    {t("scheduled.editKeepWhen")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWhen("tomorrow")}
+                    aria-pressed={when === "tomorrow"}
+                    className={chip(when === "tomorrow")}
+                  >
+                    {t("scheduled.whenTomorrow")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWhen("3days")}
+                    aria-pressed={when === "3days"}
+                    className={chip(when === "3days")}
+                  >
+                    {t("scheduled.when3days")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWhen("firstOfMonth")}
+                    aria-pressed={when === "firstOfMonth"}
+                    className={chip(when === "firstOfMonth")}
+                  >
+                    {t("scheduled.whenFirstOfMonth")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWhen("custom")}
+                    aria-pressed={when === "custom"}
+                    className={`col-span-2 ${chip(when === "custom")}`}
+                  >
+                    {t("scheduled.whenCustom")}
+                  </button>
+                </div>
+                {when === "custom" && (
+                  <Input
+                    type="datetime-local"
+                    dir="ltr"
+                    value={customWhen}
+                    onChange={(e) => setCustomWhen(e.target.value)}
+                    className="num text-xs"
+                  />
+                )}
+              </div>
+
+              <Button
+                type="button"
+                disabled={!valid}
+                onClick={() => setPinOpen(true)}
+                className="w-full h-12 rounded-2xl font-bold text-base shadow-lift"
+              >
+                <Pencil className="h-4 w-4" />
+                {t("scheduled.editPinConfirm")}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <PinDialog
+        open={pinOpen}
+        onOpenChange={setPinOpen}
+        title={t("scheduled.editPinTitle")}
+        description={t("scheduled.editPinDesc")}
+        amount={amountChanged ? amountNum : undefined}
+        confirmText={t("scheduled.editPinConfirm")}
+        onConfirm={confirmEdit}
       />
     </>
   );

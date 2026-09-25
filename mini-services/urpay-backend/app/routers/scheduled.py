@@ -143,3 +143,45 @@ async def cancel_scheduled(sp_id: int,
     sp.status = "cancelled"
     await session.commit()
     return {"message": "تم إلغاء الجدولة"}
+
+
+class ScheduleEdit(BaseModel):
+    """Change a pending mandate's amount and/or next run (PIN-verified)."""
+    amount: int | None = Field(default=None, gt=1000, le=5_000_000)
+    execute_at: str | None = None  # ISO datetime
+    pin: str
+
+
+@router.post("/scheduled/{sp_id}/edit")
+async def edit_scheduled(sp_id: int, body: ScheduleEdit,
+                         user: User = Depends(get_current_user),
+                         session: AsyncSession = Depends(get_session)):
+    sp = await session.get(ScheduledPayment, sp_id)
+    if sp is None or sp.user_id != user.id or sp.status != "pending":
+        raise HTTPException(404, "الجدولة غير موجودة أو منتهية")
+    if not verify_pin(body.pin, user.pin_salt, user.pin_hash):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "رمز الـ PIN غير صحيح")
+
+    if body.amount is None and body.execute_at is None:
+        raise HTTPException(422, "لا يوجد تغيير — أرسل مبلغًا أو تاريخًا جديدًا")
+
+    when = sp.next_run_at
+    if body.execute_at:
+        try:
+            when = datetime.fromisoformat(body.execute_at.replace("Z", "+00:00"))
+            if when.tzinfo is not None:
+                when = when.astimezone(tz=None).replace(tzinfo=None)
+        except ValueError:
+            raise HTTPException(422, "صيغة التاريخ غير صحيحة — استخدم ISO")
+        now = utcnow()
+        if when < now + MIN_AHEAD:
+            when = now + MIN_AHEAD  # clamp near-instant
+        if when > now + MAX_AHEAD:
+            raise HTTPException(422, "ما تصير جدولة أبعد من سنة")
+
+    if body.amount is not None:
+        sp.amount = body.amount
+    sp.next_run_at = when
+    await session.commit()
+    await session.refresh(sp)
+    return {"message": "تم تعديل الجدولة", "scheduled": _sp_dict(sp)}

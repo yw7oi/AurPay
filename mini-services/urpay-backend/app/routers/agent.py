@@ -1,14 +1,17 @@
-"""Agent endpoints — chat, history, clear, SSE streaming."""
+"""Agent endpoints — chat, history, clear, SSE streaming, voice (ASR)."""
 import asyncio
+import base64
 import json
 import re
 
-from fastapi import APIRouter, Depends
+import httpx
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..agent.engine import TOOL_STEP_LABELS, run_agent
+from ..config import LLM_BRIDGE_SECRET, LLM_BRIDGE_URL
 from ..db import get_session
 from ..models import AgentMessage, User
 from ..schemas import AgentAction, AgentChatRequest, AgentChatResponse
@@ -149,3 +152,47 @@ async def clear_history(user: User = Depends(get_current_user),
         delete(AgentMessage).where(AgentMessage.user_id == user.id))
     await session.commit()
     return {"message": "تم مسح المحادثة"}
+
+
+# ------------------------------------------------------------------ voice ---
+@router.post("/voice")
+async def agent_voice(file: UploadFile = File(...),
+                      user: User = Depends(get_current_user)):
+    """Transcribe a short voice note (multipart upload) to text.
+
+    Forwards base64 audio to the Next.js z-ai ASR bridge — same secret
+    handshake as the LLM bridge. Returns {"text": "..."} in Arabic.
+    """
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "الملف فاضي")
+    if len(raw) > 20 * 1024 * 1024:
+        raise HTTPException(413, "التسجيل طويل جدًا")
+
+    bridge_url = LLM_BRIDGE_URL.replace("/llm", "/asr")
+    headers = {"X-Bridge-Secret": LLM_BRIDGE_SECRET,
+               "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                bridge_url,
+                json={"audio_base64": base64.b64encode(raw).decode("ascii")},
+                headers=headers,
+            )
+    except httpx.HTTPError:
+        raise HTTPException(502, "تعذر الوصول لخدمة التعرف على الصوت")
+
+    if resp.status_code != 200:
+        detail = "تعذر تحويل الصوت لنص"
+        try:
+            j = resp.json()
+            if isinstance(j.get("detail"), str):
+                detail = j["detail"]
+        except Exception:  # noqa: BLE001
+            pass
+        raise HTTPException(502, detail)
+
+    text = (resp.json().get("text") or "").strip()
+    if not text:
+        raise HTTPException(422, "ما سمعنا صوت واضح — جرب مرة ثانية")
+    return {"text": text}

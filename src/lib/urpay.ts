@@ -454,6 +454,16 @@ export const urpay = {
     }),
   scheduledCancel: (token: string, id: number) =>
     api<{ message: string }>(`scheduled/${id}/cancel`, { method: "POST", token }),
+  scheduledEdit: (token: string, id: number, body: {
+    amount?: number;
+    execute_at?: string;
+    pin: string;
+  }) =>
+    api<{ message: string; scheduled: ScheduledItem }>(`scheduled/${id}/edit`, {
+      method: "POST",
+      body,
+      token,
+    }),
 
   /* favorites */
   favorites: (token: string) =>
@@ -480,6 +490,35 @@ export const urpay = {
   agentHistory: (token: string) =>
     api<AgentMessage[]>("agent/history", { token }),
   agentClear: (token: string) => api<{ message: string }>("agent/history", { method: "DELETE", token }),
+
+  /* agent voice — multipart upload (recorded blob) → transcribed text */
+  agentVoice: async (token: string, blob: Blob): Promise<string> => {
+    const form = new FormData();
+    const ext = blob.type.includes("mp4") ? "m4a"
+      : blob.type.includes("webm") ? "webm"
+      : blob.type.includes("ogg") ? "ogg"
+      : blob.type.includes("wav") ? "wav" : "audio";
+    form.append("file", blob, `voice.${ext}`);
+    const res = await fetch("/api/agent/voice", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (res.status === 401 && typeof window !== "undefined") {
+      const { useSession } = await import("./store");
+      useSession.getState().logout();
+    }
+    if (!res.ok) {
+      let detail = `خطأ (${res.status})`;
+      try {
+        const data = await res.json();
+        if (typeof data.detail === "string") detail = data.detail;
+      } catch { /* ignore */ }
+      throw new ApiError(detail, res.status);
+    }
+    const data = (await res.json()) as { text: string };
+    return (data.text ?? "").trim();
+  },
 };
 
 /* ------------------------------------------------------------------ */

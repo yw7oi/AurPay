@@ -95,8 +95,10 @@ PUT  /api/budgets           {category, monthly_limit} — 0 removes
 GET  /api/scheduled         pending + history (runs due mandates on read)
 POST /api/scheduled         {kind: bill|transfer, biller_code|receiver_card, amount, execute_at, frequency, pin}
 POST /api/scheduled/{id}/cancel
+POST /api/scheduled/{id}/edit  {amount?, execute_at?, pin} — تعديل جدولة قائمة
 GET  /api/favorites · POST /api/favorites {card_number} · DELETE /api/favorites/{user_id}
 GET  /api/notifications     + /read-all, /{id}/read — يشمل ملخص الصرف الأسبوعي التلقائي
+POST /api/agent/voice        multipart audio → نص (ASR عبر جسر z-ai)
 POST /api/agent/chat        {message}
 POST /api/agent/chat/stream SSE (tool steps + token streaming)
 GET  /api/stats · /api/billers · /api/cities
@@ -108,6 +110,16 @@ get_spending (تحليل الصرف الشهري + حالة الميزانيات
 cancel_scheduled (دفع مجدول بفهم عربي للتوقيت: «غدًا»، «بعد يومين»، «أول الشهر الجاي»، «كل شهر»)
 
 **إضافات حديثة:**
+- 🎙️ **الإدخال الصوتي للمساعد أور (ASR)** — زر ميكروفون في المحادثة يسجّل ملاحظة صوتية
+  ويحوّلها لنص عربي يظهر في الحقل للمراجعة قبل الإرسال (تصميم متسامح مع أخطاء التعرف).
+  خط أنابيب كامل: المتصفح ← FastAPI ← جسر Node ← z-ai ASR. شريط تسجيل حي مع موجة نابضة
+  ومؤقت وأزرار إيقاف/إلغاء، مع رسالة رشيقة عند عدم توفر الميكروفون.
+  (تم التحقق بالكامل عبر اختبار إنجليزي: "What is my balance…" ← تفريغ مطابق حرفيًا.)
+- 🧾 **إيصال PDF مُمَوّه** — زر «حفظ كـ PDF» في تفاصيل أي معاملة وفي بطاقة الإيصال بعد
+  الدفع/التحويل: صفحة A4 بهوية أور پاي (شريط ذهبي جانبي، جدول إيصال متقطع، ختم توثيق)
+  تُفتح في إطار طباعة مخفي — المتصفح يحفظ PDF بتشكيل عربي مثالي بدون أي مكتبات إضافية.
+- ✏️ **تعديل الجدولات** — زر قلم جانب كل جدولة قائمة يفتح نافذة تعديل (مبلغ جديد و/أو موعد
+  جديد من نفس الخيارات السريعة) بتأكيد الـ PIN — بديل الإلغاء وإعادة الإنشاء.
 - 📱 **استلام الحوالة بالـ QR** — بطاقة «استلم حوالة بالـ QR» في التحويل تعرض رمزك الخاص
   (URPAY:رقم البطاقة:الاسم) بإطار مُمَوّه بالهوية؛ المسح من كاميرا (BarcodeDetector) أو لصق
   الرمز/رقم البطاقة يعبّي المستلم تلقائيًا — تم التحقق أن الرمز قابل للفك آليًا (zbar).

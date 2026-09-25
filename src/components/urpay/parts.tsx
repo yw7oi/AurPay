@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { BadgeCheck, ChevronLeft, Copy, Loader2, ShieldCheck, X } from "lucide-react";
+import { BadgeCheck, ChevronLeft, Copy, FileDown, Loader2, ShieldCheck, X } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import { CategoryIcon, DirectionIcon } from "./icons";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useT } from "@/lib/i18n";
 import { categoryName, dueLabel, fmtDateTime, fmtIQD, type Bill, type Receipt, type Txn } from "@/lib/urpay";
+import { printReceipt } from "@/lib/receipt-print";
 
 /* ----------------------------- PIN dialog ---------------------------- */
 
@@ -221,6 +222,15 @@ export function ReceiptCard({
       <p className="mt-2 text-[0.68rem] text-muted-foreground/80">
         {fmtDateTime(receipt.created_at, lang)}
       </p>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => printReceipt(receipt, lang)}
+        className="mt-2.5 w-full rounded-xl text-xs font-bold"
+      >
+        <FileDown className="h-3.5 w-3.5" />
+        {t("parts.pdfBtn")}
+      </Button>
     </motion.div>
   );
 }
@@ -405,6 +415,18 @@ const TXN_TYPE_KEY: Record<Txn["type"], string> = {
   topup: "txns.typeTopup",
 };
 
+/* a Txn renders as a printable receipt (same field set) */
+function txnAsReceipt(txn: Txn): Receipt {
+  return {
+    reference: txn.reference,
+    title: txn.title,
+    subtitle: txn.subtitle,
+    amount: txn.amount,
+    balance_after: txn.balance_after,
+    created_at: txn.created_at,
+  };
+}
+
 export function TxnDetailDialog({
   txn,
   onOpenChange,
@@ -495,6 +517,15 @@ export function TxnDetailDialog({
                 </button>
               </DetailRow>
             </div>
+
+            <Button
+              variant="outline"
+              onClick={() => printReceipt(txnAsReceipt(txn), lang)}
+              className="mt-4 w-full rounded-xl font-bold"
+            >
+              <FileDown className="h-4 w-4" />
+              {t("parts.pdfBtn")}
+            </Button>
           </>
         )}
       </DialogContent>

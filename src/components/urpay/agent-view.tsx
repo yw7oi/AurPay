@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Check, CheckCircle2, Copy, Download, Eraser, Loader2, SendHorizonal,
-  Sparkles, Wrench, Zap,
+  Check, CheckCircle2, Copy, Download, Eraser, Loader2, Mic, SendHorizonal,
+  Sparkles, Square, Wrench, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,134 @@ import { useSession } from "@/lib/store";
 import { useT } from "@/lib/i18n";
 import { urpay, type AgentAction, type AgentMessage } from "@/lib/urpay";
 import { copyToClipboard } from "@/lib/clipboard";
+import { useToast } from "@/hooks/use-toast";
 import { UrPayMark } from "./logo";
 import { ReceiptCard } from "./parts";
 
 type ChatMsg = AgentMessage & { actions?: AgentAction[] };
 type Step = { tool: string; label: string };
+
+/* ------------------------------------------------------------------ */
+/* Voice recording — MediaRecorder + upload → ASR text in the input.   */
+/* ------------------------------------------------------------------ */
+
+type VoiceState = "idle" | "recording" | "uploading" | "done";
+
+function pickAudioMime(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  for (const mime of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]) {
+    if (MediaRecorder.isTypeSupported(mime)) return mime;
+  }
+  return undefined;
+}
+
+function useVoiceRecorder(
+  token: string | null,
+  onText: (text: string) => void,
+) {
+  const { t } = useT();
+  const { toast } = useToast();
+  const [state, setState] = useState<VoiceState>("idle");
+  const [seconds, setSeconds] = useState(0);
+  const [micDenied, setMicDenied] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cancelledRef = useRef(false);
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => stopTimer(), [stopTimer]);
+
+  const upload = useCallback(async (blob: Blob) => {
+    if (!token || blob.size < 1200) {
+      setState("idle");
+      toast({ title: t("agent.voice.failTitle"), description: t("agent.voice.tooShort"), variant: "destructive" });
+      return;
+    }
+    setState("uploading");
+    try {
+      const text = await urpay.agentVoice(token, blob);
+      if (cancelledRef.current) return;
+      if (text) {
+        onText(text);
+        setState("done");
+        toast({ title: t("agent.voice.done"), description: text.slice(0, 80) });
+        setTimeout(() => setState("idle"), 1600);
+      } else {
+        setState("idle");
+        toast({ title: t("agent.voice.failTitle"), description: t("agent.voice.tooShort"), variant: "destructive" });
+      }
+    } catch (err) {
+      if (cancelledRef.current) return;
+      setState("idle");
+      toast({
+        title: t("agent.voice.failTitle"),
+        description: err instanceof Error ? err.message : t("common.tryAgain"),
+        variant: "destructive",
+      });
+    }
+  }, [token, onText, t, toast]);
+
+  const start = useCallback(async () => {
+    if (state !== "idle" || !token) return;
+    cancelledRef.current = false;
+    const mime = pickAudioMime();
+    if (!mime || !navigator.mediaDevices?.getUserMedia) {
+      setMicDenied(true);
+      toast({ title: t("agent.voice.failTitle"), description: t("agent.voice.denied"), variant: "destructive" });
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream, { mimeType: mime });
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        stream.getTracks().forEach((tr) => tr.stop());
+        const blob = new Blob(chunksRef.current, { type: mime });
+        void upload(blob);
+      };
+      recorderRef.current = rec;
+      setSeconds(0);
+      setMicDenied(false);
+      setState("recording");
+      rec.start(250);
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    } catch {
+      setMicDenied(true);
+      toast({ title: t("agent.voice.failTitle"), description: t("agent.voice.denied"), variant: "destructive" });
+    }
+  }, [state, token, upload, t, toast]);
+
+  const stop = useCallback(() => {
+    stopTimer();
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") rec.stop();
+    recorderRef.current = null;
+  }, [stopTimer]);
+
+  const cancel = useCallback(() => {
+    cancelledRef.current = true;
+    stopTimer();
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      rec.onstop = null;
+      rec.stop();
+    }
+    recorderRef.current = null;
+    setState("idle");
+  }, [stopTimer]);
+
+  return { state, seconds, micDenied, start, stop, cancel };
+}
 
 /* suggestion chips are Arabic demo phrases (example chat input) — kept as-is in both languages */
 const SUGGESTIONS = [
@@ -59,6 +182,10 @@ export function AgentView() {
   const [steps, setSteps] = useState<Step[]>([]);
   const [streamText, setStreamText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  /* voice — appends transcribed text into the input (user reviews then sends) */
+  const voice = useVoiceRecorder(token, (text) => {
+    setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+  });
 
   const providerName = (p: string) =>
     p === "local" ? t("agent.providerLocal") : PROVIDER_LABEL[p] ?? p;
@@ -362,36 +489,115 @@ export function AgentView() {
         )}
       </div>
 
-      {/* input */}
+      {/* input + voice */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           send();
         }}
-        className="mt-4 flex items-center gap-2.5 rounded-2xl border border-border/70 bg-card p-2 pe-2.5 shadow-lift"
+        className={`mt-4 rounded-2xl border bg-card p-2 pe-2.5 shadow-lift transition-colors ${
+          voice.state === "recording"
+            ? "border-destructive/50 ring-1 ring-destructive/25"
+            : "border-border/70"
+        }`}
       >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t("agent.placeholder")}
-          className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60"
-          disabled={sending}
-          maxLength={500}
-          aria-label={t("agent.inputAria")}
-        />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!input.trim() || sending}
-          className="rounded-xl h-10 w-10 shrink-0"
-          aria-label={t("agent.send")}
-        >
-          {sending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <SendHorizonal className="h-4 w-4 rtl:-scale-x-100" />
-          )}
-        </Button>
+        {voice.state === "recording" ? (
+          <div className="flex items-center gap-3 px-2 py-1.5">
+            {/* recording bar — pulse dot + timer + live bars + stop */}
+            <span className="relative flex h-3 w-3 shrink-0" aria-hidden="true">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/60" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-destructive" />
+            </span>
+            <span className="text-xs font-bold text-destructive shrink-0">
+              {t("agent.voice.recording")}
+            </span>
+            {/* live waveform bars */}
+            <span className="flex items-end gap-1 h-6 shrink-0 mx-1" aria-hidden="true">
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <span
+                  key={i}
+                  className="voice-bar w-1 rounded-full bg-destructive/75"
+                  style={{ animationDelay: `${i * 0.11}s` }}
+                />
+              ))}
+            </span>
+            <span className="num text-xs font-bold text-muted-foreground shrink-0" dir="ltr">
+              0:{String(voice.seconds).padStart(2, "0")}
+            </span>
+            <div className="flex-1" />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={voice.cancel}
+              className="rounded-xl h-9 px-3 text-xs font-bold text-muted-foreground hover:text-foreground shrink-0"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={voice.stop}
+              className="rounded-xl h-9 px-4 text-xs font-bold shrink-0"
+              aria-label={t("agent.voice.stop")}
+            >
+              <Square className="h-3.5 w-3.5 fill-current" />
+              {t("agent.voice.stop")}
+            </Button>
+          </div>
+        ) : voice.state === "uploading" ? (
+          <div className="flex items-center gap-2.5 px-3 py-2.5">
+            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+            <span className="text-sm text-muted-foreground">{t("agent.voice.uploading")}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t("agent.placeholder")}
+              className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60"
+              disabled={sending}
+              maxLength={500}
+              aria-label={t("agent.inputAria")}
+            />
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={voice.start}
+              disabled={sending || voice.state !== "idle"}
+              aria-label={voice.micDenied ? t("agent.voice.denied") : t("agent.voice.record")}
+              title={voice.micDenied ? t("agent.voice.denied") : t("agent.voice.record")}
+              className={`rounded-xl h-10 w-10 shrink-0 transition-colors ${
+                voice.state === "done"
+                  ? "text-primary"
+                  : voice.micDenied
+                    ? "text-muted-foreground/40"
+                    : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+              }`}
+            >
+              {voice.state === "done" ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!input.trim() || sending}
+              className="rounded-xl h-10 w-10 shrink-0"
+              aria-label={t("agent.send")}
+            >
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="h-4 w-4 rtl:-scale-x-100" />
+              )}
+            </Button>
+          </div>
+        )}
       </form>
       <p className="mt-2 text-[0.65rem] text-muted-foreground/70 text-center flex items-center justify-center gap-1.5">
         <Sparkles className="h-3 w-3 text-gold-deep" />

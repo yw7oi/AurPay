@@ -550,3 +550,43 @@ Unresolved / next-phase priorities:
 3. True LLM token streaming through the z-ai bridge (providers don't expose raw tokens).
 4. Groq key verification on a local Windows run via start.bat (sandbox uses z-ai bridge).
 5. Optional ideas: agent tool to answer "who owes me"/request-money via QR, receipt PDF export, scheduled-payment edit, budget quick-adjust from digest notification, voice input for the agent (ASR).
+
+---
+Task ID: cron-round-8 (2026-09-26 ~02:55→03:50 Asia/Baghdad)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + new features (agent voice input ASR, receipt PDF export, scheduled-payment edit) + styling polish
+
+Work Log:
+- QA PASS (start of round): both servers healthy; session persisted; all 6 tabs zero console errors; agent SSE chat «شكد رصيدي؟» answered correctly via Z-AI Bridge; no overflow (1440=1440).
+- NEW FEATURE — Agent Voice Input / ASR (🎙️ headline):
+  - New Next.js route src/app/api/internal/asr/route.ts — bridge-secret POST {audio_base64} → zai.audio.asr.create → {text} (20MB cap, same handshake as /api/internal/llm).
+  - FastAPI POST /api/agent/voice (agent.py) — multipart UploadFile → base64 → forwards to the Node ASR bridge; Arabic error messages for empty/too-large/bridge-fail/empty-transcript; auth via JWT.
+  - urpay.ts agentVoice(token, blob) — FormData upload via the proxy with correct file extension per mime (webm/m4a/ogg/wav).
+  - agent-view.tsx useVoiceRecorder hook — MediaRecorder (mime fallback chain webm;opus → webm → mp4 → ogg), 250ms timeslices, recording timer, cancel discards (onstop=null), stop uploads; transcript APPENDS into the editable input (user reviews before sending — fault-tolerant by design); toasts for done/too-short/denied/fail.
+  - Recording bar UI: destructive-tinted form border + ping dot + «يسجّل…» + 8-bar animated waveform (.voice-bar keyframes in globals.css — enlarged after VLM found the first version too subtle: h-6 container, w-1 bars, 28–100% wave) + 0:SS timer + cancel/stop buttons; uploading state shows spinner + «يحوّل صوتك لنص…»; idle mic button (ghost, gold hover) + check flash on success.
+  - E2E VERIFIED: pipeline through the full chain (browser proxy → FastAPI → Node bridge → z-ai ASR) with a real WAV — English transcription PERFECT ("What is my balance and how much did I spend this month?" → identical text). Arabic verification limited in sandbox: available TTS voices are Chinese/English and cannot pronounce Arabic (returned garbage for Arabic input — documented as sandbox limitation); on a real device the recorded audio is genuine. UI paths verified in headless: mic button renders (VLM 9/10), recording bar with waveform + timer renders mid-recording (screenshot), stop returns to idle, mic-denied path shows the graceful «الميكروفون غير متاح» toast. Zero console errors.
+- NEW FEATURE — Receipt PDF Export (🧾):
+  - New src/lib/receipt-print.ts printReceipt(receipt, lang) — renders a branded A4 print page (gold edge bar, UrPay mark, success check, title/amount/receipt table with dashed separators, footer seal «إيصال موثّق إلكترونيًا») into a reused hidden iframe and calls iframe print(); browser "Save as PDF" gives native Arabic shaping with ZERO new dependencies.
+  - Buttons: TxnDetailDialog full-width «حفظ كـ PDF» (txnAsReceipt adapter) + ReceiptCard (after every payment/transfer/topup).
+  - VERIFIED: PDF button click creates the iframe with correct content (title «إيصال أور پاي · UR-R80U0SVH», dir=rtl, 4 table rows, amounts with د.ع); rendered the print HTML as a page and VLM-scored the design 9.5/10 ("polished, professional, culturally accurate"); EN mode shows "Save as PDF".
+- NEW FEATURE — Scheduled Payment Edit (✏️):
+  - FastAPI POST /api/scheduled/{id}/edit {amount?, execute_at?, pin} — PIN-verified; validates pending+owner; clamps near-future dates; 422 when nothing changed. API-verified: wrong PIN → 403; valid edit changed amount 100k→120k + date; no-change → 422.
+  - scheduled-card.tsx EditScheduleDialog — summary chip of the current mandate, new-amount input (prefilled), when presets (إبقاء الموعد الحالي/غدًا/بعد 3 أيام/أول الشهر الجاي/تاريخ مخصص) + PinDialog flow; pencil button on every pending row (before cancel).
+  - E2E VERIFIED IN BROWSER: pencil → dialog opens prefilled → native-fill 125,000 → PIN 1234 → toast «تم تعديل الجدولة» → row shows 125,000 → API confirms; demo state reverted to 100k/28-Sept afterwards.
+- STYLING POLISH: recording waveform animation (bigger after VLM feedback), destructive recording border + ring, mic success check flash, PDF buttons with FileDown icon, edit pencil with gold hover.
+- i18n: 9 voice keys + 12 edit keys + pdfBtn (ar+en) — no dupes (verified by parser).
+- README updated (voice/PDF/edit bullets + 2 new endpoint lines).
+- Final: bun run lint CLEAN; tsc --noEmit clean for src/; zero console errors across the whole round (incl. EN mode + mobile 390px exact on agent/overview); agent chat smoke-tested after all changes.
+
+Stage Summary:
+- Current status: STABLE — all prior flows green plus 3 new features (voice input with proven ASR pipeline, branded PDF receipts, scheduled-payment editing).
+- New: api/internal/asr/route.ts, lib/receipt-print.ts; changed: routers/agent.py (+voice), routers/scheduled.py (+edit), urpay.ts (+agentVoice/scheduledEdit), agent-view.tsx (+recorder+mic UI), parts.tsx (+PDF buttons + txnAsReceipt), scheduled-card.tsx (+edit dialog+pencil), globals.css (+voice-bar), dict/misc+dashboard (+22 keys), README.
+- Demo state intact: balance 1,587,980 IQD; 3 pending schedules (100k/28-Sept + 2 bills 1-Oct); demo credentials 4539…1234 / PIN 1234.
+- QA screenshots: download/qa9-*.png (agent-voice, agent-voice-denied, voice-recording, edit-dialog, txn-pdf, receipt-pdf-preview, en-txn-pdf, mobile-agent).
+
+Unresolved / next-phase priorities:
+1. Arabic ASR quality on real devices — pipeline verified with English; recommend a live mic test during the demo (transcript lands in the editable input, so mis-transcription is correctable).
+2. Local-engine (offline) replies remain Arabic-only.
+3. True LLM token streaming through the z-ai bridge (providers don't expose raw tokens).
+4. Groq key verification on a local Windows run via start.bat.
+5. Optional ideas: agent TTS replies (voice mode), request-money via QR, budget quick-adjust from digest notification, receipt email/WhatsApp share.

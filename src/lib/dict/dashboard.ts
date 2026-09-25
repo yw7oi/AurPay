@@ -248,6 +248,17 @@ export const ar: Record<string, string> = {
   "scheduled.autopayHint": "أور ينفّذها عنك تلقائيًا — جرّب أيضًا: «جدّل فاتورة الكهرباء أول الشهر»",
   "scheduled.billIconTitle": "فاتورة مجدولة",
   "scheduled.transferIconTitle": "حوالة مجدولة",
+  "scheduled.editBtn": "عدّل الجدولة",
+  "scheduled.editDialogTitle": "تعديل الجدولة",
+  "scheduled.editDialogDesc": "غيّر المبلغ أو موعد التنفيذ — يتطلب رمز الـ PIN.",
+  "scheduled.editAmountLabel": "المبلغ الجديد",
+  "scheduled.editWhenLabel": "موعد التنفيذ الجديد",
+  "scheduled.editKeepWhen": "إبقاء الموعد الحالي",
+  "scheduled.editPinTitle": "تأكيد التعديل",
+  "scheduled.editPinDesc": "أدخل رمزك لتعديل الجدولة",
+  "scheduled.editPinConfirm": "اعتمد التعديل",
+  "scheduled.editToastTitle": "تم تعديل الجدولة ✅",
+  "scheduled.editFailTitle": "ما تم التعديل",
 };
 
 export const en: Record<string, string> = {
@@ -493,4 +504,15 @@ export const en: Record<string, string> = {
   "scheduled.autopayHint": "Ur executes it for you — try: «جدّل فاتورة الكهرباء أول الشهر»",
   "scheduled.billIconTitle": "Scheduled bill",
   "scheduled.transferIconTitle": "Scheduled transfer",
+  "scheduled.editBtn": "Edit schedule",
+  "scheduled.editDialogTitle": "Edit schedule",
+  "scheduled.editDialogDesc": "Change the amount or the run time — requires your PIN.",
+  "scheduled.editAmountLabel": "New amount",
+  "scheduled.editWhenLabel": "New run time",
+  "scheduled.editKeepWhen": "Keep current time",
+  "scheduled.editPinTitle": "Confirm edit",
+  "scheduled.editPinDesc": "Enter your PIN to apply the change",
+  "scheduled.editPinConfirm": "Apply change",
+  "scheduled.editToastTitle": "Schedule updated ✅",
+  "scheduled.editFailTitle": "Edit failed",
 };
