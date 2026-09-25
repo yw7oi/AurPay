@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowUpRight, LayoutGrid, Loader2, MessageSquareHeart, Plus, Send, Sparkles,
   Wallet, Zap,
@@ -50,6 +51,17 @@ export function OverviewView({
   const unpaidTotal = unpaid.reduce((s, b) => s + b.amount, 0);
   const overdue = unpaid.filter((b) => b.overdue).length;
 
+  /* time-aware Iraqi greeting */
+  const h = new Date().getHours();
+  const greeting =
+    h >= 4 && h < 12
+      ? { text: "صباح الخير", emoji: "☀️" }
+      : h >= 12 && h < 17
+        ? { text: "نهارك سعيد", emoji: "🌤️" }
+        : h >= 17 && h < 20
+          ? { text: "مساء الخير", emoji: "🌇" }
+          : { text: "مساء الخير", emoji: "🌙" };
+
   return (
     <div className="space-y-6" dir="rtl">
       {/* balance hero */}
@@ -63,7 +75,7 @@ export function OverviewView({
         <div className="relative flex flex-wrap items-start justify-between gap-6">
           <div>
             <p className="text-white/55 text-sm font-medium">
-              صباح الخير يا {user.first_name} ☀️ — رصيدك المتاح
+              {greeting.text} يا {user.first_name} {greeting.emoji} — رصيدك المتاح
             </p>
             <p className="font-display mt-2 text-4xl sm:text-5xl num tracking-tight" dir="rtl">
               {fmtIQD(user.balance)}
@@ -135,9 +147,19 @@ export function OverviewView({
       )}
 
       {/* spend analytics */}
-      <AnalyticsCard refreshKey={refreshKey} />
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05 }}
+      >
+        <AnalyticsCard refreshKey={refreshKey} />
+      </motion.div>
 
-      <div className="grid lg:grid-cols-[1.15fr_.85fr] gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.12 }}
+        className="grid lg:grid-cols-[1.15fr_.85fr] gap-6">
         {/* upcoming bills */}
         <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
@@ -237,7 +259,7 @@ export function OverviewView({
             </div>
           </section>
         </div>
-      </div>
+      </motion.div>
 
       {/* PIN + receipt for quick payment */}
       <PinDialog

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Bell, CreditCard, History, Home, LayoutGrid, LogOut, MessageSquareHeart,
+  CreditCard, History, Home, LayoutGrid, LogOut, MessageSquareHeart,
   RefreshCw, Send, UserRound,
 } from "lucide-react";
 import { UrPayLogo } from "./logo";
@@ -19,6 +19,7 @@ import { TransactionsView } from "./transactions-view";
 import { ProfileView } from "./profile-view";
 import { UserAvatar } from "./parts";
 import { ThemeToggle } from "./theme-toggle";
+import { NotificationsBell } from "./notifications-bell";
 
 export type DashTab = "overview" | "bills" | "transfer" | "agent" | "transactions" | "profile";
 
@@ -91,14 +92,7 @@ export function Dashboard({
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
-            <button
-              onClick={() => setTab("agent")}
-              className="relative rounded-full hover:bg-secondary transition-colors p-2.5"
-              aria-label="المساعد أور"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 end-1.5 h-2 w-2 rounded-full bg-gold animate-pulse-dot" />
-            </button>
+            <NotificationsBell refreshKey={refreshKey} />
             <button
               onClick={() => setTab("profile")}
               className="flex items-center gap-2.5 rounded-full border border-border/70 bg-card py-1 pe-3 ps-1 hover:border-primary/40 transition-colors"

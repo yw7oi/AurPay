@@ -110,6 +110,24 @@ export type TransferReq = {
   created_at: string;
 };
 
+export type Notification = {
+  id: number;
+  kind:
+    | "payment" | "topup" | "transfer_in" | "transfer_out"
+    | "transfer_request" | "transfer_declined" | "bill_due" | "welcome";
+  title: string;
+  body: string;
+  amount: number | null;
+  reference: string;
+  is_read: boolean;
+  created_at: string;
+};
+
+export type NotificationsFeed = {
+  items: Notification[];
+  unread: number;
+};
+
 export type AgentStreamHandlers = {
   onStep?: (step: { tool: string; label: string }) => void;
   onToken?: (chunk: string) => void;
@@ -236,6 +254,37 @@ export const urpay = {
       token,
     }),
 
+  /* notifications */
+  notifications: (token: string) =>
+    api<NotificationsFeed>("notifications", { token }),
+  notificationsReadAll: (token: string) =>
+    api<{ message: string; updated: number }>("notifications/read-all", {
+      method: "POST",
+      token,
+    }),
+  notificationRead: (token: string, id: number) =>
+    api<{ message: string }>(`notifications/${id}/read`, {
+      method: "POST",
+      token,
+    }),
+
+  /* CSV export — fetches a blob through the proxy and triggers a download */
+  exportTransactionsCsv: async (token: string): Promise<void> => {
+    const res = await fetch("/api/transactions/export", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new ApiError(`خطأ (${res.status})`, res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "urpay-transactions.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+
   /* agent — SSE streaming (POST + ReadableStream; falls back to agentChat) */
   agentChatStream: async (
     token: string,
@@ -360,6 +409,19 @@ export function fmtDateTime(iso: string): string {
 
 export function daysUntil(iso: string): number {
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+}
+
+export function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "الآن";
+  if (mins < 60) return `قبل ${mins} دقيقة`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `قبل ${hours} ساعة`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "أمس";
+  if (days < 7) return `قبل ${days} أيام`;
+  return fmtDate(iso);
 }
 
 export function dueLabel(iso: string): string {

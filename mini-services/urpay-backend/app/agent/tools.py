@@ -7,6 +7,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Bill, Transaction, User, utcnow
+from ..notify import notify
 
 REF_ALPHABET = string.ascii_uppercase + string.digits
 
@@ -104,6 +105,10 @@ async def pay_bill(session: AsyncSession, user: User, bill_id: int, pin: str,
         category=bill.category, bill_id=bill.id, created_at=now,
     )
     session.add(txn)
+    notify(session, user.id, kind="payment",
+           title=f"تم دفع فاتورة {bill.biller_name}",
+           body=f"المرجع {ref} · رصيدك بعد الدفع {user.balance:,} د.ع".replace(",", "،"),
+           amount=bill.amount, reference=ref)
     await session.commit()
 
     return {
@@ -181,6 +186,14 @@ async def transfer_money(session: AsyncSession, user: User,
         category="transfer", counterparty_id=user.id, created_at=now,
     )
     session.add_all([out_txn, in_txn])
+    notify(session, receiver.id, kind="transfer_in",
+           title=f"وصلتك حوالة من {user.full_name}",
+           body=f"المبلغ انضاف لرصيدك · المرجع {ref}",
+           amount=amount, reference=ref)
+    notify(session, user.id, kind="transfer_out",
+           title=f"تم تحويل {amount:,} د.ع إلى {receiver.full_name}".replace(",", "،"),
+           body=f"المرجع {ref} · رصيدك بعد التحويل {user.balance:,} د.ع".replace(",", "،"),
+           amount=amount, reference=ref)
     await session.commit()
 
     return {
@@ -217,6 +230,10 @@ async def topup_wallet(session: AsyncSession, user: User,
         title="تعبئة محفظة — وكيل أور پاي", subtitle="كاش إن · إيداع نقدي",
         category="wallet", created_at=now,
     ))
+    notify(session, user.id, kind="topup",
+           title="تمت تعبئة المحفظة",
+           body=f"انضاف {amount:,} د.ع لرصيدك · المرجع {ref}".replace(",", "،"),
+           amount=amount, reference=ref)
     await session.commit()
     return {
         "ok": True, "receipt": {

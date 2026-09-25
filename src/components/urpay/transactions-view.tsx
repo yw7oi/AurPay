@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, History, Loader2 } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, Download, History, Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/store";
+import { useToast } from "@/hooks/use-toast";
 import { fmtIQD, urpay, type Txn } from "@/lib/urpay";
 import { EmptyState, TxnRow } from "./parts";
 
@@ -18,8 +19,11 @@ const FILTERS = [
 
 export function TransactionsView() {
   const { token, user } = useSession();
+  const { toast } = useToast();
   const [txns, setTxns] = useState<Txn[] | null>(null);
   const [filter, setFilter] = useState<string>("all");
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -38,15 +42,49 @@ export function TransactionsView() {
     return { out, inn };
   }, [txns]);
 
+  async function exportCsv() {
+    if (!token || exporting) return;
+    setExporting(true);
+    try {
+      await urpay.exportTransactionsCsv(token);
+      setExported(true);
+      toast({
+        title: "تم تصدير السجل ✅",
+        description: "انتحَل ملف CSV بكل معاملاتك — يفتح مباشرة بإكسل.",
+      });
+      setTimeout(() => setExported(false), 2500);
+    } catch {
+      toast({ title: "تعذّر التصدير", description: "جرّب مرة ثانية بعد شوية." });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (!user) return null;
 
   return (
     <div className="space-y-5" dir="rtl">
-      <div>
-        <h1 className="font-display text-2xl">سجل المعاملات</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          كل حركة بمحفظتك — مع الرقم المرجعي والرصيد بعد كل عملية.
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl">سجل المعاملات</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            كل حركة بمحفظتك — مع الرقم المرجعي والرصيد بعد كل عملية.
+          </p>
+        </div>
+        <Button
+          onClick={exportCsv}
+          disabled={exporting || !txns || txns.length === 0}
+          size="sm"
+          variant="outline"
+          className="rounded-xl border-primary/30 text-primary hover:bg-primary/[.06] hover:border-primary/50 font-bold gap-2"
+        >
+          {exported ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Download className={`h-4 w-4 ${exporting ? "animate-bounce" : ""}`} />
+          )}
+          {exported ? "انتحَل الملف" : exporting ? "يجمع…" : "تصدير CSV"}
+        </Button>
       </div>
 
       {totals && (

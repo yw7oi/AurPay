@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Eraser, Loader2, SendHorizonal, Sparkles, Wrench, Zap } from "lucide-react";
+import { Check, CheckCircle2, Copy, Eraser, Loader2, SendHorizonal, Sparkles, Wrench, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/lib/store";
 import { urpay, type AgentAction, type AgentMessage } from "@/lib/urpay";
+import { copyToClipboard } from "@/lib/clipboard";
 import { UrPayMark } from "./logo";
 import { ReceiptCard } from "./parts";
 
@@ -34,6 +35,7 @@ export function AgentView() {
   const [sending, setSending] = useState(false);
   const [provider, setProvider] = useState<string>("");
   const [loaded, setLoaded] = useState(false);
+  const [copied, setCopied] = useState(false);
   /* live streaming state */
   const [steps, setSteps] = useState<Step[]>([]);
   const [streamText, setStreamText] = useState("");
@@ -117,6 +119,22 @@ export function AgentView() {
     setMessages([]);
   }
 
+  async function copyConversation() {
+    if (messages.length === 0) return;
+    const text = messages
+      .map((m) =>
+        m.role === "user"
+          ? `🙋 ${m.content}`
+          : `🤖 أور: ${m.content}${m.actions?.length ? `\n${m.actions.map((a) => `↳ ${a.tool}: ${a.ok ? "✅" : "❌"}`).join("\n")}` : ""}`,
+      )
+      .join("\n\n") + `\n\n— محادثة أور پاي · ${new Date().toLocaleDateString("ar-IQ-u-nu-latn")}`;
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }
+  }
+
   const streaming = sending && (steps.length > 0 || streamText.length > 0);
 
   return (
@@ -143,15 +161,27 @@ export function AgentView() {
           </div>
         </div>
         {messages.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearChat}
-            className="rounded-xl text-muted-foreground hover:text-destructive font-semibold shrink-0"
-          >
-            <Eraser className="h-4 w-4" />
-            محادثة جديدة
-          </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copyConversation}
+              className={`rounded-xl font-semibold h-8 px-2.5 ${copied ? "text-emerald-600 dark:text-emerald-300" : "text-muted-foreground hover:text-primary"}`}
+              aria-label="نسخ المحادثة"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              <span className="hidden sm:inline text-xs">{copied ? "انتسخت" : "نسخ"}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearChat}
+              className="rounded-xl text-muted-foreground hover:text-destructive font-semibold"
+            >
+              <Eraser className="h-4 w-4" />
+              محادثة جديدة
+            </Button>
+          </div>
         )}
       </div>
 

@@ -102,3 +102,19 @@ class AgentMessage(Base):
     content: Mapped[str] = mapped_column(Text)
     provider: Mapped[str] = mapped_column(String(16), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # payment | topup | transfer_in | transfer_out | transfer_request |
+    # transfer_declined | bill_due | welcome
+    kind: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str] = mapped_column(String(160))
+    body: Mapped[str] = mapped_column(String(280), default="")
+    amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reference: Mapped[str] = mapped_column(String(32), default="", index=True)
+    is_read: Mapped[bool] = mapped_column(default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)

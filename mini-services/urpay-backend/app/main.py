@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db, session_factory
-from .routers import agent, analytics, auth, public, wallet
+from .routers import agent, analytics, auth, notifications, public, wallet
 from .seed import seed_if_empty
 
 logging.basicConfig(level=logging.INFO,
@@ -40,6 +40,7 @@ app.add_middleware(
 app.include_router(public.router)
 app.include_router(auth.router)
 app.include_router(wallet.router)
+app.include_router(notifications.router)
 app.include_router(analytics.router)
 app.include_router(agent.router)
 

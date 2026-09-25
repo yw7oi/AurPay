@@ -12,6 +12,7 @@ import {
   InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { CategoryIcon, DirectionIcon } from "./icons";
+import { copyToClipboard } from "@/lib/clipboard";
 import { fmtDateTime, fmtIQD, type Bill, type Receipt, type Txn } from "@/lib/urpay";
 import { dueLabel } from "@/lib/urpay";
 
@@ -153,12 +154,10 @@ export function ReceiptCard({
   const [copied, setCopied] = useState(false);
 
   async function copyRef() {
-    try {
-      await navigator.clipboard.writeText(receipt.reference);
+    const ok = await copyToClipboard(receipt.reference);
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* clipboard unavailable */
     }
   }
 
@@ -383,13 +382,21 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-secondary/30 p-10 text-center" dir="rtl">
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border text-muted-foreground">
+    <div
+      className="relative flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-secondary/25 p-10 text-center overflow-hidden"
+      dir="rtl"
+    >
+      {/* soft decorative glow */}
+      <span
+        className="absolute -top-10 start-1/2 -translate-x-1/2 h-28 w-48 rounded-full bg-primary/[.07] blur-2xl"
+        aria-hidden="true"
+      />
+      <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border/80 text-muted-foreground shadow-sm">
         <Icon className="h-6 w-6" />
       </span>
-      <p className="mt-4 font-bold">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground max-w-xs leading-relaxed">{desc}</p>
-      {action && <div className="mt-4">{action}</div>}
+      <p className="relative mt-4 font-bold">{title}</p>
+      <p className="relative mt-1 text-sm text-muted-foreground max-w-xs leading-relaxed">{desc}</p>
+      {action && <div className="relative mt-4">{action}</div>}
     </div>
   );
 }

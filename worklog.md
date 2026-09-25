@@ -154,3 +154,46 @@ Unresolved / next-phase priorities:
 2. Agent streaming: stream the LLM itself token-by-token (currently tool steps stream live; the final reply is chunked server-side — providers don't support raw token streaming through the z-ai bridge).
 3. Groq key verification on local Windows run (start.bat) — sandbox still uses z-ai bridge as active provider.
 4. Optional: agent chat export/copy, notifications center on the bell icon, CSV export for transactions.
+
+---
+Task ID: cron-round-3 (2026-09-25 ~23:20 Asia/Baghdad)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + new features (notifications center, CSV export, agent chat copy) + styling polish
+
+Work Log:
+- QA pass (agent-browser): both servers healthy; session persisted; all 6 dashboard tabs verified; agent SSE chat answered live («شكد رصيدي وكام فاتورة غير مدفوعة عندي؟» → correct balance + no unpaid bills); zero console errors; no horizontal overflow (1280=1280); VLM on existing views: transactions 9/10, profile 9/10, agent chat 7/10 (the "clipping" was normal chat scroll position, verified — no bug).
+- Investigated suspicious stray "0" span under <body> → false alarm: it is Recharts' hidden off-screen measurement span (aria-hidden, top:-20000px).
+- Backend restart issue: plain nohup/& died between Bash tool calls → fixed with `(setsid bash run.sh </dev/null >>/tmp/urpay-backend.log 2>&1 &)` subshell pattern; survives across commands now.
+- NEW FEATURE — Notifications Center (worklog priority #4):
+  - New model Notification (kind/title/body/amount/reference/is_read/created_at) — table auto-created by create_all on restart, existing data intact.
+  - New router notifications.py: GET /api/notifications (feed 30 + unread count, with LAZY generation: welcome on first-ever fetch + bill_due scan for unpaid bills due ≤3 days, deduped via reference "due-{bill_id}"), POST /api/notifications/read-all, POST /api/notifications/{id}/read.
+  - New shared helper app/notify.py `notify()` (adds to session, caller commits) — hooked into: bills/pay, topup, transfer/request (notifies receiver), transfer/confirm (both sides), transfer/decline (notifies sender), AND the agent tools (pay_bill, transfer_money, topup_wallet) so agent-executed actions notify too.
+  - Verified ALL 8 kinds end-to-end via API + browser: welcome, bill_due (correct تستحق بعد 2 أيام / متأخرة labels), payment, topup, transfer_out (sender), transfer_in + transfer_request (receiver side), transfer_declined (sender). Dedup verified (second fetch creates nothing).
+- NEW FEATURE — Transactions CSV Export (worklog priority #4):
+  - Backend: GET /api/transactions/export → StreamingResponse CSV with UTF-8 BOM (Excel renders Arabic correctly), Arabic headers (الرقم المرجعي/التاريخ/الوقت/النوع/الاتجاه/العنوان/التفاصيل/التصنيف/المبلغ/الرصيد بعد العملية), full history newest-first.
+  - Frontend: urpay.exportTransactionsCsv (fetch blob via proxy → objectURL download); "تصدير CSV" button in transactions header with loading/انتحَل الملف success states + toast. Verified: file lands in ~/Downloads, toast renders, no console errors.
+- NEW FEATURE — Agent Chat Copy (worklog priority #4):
+  - "نسخ" button in agent header → copies formatted transcript (🙋 user / 🤖 أور + tool action lines + footer) to clipboard with انتسخت feedback state.
+  - Found headless browser denies ALL clipboard APIs (writeText + execCommand both fail) → built src/lib/clipboard.ts copyToClipboard with secure-context async API + legacy textarea/execCommand fallback (important for older Android webviews in Iraq); ReceiptCard reference copy migrated to the same helper. Success path verified via clipboard mock (1073-char transcript copied, button shows انتسخت); failure path verified silent (no crash).
+- STYLING POLISH:
+  - Overview: time-aware Iraqi greeting (صباح الخير ☀️ / نهارك سعيد 🌤️ / مساء الخير 🌇/🌙 by hour) + staggered framer-motion entrance (0.05s/0.12s delays) on analytics + main grid.
+  - EmptyState: decorative primary glow behind icon, softer dashed border, shadow-sm icon chip — used by bills/transactions/agent empty states.
+  - Notifications popover design: rounded-3xl, header with gold "N جديد" count + علّم الكل, kind-tinted icon chips (emerald payment/in, rose out/declined, amber topup/due, violet request), unread dot + tinted row bg, timeAgo Arabic relative times, amount pills, skeleton loader, empty state, footer hint.
+- QA: notifications popover VLM 8.5-9/10 ("production-quality component... RTL handled flawlessly"); mobile 390px exact fit (popover 352px centered, footer fully visible — VLM's "cut off" concern disproven by focused check); mark-one-read + mark-all-read verified (badge clears); polling every 45s + refetch on refreshKey/open.
+
+Stage Summary:
+- Current status: STABLE — all flows green plus 3 new features verified end-to-end (notifications center with all 8 kinds, CSV export with Excel-friendly BOM, agent chat copy with webview-safe clipboard fallback).
+- New endpoints: GET /api/notifications, POST /api/notifications/read-all, POST /api/notifications/{id}/read, GET /api/transactions/export.
+- New DB table: notifications (lazy-seeded — no reseed needed, existing 100 users work as-is).
+- New frontend: notifications-bell.tsx (new), clipboard.ts (new); dashboard.tsx (real bell popover replaces old jump-to-agent button), transactions-view.tsx (export button), agent-view.tsx (copy button), overview.tsx (greeting + stagger), parts.tsx (EmptyState glow + clipboard helper), urpay.ts (Notification type + 4 methods + timeAgo).
+- Backend files: models.py (+Notification), notify.py (new), routers/notifications.py (new), routers/wallet.py (notify hooks + CSV export), agent/tools.py (notify hooks), main.py (router registered).
+- Lint clean; dev.log + backend log all 200/201; mobile 390px exact; VLM scores 8.5-9/10.
+- QA screenshots: download/qa4-*.png (notifications, bell-after, export, agent-copy, notif-final, mobile-overview, mobile-bell, final-overview, bills-final).
+- Note for future rounds: start backend with `(setsid bash run.sh </dev/null >>/tmp/urpay-backend.log 2>&1 &)` from mini-services/urpay-backend — plain nohup& gets killed between tool sessions.
+
+Unresolved / next-phase priorities:
+1. Arabic/English UI language toggle (last remaining original suggestion).
+2. Notifications: could add click-through routing (bill_due → bills tab, transfer → transfer tab) and per-kind actions.
+3. Agent streaming: true LLM token streaming through the bridge (providers don't expose it currently).
+4. Groq key verification on a local Windows run via start.bat (sandbox uses z-ai bridge).
+5. Optional: spending limits/budget goals per category, scheduled/recurring bill payments, agent chat export as .txt file (copy exists).

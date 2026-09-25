@@ -1,4 +1,6 @@
 """Wallet endpoints — bills, payments, transfers, transactions, user search."""
+import csv
+import io
 import secrets
 import string
 from datetime import timedelta
@@ -6,11 +8,13 @@ from datetime import timedelta
 from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import Bill, Transaction, TransferRequest, User, utcnow
+from ..notify import notify
 from ..schemas import (
     BillPublic, ConfirmTransferRequest, PayBillRequest, Receipt,
     SimulateBillRequest, TransactionPublic, TransferRequestIn, UserSummary,
@@ -69,6 +73,10 @@ async def pay_bill(body: PayBillRequest,
         title=f"فاتورة {bill.biller_name}", subtitle=bill.period or "",
         category=bill.category, bill_id=bill.id, created_at=now,
     ))
+    notify(session, user.id, kind="payment",
+           title=f"تم دفع فاتورة {bill.biller_name}",
+           body=f"المرجع {ref} · رصيدك بعد الدفع {user.balance:,} د.ع".replace(",", "،"),
+           amount=bill.amount, reference=ref)
     await session.commit()
     return Receipt(
         reference=ref, title=f"فاتورة {bill.biller_name}",
@@ -111,6 +119,46 @@ async def my_transactions(user: User = Depends(get_current_user),
     return rows
 
 
+TYPE_AR = {
+    "bill_payment": "دفع فاتورة",
+    "transfer_out": "تحويل صادر",
+    "transfer_in": "تحويل وارد",
+    "topup": "تعبئة محفظة",
+}
+DIRECTION_AR = {"in": "وارد", "out": "صادر"}
+
+
+@router.get("/transactions/export")
+async def export_transactions(user: User = Depends(get_current_user),
+                              session: AsyncSession = Depends(get_session)):
+    """CSV export of the user's full transaction history (Excel-friendly BOM)."""
+    rows = (await session.execute(
+        select(Transaction).where(Transaction.user_id == user.id)
+        .order_by(Transaction.created_at.desc()))).scalars().all()
+
+    buf = io.StringIO()
+    buf.write("\ufeff")  # UTF-8 BOM so Excel renders Arabic correctly
+    writer = csv.writer(buf)
+    writer.writerow(["الرقم المرجعي", "التاريخ", "الوقت", "النوع", "الاتجاه",
+                     "العنوان", "التفاصيل", "التصنيف", "المبلغ (د.ع)",
+                     "الرصيد بعد العملية (د.ع)"])
+    for t in rows:
+        writer.writerow([
+            t.reference, t.created_at.strftime("%Y-%m-%d"),
+            t.created_at.strftime("%H:%M"), TYPE_AR.get(t.type, t.type),
+            DIRECTION_AR.get(t.direction, t.direction), t.title, t.subtitle,
+            t.category, t.amount, t.balance_after,
+        ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition":
+                'attachment; filename="urpay-transactions.csv"',
+        })
+
+
 # ------------------------------------------------------------- transfers ---
 
 async def expire_stale_requests(session: AsyncSession, user: User) -> int:
@@ -151,6 +199,10 @@ async def make_transfer(body: TransferRequestIn,
     req = TransferRequest(sender_id=user.id, receiver_id=receiver.id,
                           amount=body.amount, status="pending")
     session.add(req)
+    notify(session, receiver.id, kind="transfer_request",
+           title=f"{user.full_name} أرسل لك طلب حوالة",
+           body=f"مبلغ {body.amount:,} د.ع — لقّبول أو رفض الطلب من صفحة التحويل.".replace(",", "،"),
+           amount=body.amount, reference=f"tr-{user.id}")
     await session.commit()
     await session.refresh(req)
     return {
@@ -223,6 +275,14 @@ async def confirm_transfer(request_id: int, body: ConfirmTransferRequest,
         title=f"حوالة من {user.full_name}",
         subtitle=f"بطاقة •••• {user.card_number[-4:]}",
         category="transfer", counterparty_id=user.id, created_at=now))
+    notify(session, receiver.id, kind="transfer_in",
+           title=f"وصلتك حوالة من {user.full_name}",
+           body=f"المبلغ انضاف لرصيدك · المرجع {ref}",
+           amount=req.amount, reference=ref)
+    notify(session, user.id, kind="transfer_out",
+           title=f"تم تحويل {req.amount:,} د.ع إلى {receiver.full_name}".replace(",", "،"),
+           body=f"المرجع {ref} · رصيدك بعد التحويل {user.balance:,} د.ع".replace(",", "،"),
+           amount=req.amount, reference=ref)
     await session.commit()
 
     return {
@@ -257,6 +317,12 @@ async def decline_transfer(request_id: int,
     if req is None or req.receiver_id != user.id or req.status != "pending":
         raise HTTPException(404, "الطلب غير موجود")
     req.status = "declined"
+    sender = await session.get(User, req.sender_id)
+    if sender:
+        notify(session, sender.id, kind="transfer_declined",
+               title=f"{user.full_name} رفض حوالتك",
+               body=f"مبلغ {req.amount:,} د.ع رُدّ لرصيدك المتاح.".replace(",", "،"),
+               amount=req.amount, reference=f"tr-{req.id}")
     await session.commit()
     return {"message": "تم رفض الحوالة"}
 
@@ -286,6 +352,10 @@ async def topup_wallet(body: TopUpRequest,
         title="تعبئة محفظة — وكيل أور پاي", subtitle="كاش إن · إيداع نقدي",
         category="wallet", created_at=now,
     ))
+    notify(session, user.id, kind="topup",
+           title="تمت تعبئة المحفظة",
+           body=f"انضاف {body.amount:,} د.ع لرصيدك · المرجع {ref}".replace(",", "،"),
+           amount=body.amount, reference=ref)
     await session.commit()
     return ReceiptModel(
         reference=ref, title="تعبئة محفظة — وكيل أور پاي",
