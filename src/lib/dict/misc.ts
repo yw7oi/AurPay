@@ -152,7 +152,10 @@ export const ar: Record<string, string> = {
   "txns.typeTransferOut": "تحويل صادر",
   "txns.typeTransferIn": "تحويل وارد",
   "txns.typeTopup": "تعبئة محفظة",
+  "txns.typeGoalDeposit": "توفير لهدف",
+  "txns.typeGoalWithdraw": "سحب من هدف",
   "parts.pdfBtn": "حفظ كـ PDF",
+  "parts.whatsappBtn": "واتساب",
 
   /* theme toggle */
   "theme.dark": "الوضع الليلي",
@@ -320,7 +323,10 @@ export const en: Record<string, string> = {
   "txns.typeTransferOut": "Transfer out",
   "txns.typeTransferIn": "Transfer in",
   "txns.typeTopup": "Wallet top-up",
+  "txns.typeGoalDeposit": "Goal deposit",
+  "txns.typeGoalWithdraw": "Goal withdrawal",
   "parts.pdfBtn": "Save as PDF",
+  "parts.whatsappBtn": "WhatsApp",
 
   /* theme toggle */
   "theme.dark": "Dark mode",

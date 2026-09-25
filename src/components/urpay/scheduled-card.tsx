@@ -7,8 +7,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowUpRight, CalendarClock, CalendarPlus, Loader2, Pencil, ReceiptText,
-  Send, XCircle,
+  ArrowUpRight, CalendarClock, CalendarPlus, Loader2, Pause, Pencil,
+  Play, ReceiptText, Send, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -143,6 +143,29 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
     }
   }
 
+  async function togglePause(item: ScheduledItem) {
+    if (!token) return;
+    setBusyId(item.id);
+    try {
+      if (item.status === "paused") {
+        await urpay.scheduledResume(token, item.id);
+        toast({ title: t("scheduled.resumedToastTitle") });
+      } else {
+        await urpay.scheduledPause(token, item.id);
+        toast({ title: t("scheduled.pausedToastTitle") });
+      }
+      setSignal((s) => s + 1);
+    } catch (err) {
+      toast({
+        title: t("common.opFailed"),
+        description: err instanceof Error ? err.message : t("common.tryAgain"),
+        variant: "destructive",
+      });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   /* hidden on hard (first-load) failure — avoids a misleading empty state */
   if (!token || (failed && feed === null)) return null;
 
@@ -213,10 +236,16 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
             transition={{ duration: 0.4 }}
             className="space-y-2.5 max-h-96 overflow-y-auto scrollbar-slim pe-1"
           >
-            {pending.map((item) => (
+            {pending.map((item) => {
+              const paused = item.status === "paused";
+              return (
               <div
                 key={item.id}
-                className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/60 p-3.5 hover:border-primary/30 transition-colors"
+                className={`flex items-center gap-3 rounded-2xl border p-3.5 transition-colors ${
+                  paused
+                    ? "border-border/50 bg-secondary/40 border-dashed opacity-80"
+                    : "border-border/60 bg-background/60 hover:border-primary/30"
+                }`}
               >
                 <span
                   title={item.kind === "bill"
@@ -226,7 +255,7 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
                     item.kind === "bill"
                       ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-emerald-500/20"
                       : "bg-violet-500/10 text-violet-600 dark:text-violet-300 ring-violet-500/20"
-                  }`}
+                  } ${paused ? "grayscale-[.6]" : ""}`}
                 >
                   {item.kind === "bill"
                     ? <ReceiptText className="h-4 w-4" />
@@ -235,7 +264,15 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-bold text-sm truncate">{item.label}</p>
-                    {item.frequency === "monthly" ? (
+                    {paused ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-md text-[0.62rem] px-1.5 h-5 bg-stone-500/10 text-stone-600 dark:text-stone-300 border-stone-400/30"
+                      >
+                        <Pause className="h-2.5 w-2.5 me-0.5" />
+                        {t("scheduled.pausedBadge")}
+                      </Badge>
+                    ) : item.frequency === "monthly" ? (
                       <Badge
                         variant="outline"
                         className="rounded-md text-[0.62rem] px-1.5 h-5 bg-gold/15 text-gold-deep border-gold/30"
@@ -253,12 +290,16 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
                   </div>
                   <p className="text-[0.7rem] text-muted-foreground mt-0.5 num">
                     {t("scheduled.nextRun", { when: fmtDateTime(item.next_run_at, lang) })}
-                    {" · "}
-                    <span className="font-semibold text-gold-deep">
-                      {t("scheduled.countdown", {
-                        left: countdownLabel(item.next_run_at, lang, now),
-                      })}
-                    </span>
+                    {!paused && (
+                      <>
+                        {" · "}
+                        <span className="font-semibold text-gold-deep">
+                          {t("scheduled.countdown", {
+                            left: countdownLabel(item.next_run_at, lang, now),
+                          })}
+                        </span>
+                      </>
+                    )}
                   </p>
                 </div>
                 <p className="num font-bold text-base shrink-0">
@@ -267,6 +308,25 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
                     {t("common.iqd")}
                   </span>
                 </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={busyId === item.id}
+                  onClick={() => togglePause(item)}
+                  className={`rounded-xl h-9 w-9 shrink-0 ${
+                    paused
+                      ? "text-primary hover:bg-primary/10 hover:text-primary"
+                      : "text-muted-foreground hover:text-gold-deep hover:bg-gold/10"
+                  }`}
+                  aria-label={paused ? t("scheduled.resumeBtn") : t("scheduled.pauseBtn")}
+                  title={paused ? t("scheduled.resumeBtn") : t("scheduled.pauseBtn")}
+                >
+                  {busyId === item.id
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : paused
+                      ? <Play className="h-4 w-4" />
+                      : <Pause className="h-4 w-4" />}
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -286,12 +346,11 @@ export function ScheduledCard({ refreshKey }: { refreshKey: number }) {
                   className="rounded-xl h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   aria-label={t("scheduled.cancelBtn")}
                 >
-                  {busyId === item.id
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <XCircle className="h-4 w-4" />}
+                  <XCircle className="h-4 w-4" />
                 </Button>
               </div>
-            ))}
+              );
+            })}
           </motion.div>
         )}
 

@@ -2,7 +2,7 @@
 
 import {
   ArrowDownLeft, ArrowUpRight, Banknote, CarFront, Droplets, Flame,
-  GraduationCap, HeartPulse, Landmark, Smartphone, Wallet, Wifi, Zap,
+  GraduationCap, HeartPulse, Landmark, PiggyBank, Smartphone, Wallet, Wifi, Zap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   gas: Flame,
   transfer: ArrowUpRight,
   wallet: Wallet,
+  savings: PiggyBank,
   topup: Banknote,
 };
 
@@ -71,6 +72,11 @@ const CATEGORY_HUES: Record<string, { bg: string; fg: string; ring: string }> = 
     bg: "bg-stone-100 dark:bg-stone-400/15",
     fg: "text-stone-700 dark:text-stone-300",
     ring: "ring-stone-200 dark:ring-stone-400/25",
+  },
+  savings: {
+    bg: "bg-teal-100 dark:bg-teal-400/15",
+    fg: "text-teal-700 dark:text-teal-300",
+    ring: "ring-teal-200 dark:ring-teal-400/25",
   },
   topup: {
     bg: "bg-lime-100 dark:bg-lime-400/15",

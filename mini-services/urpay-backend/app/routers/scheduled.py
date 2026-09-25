@@ -49,24 +49,27 @@ async def list_scheduled(user: User = Depends(get_current_user),
     # lazy housekeeping — executes anything due (covers scheduler downtime)
     await run_due_scheduled(session)
 
+    # pending list INCLUDES paused rows so the user can see & resume them;
+    # totals only count actually-runnable (pending) mandates.
     pending = (await session.execute(
         select(ScheduledPayment).where(
             ScheduledPayment.user_id == user.id,
-            ScheduledPayment.status == "pending",
+            ScheduledPayment.status.in_(["pending", "paused"]),
         ).order_by(ScheduledPayment.next_run_at))).scalars().all()
     history = (await session.execute(
         select(ScheduledPayment).where(
             ScheduledPayment.user_id == user.id,
-            ScheduledPayment.status != "pending",
+            ScheduledPayment.status.notin_(["pending", "paused"]),
         ).order_by(ScheduledPayment.last_run_at.desc(),
                    ScheduledPayment.created_at.desc()).limit(8))).scalars().all()
 
-    monthly_total = sum(sp.amount for sp in pending if sp.frequency == "monthly")
+    runnable = [sp for sp in pending if sp.status == "pending"]
+    monthly_total = sum(sp.amount for sp in runnable if sp.frequency == "monthly")
     return {
         "pending": [_sp_dict(sp) for sp in pending],
         "history": [_sp_dict(sp) for sp in history],
         "monthly_total": monthly_total,
-        "pending_total": sum(sp.amount for sp in pending),
+        "pending_total": sum(sp.amount for sp in runnable),
     }
 
 
@@ -138,11 +141,42 @@ async def cancel_scheduled(sp_id: int,
                            user: User = Depends(get_current_user),
                            session: AsyncSession = Depends(get_session)):
     sp = await session.get(ScheduledPayment, sp_id)
-    if sp is None or sp.user_id != user.id or sp.status != "pending":
+    if sp is None or sp.user_id != user.id or sp.status not in ("pending", "paused"):
         raise HTTPException(404, "الجدولة غير موجودة أو منتهية")
     sp.status = "cancelled"
     await session.commit()
     return {"message": "تم إلغاء الجدولة"}
+
+
+@router.post("/scheduled/{sp_id}/pause")
+async def pause_scheduled(sp_id: int,
+                          user: User = Depends(get_current_user),
+                          session: AsyncSession = Depends(get_session)):
+    """Freeze a pending mandate — the scheduler skips it until resumed."""
+    sp = await session.get(ScheduledPayment, sp_id)
+    if sp is None or sp.user_id != user.id or sp.status != "pending":
+        raise HTTPException(404, "الجدولة غير موجودة أو موقوفة سابقًا")
+    sp.status = "paused"
+    await session.commit()
+    return {"message": "تم إيقاف الجدولة مؤقتًا — استأنفها وقتما تحب", "scheduled": _sp_dict(sp)}
+
+
+@router.post("/scheduled/{sp_id}/resume")
+async def resume_scheduled(sp_id: int,
+                           user: User = Depends(get_current_user),
+                           session: AsyncSession = Depends(get_session)):
+    """Un-freeze a paused mandate. If its time passed while paused, re-arm
+    it to +5 minutes so it doesn't fire the instant it's resumed."""
+    sp = await session.get(ScheduledPayment, sp_id)
+    if sp is None or sp.user_id != user.id or sp.status != "paused":
+        raise HTTPException(404, "الجدولة غير موقوفة")
+    now = utcnow()
+    if sp.next_run_at < now + MIN_AHEAD:
+        sp.next_run_at = now + timedelta(minutes=5)
+    sp.status = "pending"
+    await session.commit()
+    await session.refresh(sp)
+    return {"message": "تم استئناف الجدولة", "scheduled": _sp_dict(sp)}
 
 
 class ScheduleEdit(BaseModel):
@@ -157,7 +191,7 @@ async def edit_scheduled(sp_id: int, body: ScheduleEdit,
                          user: User = Depends(get_current_user),
                          session: AsyncSession = Depends(get_session)):
     sp = await session.get(ScheduledPayment, sp_id)
-    if sp is None or sp.user_id != user.id or sp.status != "pending":
+    if sp is None or sp.user_id != user.id or sp.status not in ("pending", "paused"):
         raise HTTPException(404, "الجدولة غير موجودة أو منتهية")
     if not verify_pin(body.pin, user.pin_salt, user.pin_hash):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "رمز الـ PIN غير صحيح")

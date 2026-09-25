@@ -169,6 +169,27 @@ class ScheduledPayment(Base):
         return f"حوالة إلى {self.receiver_name or self.receiver_card[-4:]}"
 
 
+class SavingsGoal(Base):
+    """User savings goal — earmarked money moved out of the spendable balance.
+
+    Deposits move IQD from the wallet balance into the goal (an "out"
+    transaction with category='savings'); withdrawals move it back ("in").
+    Savings transactions are excluded from spending analytics/budgets —
+    the money isn't spent, it's earmarked.
+    """
+    __tablename__ = "savings_goals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(64))
+    emoji: Mapped[str] = mapped_column(String(8), default="🎯")
+    target_amount: Mapped[int] = mapped_column(Integer)
+    saved_amount: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(16), default="active", index=True)  # active | completed
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class Favorite(Base):
     """Quick-transfer favorite contact (target user)."""
     __tablename__ = "favorites"

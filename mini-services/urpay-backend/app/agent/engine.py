@@ -156,6 +156,23 @@ TOOL_SCHEMAS = [
         "description": "Cancel a pending scheduled payment by its id (from list_scheduled). No PIN needed.",
         "parameters": {"type": "object", "required": ["scheduled_id"], "properties": {
             "scheduled_id": {"type": "integer"}}}}},
+    {"type": "function", "function": {
+        "name": "list_goals",
+        "description": "List the user's savings goals (أهداف التوفير) with ids, names, targets, saved amounts and progress percentages.",
+        "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {
+        "name": "create_goal",
+        "description": "Create a new savings goal (هدف توفير). The user sets a target amount and saves towards it over time. No PIN required (no money moves at creation). Use it when the user says e.g. 'سوّي لي هدف حج بمليون' or 'ابدأ هدف توفير للسيارة'.",
+        "parameters": {"type": "object", "required": ["name", "target_amount"], "properties": {
+            "name": {"type": "string"},
+            "target_amount": {"type": "integer", "minimum": 10000}}}}},
+    {"type": "function", "function": {
+        "name": "deposit_goal",
+        "description": "Move IQD from the wallet balance into a savings goal (توفير مبلغ لهدف). Requires the goal id (from list_goals) and the user's PIN. If the PIN was not provided, ask the user for it first.",
+        "parameters": {"type": "object", "required": ["goal_id", "amount", "pin"], "properties": {
+            "goal_id": {"type": "integer"},
+            "amount": {"type": "integer", "minimum": 1000},
+            "pin": {"type": "string"}}}}},
 ]
 
 
@@ -195,6 +212,14 @@ async def _execute_tool(session: AsyncSession, user: User,
         return await T.list_scheduled(session, user)
     if name == "cancel_scheduled":
         return await T.cancel_scheduled(session, user, int(args.get("scheduled_id", 0)))
+    if name == "list_goals":
+        return await T.list_goals(session, user)
+    if name == "create_goal":
+        return await T.create_goal(session, user, str(args.get("name", "")),
+                                   int(args.get("target_amount", 0)))
+    if name == "deposit_goal":
+        return await T.deposit_goal(session, user, int(args.get("goal_id", 0)),
+                                    int(args.get("amount", 0)), str(args.get("pin", "")))
     return {"error": f"unknown tool {name}"}
 
 
@@ -206,6 +231,8 @@ def _tool_summary_for_actions(name: str, result: dict) -> dict | None:
         return {"tool": "transfer_money", "ok": True, "data": result["receipt"]}
     if name == "topup_wallet" and result.get("ok"):
         return {"tool": "topup_wallet", "ok": True, "data": result["receipt"]}
+    if name == "deposit_goal" and result.get("ok"):
+        return {"tool": "deposit_goal", "ok": True, "data": result["receipt"]}
     return None
 
 
@@ -241,11 +268,29 @@ async def _context_block(session: AsyncSession, user: User, unpaid: dict) -> str
     except Exception as e:  # context enhancement must never break the agent
         log.warning("spending context failed: %s", e)
 
+    # savings goals context so the agent can encourage/make deposits
+    goals_txt = ""
+    try:
+        goals = await T.list_goals(session, user)
+        if goals["count"]:
+            lines = []
+            for g in goals["items"][:4]:
+                flag = " (اكتمل 🎉)" if g["status"] == "completed" else ""
+                lines.append(f"\n- هدف رقم {g['id']} {g['emoji']} «{g['name']}»: "
+                             f"وفّر {g['saved']:,} من {g['target']:,} د.ع "
+                             f"({g['pct']}%){flag}")
+            goals_txt = "\nأهداف التوفير:" + "".join(lines)
+        else:
+            goals_txt = "\nما عنده أهداف توفير بعد (تقدر تسويها بأداة create_goal)."
+    except Exception as e:
+        log.warning("goals context failed: %s", e)
+
     return (
         f"بيانات المستخدم الحالي: الاسم {user.full_name}، المحافظة {user.city}، "
         f"بطاقة ••••{user.card_number[-4:]}، الرصيد الحالي {user.balance:,} د.ع."
         f"\nفواتيره غير المدفوعة حاليًا:{bills_txt or ' (لا توجد)'}"
         f"{budget_txt}"
+        f"{goals_txt}"
     )
 
 
@@ -484,6 +529,64 @@ async def local_engine(session: AsyncSession, user: User,
     if re.search(r"رصيد|balance|شكد عندي|شكد", low):
         await _emit("get_balance")
         return f"رصيدك الحالي: **{user.balance:,} د.ع** 💰"
+
+    # --- savings goals (أهداف التوفير) --------------------------------------
+    if re.search(r"اهداف|أهداف|هدف|توفير|goals?|savings", low):
+        goals = await T.list_goals(session, user)
+
+        # create: «سوّي لي هدف حج بمليون» / «ابدأ هدف سيارة ب 3 مليون»
+        if re.search(r"سوي|سوّي|انشئ|أنشئ|ابدأ|ابدا|اضف|أضف|افتح|create|new", low):
+            amt = _parse_amount(msg)
+            if not amt:
+                return "جميل! شنو الهدف وبكم؟ مثال: «سوّي لي هدف حج بمليون ونص»."
+            name = re.sub(r"\d|سوي|سوّي|انشئ|أنشئ|ابدأ|ابدا|اضف|أضف|افتح|هدف|بمبلغ|بم|create|new|لي", " ", msg)
+            name = re.sub(r"[\s]+", " ", name).replace("ل", "", 1).strip(" ،,") or "هدفي"
+            await _emit("create_goal")
+            result = await T.create_goal(session, user, name[:48], amt)
+            if result.get("ok"):
+                return (f"✅ {result['message']}\n"
+                        "تقدر توفّر له من المحفظة: «وفّر 50 الف لهدفي وبعدها PIN».")
+            return f"ما صار إنشاء الهدف — {result.get('error', 'جرّب مرة ثانية')}"
+
+        # deposit: «وفّر 50 الف لهدف الحج وبعدها PIN 1234»
+        if re.search(r"وفر|وفّر|خلي|اضف|أضف|deposit|save", low):
+            pin_m = PIN_RE.search(msg)
+            if not pin_m:
+                return "التوفير يحتاج رمز الـ PIN — أكتب: «وفّر 50 الف لهدف الحج وبعدها PIN 1234»."
+            if goals["count"] == 0:
+                return "ما عندك أهداف بعد — سوّي واحد أولًا: «سوّي لي هدف حج بمليون»."
+            amt = _parse_amount(msg) or 0
+            goal = None
+            for g in goals["items"]:
+                if g["name"] in msg or any(w in msg for w in g["name"].split()):
+                    goal = g
+                    break
+            if goal is None:
+                goal = max(goals["items"], key=lambda g: g["saved"])
+            await _emit("deposit_goal")
+            result = await T.deposit_goal(session, user, goal["id"], amt, pin_m.group(1))
+            if result.get("ok"):
+                actions.append({"tool": "deposit_goal", "ok": True,
+                                "data": result["receipt"]})
+                return f"✅ {result['message']}"
+            err = result.get("error")
+            if err == "pin_invalid":
+                return "رمز الـ PIN غلط — حاول مرة ثانية."
+            return f"ما تم التوفير — {err}"
+
+        # list (default)
+        await _emit("list_goals")
+        if goals["count"] == 0:
+            return ("ما عندك أهداف توفير بعد 🎯 — سوّي واحد: "
+                    "«سوّي لي هدف حج بمليون» أو «هدف سيارة ب 5 مليون».")
+        lines = [f"عندك {goals['count']} أهداف — وفّرت لها مجموع "
+                 f"{goals['total_saved']:,} د.ع:"]
+        for g in goals["items"]:
+            flag = " 🎉 اكتمل!" if g["status"] == "completed" else ""
+            lines.append(f"• {g['emoji']} «{g['name']}»: {g['saved']:,} من "
+                         f"{g['target']:,} د.ع ({g['pct']}%){flag}")
+        return "\n".join(lines)
+
 
     # --- bills -------------------------------------------------------------
     if re.search(r"فواتير|فاتورة|bills|bill", low) and not any(w in low for w in PAY_WORDS):

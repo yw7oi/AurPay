@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..budget import check_budget_crossing
 from ..constants import CATEGORY_AR
-from ..models import Bill, Budget, ScheduledPayment, Transaction, User, utcnow
+from ..models import (Bill, Budget, SavingsGoal, ScheduledPayment, Transaction,
+                     User, utcnow)
 from ..notify import notify
 
 REF_ALPHABET = string.ascii_uppercase + string.digits
@@ -273,6 +274,7 @@ async def get_spending(session: AsyncSession, user: User) -> dict:
         select(Transaction.category, func.sum(Transaction.amount))
         .where(Transaction.user_id == user.id,
                Transaction.direction == "out",
+               Transaction.category != "savings",
                Transaction.created_at >= month_start)
         .group_by(Transaction.category)
     )).all()
@@ -614,3 +616,101 @@ async def cancel_scheduled(session: AsyncSession, user: User,
     sp.status = "cancelled"
     await session.commit()
     return {"ok": True, "message": f"انحذفت جدولة {sp.label}"}
+
+
+# ----------------------------------------------------------------------
+# Savings goals (أهداف التوفير)
+
+MAX_GOALS = 8
+
+
+def _goal_row(g: SavingsGoal) -> dict:
+    pct = round(g.saved_amount / g.target_amount * 100) if g.target_amount else 0
+    return {
+        "id": g.id, "name": g.name, "emoji": g.emoji,
+        "target": g.target_amount, "saved": g.saved_amount,
+        "remaining": max(0, g.target_amount - g.saved_amount),
+        "pct": min(pct, 100), "status": g.status,
+    }
+
+
+async def list_goals(session: AsyncSession, user: User) -> dict:
+    """The user's savings goals with progress (active + completed)."""
+    rows = (await session.execute(
+        select(SavingsGoal).where(SavingsGoal.user_id == user.id)
+        .order_by(SavingsGoal.status.desc(), SavingsGoal.created_at))).scalars().all()
+    return {
+        "count": len(rows),
+        "total_saved": sum(g.saved_amount for g in rows),
+        "items": [_goal_row(g) for g in rows],
+    }
+
+
+async def create_goal(session: AsyncSession, user: User, name: str,
+                      target_amount: int) -> dict:
+    """Create a savings goal (no PIN — no money moves at creation)."""
+    name = (name or "").strip()
+    if len(name) < 2:
+        return {"ok": False, "error": "اكتب اسم هدف واضح (حرفين على الأقل)"}
+    if not (10_000 <= target_amount <= 100_000_000):
+        return {"ok": False, "error": "الهدف يجب أن يكون بين ١٠,٠٠٠ و ١٠٠,٠٠٠,٠٠٠ د.ع"}
+    count = len((await session.execute(
+        select(SavingsGoal.id).where(SavingsGoal.user_id == user.id))).scalars().all())
+    if count >= MAX_GOALS:
+        return {"ok": False, "error": f"عندك الحد الأقصى {MAX_GOALS} أهداف"}
+    g = SavingsGoal(user_id=user.id, name=name, emoji="🎯",
+                    target_amount=target_amount, saved_amount=0,
+                    status="active", created_at=utcnow())
+    session.add(g)
+    await session.commit()
+    await session.refresh(g)
+    return {
+        "ok": True, "goal": _goal_row(g),
+        "message": f"سوّينا هدف «{name}» بمبلغ {fmt_iqd(target_amount)} — ابدأ توفّر له",
+    }
+
+
+async def deposit_goal(session: AsyncSession, user: User, goal_id: int,
+                       amount: int, pin: str) -> dict:
+    """Move IQD from the wallet balance into a goal (PIN-verified)."""
+    from ..security import verify_pin
+    if not verify_pin(pin, user.pin_salt, user.pin_hash):
+        return {"ok": False, "error": "pin_invalid"}
+    g = await session.get(SavingsGoal, int(goal_id))
+    if g is None or g.user_id != user.id:
+        return {"ok": False, "error": "goal_not_found"}
+    if not (1_000 <= amount <= 5_000_000):
+        return {"ok": False, "error": "التوفير يجب أن يكون بين ١,٠٠٠ و ٥,٠٠٠,٠٠٠ د.ع"}
+    if user.balance < amount:
+        return {"ok": False, "error": "رصيدك ما يكفي — عبّي المحفظة أولًا"}
+
+    now = utcnow()
+    ref = new_reference()
+    user.balance -= amount
+    g.saved_amount += amount
+    g.updated_at = now
+    just_reached = g.status == "active" and g.saved_amount >= g.target_amount
+    if just_reached:
+        g.status = "completed"
+    session.add(Transaction(
+        reference=ref, user_id=user.id, type="goal_deposit", direction="out",
+        amount=amount, balance_after=user.balance,
+        title=f"توفير — {g.name}", subtitle="إيداع بالهدف" + (" 🎉 اكتمل!" if just_reached else ""),
+        category="savings", created_at=now,
+    ))
+    if just_reached:
+        notify(session, user.id, kind="goal_reached",
+               title=f"وصلت لهدفك «{g.name}» 🎉",
+               body=(f"وفّرت {fmt_iqd(g.saved_amount)} من {fmt_iqd(g.target_amount)} — "
+                     "مبروك! تقدر تسحب التوفير لمحفظتك وقتما تحب."),
+               amount=g.saved_amount, reference=f"goal-{g.id}")
+    await session.commit()
+    return {
+        "ok": True, "goal": _goal_row(g),
+        "receipt": {"reference": ref, "title": f"توفير — {g.name}",
+                    "amount": amount, "balance_after": user.balance,
+                    "created_at": now.isoformat()},
+        "message": (f"وفّرت {fmt_iqd(amount)} لهدف «{g.name}» — "
+                    + (f"اكتمل الهدف 🎉 ({g.saved_amount:,} د.ع)" if just_reached
+                       else f"وصل {min(round(g.saved_amount / g.target_amount * 100), 100)}%")),
+    }

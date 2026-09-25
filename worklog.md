@@ -637,3 +637,50 @@ Unresolved / next-phase priorities:
 3. Local-engine (offline) replies remain Arabic-only (fine for demo).
 4. QR camera scanning still needs a real device (BarcodeDetector is progressive enhancement; paste path is the always-works fallback).
 5. Optional ideas: agent proactive morning brief, budget quick-adjust from the digest notification, receipt share via WhatsApp, editable scheduled payments already done — maybe scheduled-payment pause/resume.
+
+---
+Task ID: cron-round-10 (2026-09-26 ~05:20→06:40 Asia/Baghdad)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + new features (Savings Goals with agent integration, scheduled pause/resume, WhatsApp receipt share, morning brief) + styling polish
+
+Work Log:
+- QA PASS (start of round): both servers healthy (backend was a detached child of next-server); session persisted (أحمد); all 6 tabs zero console errors; agent SSE chat «شكد رصيدي وشكد صرفي هذا الشهر؟» answered balance + per-category + budget warning via Z-AI Bridge; no overflow (1280/390); bell 8/10 (VLM); EN/dark/mobile all green. No bugs found → proceeded to new features.
+- ⚠️ ENVIRONMENT: another OOM (dmesg: "Killed process 3884 next-server") killed the frontend mid-round. Restarted with `(setsid nohup bun run dev > dev.log 2>&1 &)` from Bash — SURVIVED across tool calls this time (round-9's reaping behavior not active). If it happens again: restart the same way, then verify with curl in a SEPARATE tool call.
+- NEW FEATURE — Savings Goals (أهداف التوفير) 🎯 (headline):
+  - Backend: new SavingsGoal model (savings_goals table auto-created via create_all); new routers/goals.py — GET/POST /api/goals (create needs no PIN), POST /{id}/deposit {amount, pin} (balance→goal, txn type goal_deposit category savings), POST /{id}/withdraw {amount?, pin} (goal→balance, defaults to full), POST /{id}/delete {pin} (auto-returns saved money + txn). Auto-complete at target → status=completed + goal_reached 🎉 notification (withdraw below target reverts to active). Limits: 8 goals max, target 10k–100M, deposit 1k–5M.
+  - Agent integration: 3 new LLM tools (list_goals, create_goal, deposit_goal — PIN-gated) in TOOL_SCHEMAS + _execute_tool + receipt action for deposit_goal; savings context block added to _context_block (LLM proactively knows goals); local-engine (offline) intents added: list/create («سوّي لي هدف حج بمليون»)/deposit («وفّر 50 الف لهدف الحج وبعدها PIN»); suggestion chip «سوّي لي هدف حج بمليون» added to agent view.
+  - Frontend: new goals-card.tsx — section in overview between budgets and scheduled: goal tiles (emoji medallion, name, saved/of/pct/remaining, animated gradient progress bar — emerald active / gold completed, deposit/withdraw/delete actions, zero-savings withdraw disabled), CreateGoalDialog (12-emoji picker, name, target + 500k/1M/3M/5M chips), MoneyGoalDialog (deposit/withdraw amount + chips + PIN flow, withdraw prefilled full + "كل التوفير"/half chips), delete = PinDialog confirm; totals badge «وفّرت X» in header; hero balance card gained a PiggyBank badge «وفّرت بأهدافك 325,000» (emerald-tinted, hidden when 0); Txn type gained goal_deposit/goal_withdraw («توفير لهدف»/«سحب من هدف»); PiggyBank category icon + teal hue; savings #3E8E7E donut color.
+  - Savings excluded from "spending": analytics donut/monthly-out + agent get_spending all filter category != savings (money is earmarked, not spent). VERIFIED: donut has no savings; spend_total 2,293,520 excludes 475k goal money.
+  - E2E VERIFIED: API (create/list/deposit wrong-PIN 403/deposit 300k/auto-complete at 100k → completed + 🎉 notification/partial withdraw → active again/delete with money return — balance math exact at every step); UI (create «سيارة هوندا 🚗 7,500,000» via emoji picker; deposit 150k via amount+PIN (325k→475k, 11%→16%); withdraw 150k (→325k); withdraw disabled on 0-savings goal); AGENT (LLM «شنو أهدافي؟» lists with progress; «وفّر 25000 لهدف الحج وبعدها PIN 1234» → receipt UR-91OHHPSZ + action card; chip «سوّي لي هدف حج بمليون» → created via z-ai bridge, then cleaned up).
+- NEW FEATURE — Scheduled pause/resume (⏸):
+  - Backend: POST /api/scheduled/{id}/pause (pending→paused; scheduler already skips non-pending), POST .../resume (paused→pending; if time passed while paused, re-arms +5min); list includes paused rows but totals (monthly_total/pending_total) count only pending; cancel + edit now accept paused too.
+  - Frontend: Pause/Play icon button per row (gold hover when pausable, primary when paused); paused rows: dashed border, secondary bg, opacity-80, grayscale icon, stone badge «موقوفة مؤقتًا» with Pause glyph, countdown hidden.
+  - E2E VERIFIED: pause → badge + no countdown + totals 135k (not 180k); double-pause 404; resume → pending again; resume-of-non-paused 404; UI pause/resume round-trip in browser.
+- NEW FEATURE — WhatsApp receipt share (🟢):
+  - parts.tsx: receiptShareText (ar/en formatted receipt: title, amount, ref, balance-after, date, brand sign-off) + shareReceipt (navigator.share on mobile → wa.me fallback); green (#1FAF57) MessageCircle buttons beside the PDF button in BOTH ReceiptCard and TxnDetailDialog (2-col grid).
+  - VERIFIED: window.open stub captured `https://wa.me/?text=🟢 إيصال أور پاي\nتوفير — حج بيت الله\nالمبلغ: 25،000 د.ع\n…UR-91OHHPSZ…` — full Arabic text properly encoded.
+- NEW FEATURE — Morning brief notification (☀️ موجز يومك مع أور):
+  - notifications.py _lazy_morning_brief — once per day (ref brief-{YYYY-MM-DD}): balance + bills due today/tomorrow + scheduled executing within 24h + nearest active goal with pct; kind morning_brief → Sunrise icon (amber tint) in bell → overview tab.
+  - VERIFIED: created on fetch, deduped on second fetch, renders in bell feed.
+- STYLING POLISH (mandatory pass):
+  - Hero savings badge (emerald tint on the dark night card, PiggyBank glyph, num figures).
+  - Goal bars: framer-motion width animation on mount; emerald gradient (active) vs gold gradient (completed).
+  - Paused scheduled rows: dashed borders + grayscale + stone badge system.
+  - WhatsApp green buttons; emoji picker with ring+scale on selection and active:scale-95 press feedback.
+- Lint clean; tsc clean for src/; zero console errors across the entire round (AR+EN, light+dark, 1280+390); backend log all 200s, no tracebacks; dict dup-check clean (38 goals.* + 7 scheduled.* + 1 overview.* + 3 parts/txns keys added ar+en).
+- README updated (4 new feature bullets + 7 new endpoint lines + 3 new agent tools).
+
+Stage Summary:
+- Current status: STABLE — savings goals fully live (backend + agent + UI), scheduled pause/resume, WhatsApp share, morning brief all verified end-to-end with zero console errors.
+- New files: src/components/urpay/goals-card.tsx, mini-services/urpay-backend/app/routers/goals.py.
+- Changed backend: models.py (+SavingsGoal), main.py (+goals router), scheduled.py (+pause/resume + paused-aware list/edit/cancel), notifications.py (+morning brief), analytics.py + agent/tools.py (exclude savings from spend), agent/engine.py (3 tools + goals context + local intents), constants.py (+savings).
+- Changed frontend: overview.tsx (+GoalsCard +hero badge), scheduled-card.tsx (+pause/resume UI), parts.tsx (+WhatsApp share +2 txn types), urpay.ts (+5 goal APIs +2 scheduled APIs +types+savings category), icons.tsx/analytics.tsx (+savings), notifications-bell.tsx (+2 kinds), agent-view.tsx (+chip), dict/dashboard.ts + dict/misc.ts (+49 keys), README.
+- Demo state for judges: balance 1,236,480 IQD; goals: 🕌 حج بيت الله 325,000/3,000,000 (11%) + 🚗 سيارة هوندا 0/7,500,000; hero shows «وفّرت بأهدافك 325,000»; bell has 🎉 goal_reached + ☀️ morning brief + 📊 weekly digest; 3 pending schedules (pause/resume ready); goal deposit/withdraw txns in history with «توفير لهدف» badges.
+- QA screenshots: download/qa11-*.png (01 landing … 24 dark-goals: agent reply, bell, dark/EN/mobile, goals section, two-goals, PIN, paused row, txn-whatsapp, goal txn detail, agent create-goal, hero badge, final sweeps).
+
+Unresolved / next-phase priorities:
+1. OOM risk: sandbox has ~4GB and next-server was OOM-killed once this round — if the app dies, restart frontend with `(setsid nohup bun run dev > dev.log 2>&1 &)` and backend via POST /api/internal/spawn-backend (bridge secret) — both survived across tool calls this round.
+2. Goal withdraw via agent chat (LLM) not implemented (only deposit) — minor, the UI covers withdraw.
+3. Arabic TTS voices still unavailable in sandbox (Chinese/English only) — voice replies remain skipped.
+4. QR camera scanning needs a real device (paste fallback verified in earlier rounds).
+5. Optional ideas: goal "auto-save weekly" mandate (ties scheduler+goals), budget quick-adjust from digest notification, receipt share image (rendered PNG instead of text), spend forecast in analytics.

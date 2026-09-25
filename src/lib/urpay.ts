@@ -42,7 +42,8 @@ export type Bill = {
 export type Txn = {
   id: number;
   reference: string;
-  type: "bill_payment" | "transfer_out" | "transfer_in" | "topup";
+  type: "bill_payment" | "transfer_out" | "transfer_in" | "topup"
+    | "goal_deposit" | "goal_withdraw";
   direction: "in" | "out";
   amount: number;
   balance_after: number;
@@ -177,7 +178,7 @@ export type ScheduledItem = {
   frequency: "once" | "monthly";
   next_run_at: string;
   last_run_at: string | null;
-  status: "pending" | "executed" | "cancelled" | "failed";
+  status: "pending" | "paused" | "executed" | "cancelled" | "failed";
   created_at: string;
 };
 
@@ -196,6 +197,23 @@ export type FavoriteItem = {
   city: string;
   card_number: string;
   avatar_hue: number;
+};
+
+export type GoalItem = {
+  id: number;
+  name: string;
+  emoji: string;
+  target_amount: number;
+  saved_amount: number;
+  remaining: number;
+  pct: number;
+  status: "active" | "completed";
+  created_at: string;
+};
+
+export type GoalsFeed = {
+  items: GoalItem[];
+  totals: { count: number; target: number; saved: number };
 };
 
 /* ------------------------------------------------------------------ */
@@ -454,6 +472,16 @@ export const urpay = {
     }),
   scheduledCancel: (token: string, id: number) =>
     api<{ message: string }>(`scheduled/${id}/cancel`, { method: "POST", token }),
+  scheduledPause: (token: string, id: number) =>
+    api<{ message: string; scheduled: ScheduledItem }>(`scheduled/${id}/pause`, {
+      method: "POST",
+      token,
+    }),
+  scheduledResume: (token: string, id: number) =>
+    api<{ message: string; scheduled: ScheduledItem }>(`scheduled/${id}/resume`, {
+      method: "POST",
+      token,
+    }),
   scheduledEdit: (token: string, id: number, body: {
     amount?: number;
     execute_at?: string;
@@ -462,6 +490,29 @@ export const urpay = {
     api<{ message: string; scheduled: ScheduledItem }>(`scheduled/${id}/edit`, {
       method: "POST",
       body,
+      token,
+    }),
+
+  /* savings goals */
+  goals: (token: string) => api<GoalsFeed>("goals", { token }),
+  goalCreate: (token: string, body: { name: string; target_amount: number; emoji?: string }) =>
+    api<{ message: string; goal: GoalItem }>("goals", { method: "POST", body, token }),
+  goalDeposit: (token: string, id: number, amount: number, pin: string) =>
+    api<{ message: string; goal: GoalItem; receipt: Receipt }>(`goals/${id}/deposit`, {
+      method: "POST",
+      body: { amount, pin },
+      token,
+    }),
+  goalWithdraw: (token: string, id: number, amount: number | null, pin: string) =>
+    api<{ message: string; goal: GoalItem; receipt: Receipt }>(`goals/${id}/withdraw`, {
+      method: "POST",
+      body: { amount, pin },
+      token,
+    }),
+  goalDelete: (token: string, id: number, pin: string) =>
+    api<{ message: string }>(`goals/${id}/delete`, {
+      method: "POST",
+      body: { pin },
       token,
     }),
 
@@ -601,6 +652,8 @@ export const CATEGORY_AR: Record<string, string> = {
   gas: "غاز",
   transfer: "تحويل",
   wallet: "محفظة",
+  savings: "توفير",
+  topup: "تعبئة",
 };
 
 export const CATEGORY_EN: Record<string, string> = {
@@ -614,6 +667,8 @@ export const CATEGORY_EN: Record<string, string> = {
   gas: "Gas",
   transfer: "Transfer",
   wallet: "Wallet",
+  savings: "Savings",
+  topup: "Top-up",
 };
 
 /** Localized category label. */

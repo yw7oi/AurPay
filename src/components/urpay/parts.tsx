@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { BadgeCheck, ChevronLeft, Copy, FileDown, Loader2, ShieldCheck, X } from "lucide-react";
+import { BadgeCheck, ChevronLeft, Copy, FileDown, Loader2, MessageCircle, ShieldCheck, X } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -222,15 +222,25 @@ export function ReceiptCard({
       <p className="mt-2 text-[0.68rem] text-muted-foreground/80">
         {fmtDateTime(receipt.created_at, lang)}
       </p>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => printReceipt(receipt, lang)}
-        className="mt-2.5 w-full rounded-xl text-xs font-bold"
-      >
-        <FileDown className="h-3.5 w-3.5" />
-        {t("parts.pdfBtn")}
-      </Button>
+      <div className="mt-2.5 grid grid-cols-2 gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => printReceipt(receipt, lang)}
+          className="rounded-xl text-xs font-bold"
+        >
+          <FileDown className="h-3.5 w-3.5" />
+          {t("parts.pdfBtn")}
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => shareReceipt(receipt, lang)}
+          className="rounded-xl text-xs font-bold bg-[#1FAF57] text-white hover:bg-[#189a4a]"
+        >
+          <MessageCircle className="h-3.5 w-3.5" />
+          {t("parts.whatsappBtn")}
+        </Button>
+      </div>
     </motion.div>
   );
 }
@@ -408,11 +418,59 @@ export function TxnRow({ txn, onOpen }: { txn: Txn; onOpen?: (txn: Txn) => void 
 
 /* --------------------------- txn detail dialog ------------------------ */
 
+/* Build a shareable Arabic/English receipt text for WhatsApp & friends. */
+function receiptShareText(r: Receipt, lang: "ar" | "en"): string {
+  const cur = (n: number) => fmtIQD(n, true, lang);
+  if (lang === "en") {
+    return [
+      "🟢 UrPay receipt",
+      r.title,
+      `Amount: ${cur(r.amount)}`,
+      r.subtitle ? `Note: ${r.subtitle}` : "",
+      `Reference: ${r.reference}`,
+      `Balance after: ${cur(r.balance_after)}`,
+      `Date: ${fmtDateTime(r.created_at, lang)}`,
+      "— sent via أور پاي UrPay",
+    ].filter(Boolean).join("\n");
+  }
+  return [
+    "🟢 إيصال أور پاي",
+    r.title,
+    `المبلغ: ${cur(r.amount)}`,
+    r.subtitle ? `التفاصيل: ${r.subtitle}` : "",
+    `الرقم المرجعي: ${r.reference}`,
+    `الرصيد بعدها: ${cur(r.balance_after)}`,
+    `التاريخ: ${fmtDateTime(r.created_at, lang)}`,
+    "— انطلاقًا من محفظة أور پاي",
+  ].filter(Boolean).join("\n");
+}
+
+/* Native share sheet when available (mobile), WhatsApp Web/wa.me otherwise. */
+async function shareReceipt(r: Receipt, lang: "ar" | "en"): Promise<void> {
+  const text = receiptShareText(r, lang);
+  try {
+    if (navigator.share) {
+      await navigator.share({ text });
+      return;
+    }
+  } catch {
+    /* user dismissed the sheet — nothing to do */
+    return;
+  }
+  window.open(
+    `https://wa.me/?text=${encodeURIComponent(text)}`,
+    "_blank",
+    "noopener,noreferrer",
+  );
+}
+
 const TXN_TYPE_KEY: Record<Txn["type"], string> = {
   bill_payment: "txns.typeBillPayment",
   transfer_out: "txns.typeTransferOut",
   transfer_in: "txns.typeTransferIn",
   topup: "txns.typeTopup",
+  goal_deposit: "txns.typeGoalDeposit",
+  goal_withdraw: "txns.typeGoalWithdraw",
 };
 
 /* a Txn renders as a printable receipt (same field set) */
@@ -518,14 +576,23 @@ export function TxnDetailDialog({
               </DetailRow>
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() => printReceipt(txnAsReceipt(txn), lang)}
-              className="mt-4 w-full rounded-xl font-bold"
-            >
-              <FileDown className="h-4 w-4" />
-              {t("parts.pdfBtn")}
-            </Button>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => printReceipt(txnAsReceipt(txn), lang)}
+                className="rounded-xl font-bold"
+              >
+                <FileDown className="h-4 w-4" />
+                {t("parts.pdfBtn")}
+              </Button>
+              <Button
+                onClick={() => shareReceipt(txnAsReceipt(txn), lang)}
+                className="rounded-xl font-bold bg-[#1FAF57] text-white hover:bg-[#189a4a]"
+              >
+                <MessageCircle className="h-4 w-4" />
+                {t("parts.whatsappBtn")}
+              </Button>
+            </div>
           </>
         )}
       </DialogContent>

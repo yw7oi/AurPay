@@ -138,6 +138,7 @@ CATEGORY_AR = {
     "transfer": "تحويلات",
     "wallet": "محفظة",
     "topup": "تعبئة",
+    "savings": "توفير",
     "other": "أخرى",
 }
 

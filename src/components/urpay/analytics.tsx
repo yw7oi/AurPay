@@ -23,6 +23,7 @@ const CAT_COLORS: Record<string, string> = {
   gas: "#A8557A",
   transfer: "#5B7C99",
   wallet: "#9C8F7A",
+  savings: "#3E8E7E",
   topup: "#7FA65A",
   other: "#B0A695",
 };

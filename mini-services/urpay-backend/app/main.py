@@ -7,8 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db, session_factory
-from .routers import (agent, analytics, auth, budgets, favorites, notifications,
-                      public, scheduled, wallet)
+from .routers import (agent, analytics, auth, budgets, favorites, goals,
+                      notifications, public, scheduled, wallet)
 from .scheduler import scheduler_loop
 from .seed import seed_if_empty
 
@@ -166,6 +166,7 @@ app.include_router(analytics.router)
 app.include_router(budgets.router)
 app.include_router(scheduled.router)
 app.include_router(favorites.router)
+app.include_router(goals.router)
 app.include_router(agent.router)
 
 

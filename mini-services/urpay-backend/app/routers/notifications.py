@@ -13,7 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..constants import CATEGORY_AR
 from ..db import get_session
-from ..models import Bill, Budget, Notification, ScheduledPayment, Transaction, User, utcnow
+from ..models import (Bill, Budget, Notification, SavingsGoal, ScheduledPayment,
+                     Transaction, User, utcnow)
 from ..security import get_current_user
 
 router = APIRouter(prefix="/api", tags=["notifications"])
@@ -189,12 +190,75 @@ async def _lazy_weekly_digest(session: AsyncSession, user: User) -> None:
     ))
 
 
+async def _lazy_morning_brief(session: AsyncSession, user: User) -> None:
+    """One daily morning brief — generated on the first feed fetch of the day.
+
+    Balance + bills due today/tomorrow + scheduled payments executing within
+    24h + the closest active savings goal. Deduplicated via reference
+    "brief-{YYYY-MM-DD}" (server-local date). Always has the balance line,
+    so it's created once every day. Caller commits.
+    """
+    now = utcnow()
+    ref = f"brief-{now.date().isoformat()}"
+    seen = (await session.execute(
+        select(Notification.id).where(
+            Notification.user_id == user.id,
+            Notification.reference == ref,
+        ).limit(1))).scalar_one_or_none()
+    if seen is not None:
+        return
+
+    parts = [f"رصيدك الآن {_fmt(user.balance)} د.ع"]
+
+    # bills due within 24h (today/tomorrow)
+    horizon = now + timedelta(days=1)
+    due = (await session.execute(
+        select(Bill).where(
+            Bill.user_id == user.id,
+            Bill.status == "unpaid",
+            Bill.due_date <= horizon,
+        ).order_by(Bill.due_date))).scalars().all()
+    for b in due[:2]:
+        days = (b.due_date.date() - now.date()).days
+        when = "تستحق اليوم" if days <= 0 else "تستحق غدًا"
+        parts.append(f"⚠️ فاتورة {b.biller_name} {when} ({_fmt(b.amount)} د.ع)")
+
+    # scheduled payments executing within 24h
+    sched = (await session.execute(
+        select(ScheduledPayment).where(
+            ScheduledPayment.user_id == user.id,
+            ScheduledPayment.status == "pending",
+            ScheduledPayment.next_run_at <= horizon,
+        ).order_by(ScheduledPayment.next_run_at))).scalars().all()
+    for s in sched[:2]:
+        parts.append(f"📅 بينفّذ اليوم {_fmt(s.amount)} د.ع — {s.label}")
+
+    # nearest active savings goal (encouragement nudge)
+    goal = (await session.execute(
+        select(SavingsGoal).where(
+            SavingsGoal.user_id == user.id,
+            SavingsGoal.status == "active",
+        ).order_by(SavingsGoal.saved_amount.desc()).limit(1))).scalars().first()
+    if goal is not None and goal.target_amount:
+        pct = round(goal.saved_amount / goal.target_amount * 100)
+        parts.append(f"🎯 هدف «{goal.name}» وصّل {pct}%")
+
+    body = (" · ".join(parts))[:280]
+    session.add(Notification(
+        user_id=user.id, kind="morning_brief",
+        title=f"موجز يومك مع أور ☀️ — {_fmt(user.balance)} د.ع",
+        body=body,
+        amount=None, reference=ref, is_read=False, created_at=now,
+    ))
+
+
 @router.get("/notifications")
 async def my_notifications(user: User = Depends(get_current_user),
                            session: AsyncSession = Depends(get_session)):
     await _lazy_welcome(session, user)
     await _lazy_due_notifications(session, user)
     await _lazy_weekly_digest(session, user)
+    await _lazy_morning_brief(session, user)
     await session.commit()
 
     rows = (await session.execute(

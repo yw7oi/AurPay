@@ -24,10 +24,12 @@ async def my_analytics(user: User = Depends(get_current_user),
     window_start = now - timedelta(days=90)
 
     # spending by category (last 90 days, outgoing only)
+    # savings (goal deposits) aren't spending — excluded from the donut/totals
     cat_rows = (await session.execute(
         select(Transaction.category, func.sum(Transaction.amount), func.count(Transaction.id))
         .where(Transaction.user_id == user.id,
                Transaction.direction == "out",
+               Transaction.category != "savings",
                Transaction.created_at >= window_start)
         .group_by(Transaction.category)
         .order_by(func.sum(Transaction.amount).desc())
@@ -56,6 +58,7 @@ async def my_analytics(user: User = Depends(get_current_user),
             select(func.coalesce(func.sum(Transaction.amount), 0)).where(
                 Transaction.user_id == user.id,
                 Transaction.direction == "out",
+                Transaction.category != "savings",
                 Transaction.created_at >= start,
                 Transaction.created_at < end,
             )) or 0

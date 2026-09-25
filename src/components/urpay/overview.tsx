@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowUpRight, LayoutGrid, Loader2, MessageSquareHeart, Plus, Send, Sparkles,
-  Wallet, Zap,
+  ArrowUpRight, LayoutGrid, Loader2, MessageSquareHeart, PiggyBank, Plus, Send,
+  Sparkles, Wallet, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import type { DashTab } from "./dashboard";
 import { UrPayMark } from "./logo";
 import { AnalyticsCard } from "./analytics";
 import { BudgetCard } from "./budget-card";
+import { GoalsCard } from "./goals-card";
 import { ScheduledCard } from "./scheduled-card";
 
 /* Animated count-up balance — rAF + easeOutCubic, re-runs when value changes */
@@ -75,11 +76,16 @@ export function OverviewView({
   const [txnDetail, setTxnDetail] = useState<Txn | null>(null);
   const [topupOpen, setTopupOpen] = useState(false);
   const [topupAmount, setTopupAmount] = useState("");
+  /* total earmarked in savings goals — powers the hero "وفّرت" badge */
+  const [savedTotal, setSavedTotal] = useState(0);
 
   useEffect(() => {
     if (!token) return;
     urpay.bills(token, "unpaid").then(setBills).catch(() => setBills([]));
     urpay.transactions(token, 6).then(setTxns).catch(() => setTxns([]));
+    urpay.goals(token)
+      .then((g) => setSavedTotal(g.totals.saved))
+      .catch(() => null);
   }, [token, refreshKey]);
 
   if (!user) return null;
@@ -131,6 +137,13 @@ export function OverviewView({
               <Badge className="rounded-full bg-white/10 text-white/80 border-white/15 hover:bg-white/10 text-[0.68rem] num" dir="ltr">
                 •••• {user.card_number.slice(-4)}
               </Badge>
+              {savedTotal > 0 && (
+                <Badge className="rounded-full bg-[#3ED9A3]/15 text-[#7CE8C2] border-[#3ED9A3]/30 hover:bg-[#3ED9A3]/15 text-[0.68rem] gap-1">
+                  <PiggyBank className="h-3 w-3" />
+                  {t("overview.savedBadge")}{" "}
+                  <span className="num font-bold">{fmtIQD(savedTotal, false, lang)}</span>
+                </Badge>
+              )}
               {user.is_demo && (
                 <Badge className="rounded-full bg-[#E8C867]/15 text-[#E8C867] border-[#E8C867]/30 hover:bg-[#E8C867]/15 text-[0.68rem]">
                   {t("overview.demoBadge")}
@@ -205,6 +218,15 @@ export function OverviewView({
         transition={{ duration: 0.4, delay: 0.09 }}
       >
         <BudgetCard refreshKey={refreshKey} />
+      </motion.div>
+
+      {/* savings goals */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
+        <GoalsCard refreshKey={refreshKey} />
       </motion.div>
 
       {/* scheduled payments */}

@@ -96,6 +96,12 @@ GET  /api/scheduled         pending + history (runs due mandates on read)
 POST /api/scheduled         {kind: bill|transfer, biller_code|receiver_card, amount, execute_at, frequency, pin}
 POST /api/scheduled/{id}/cancel
 POST /api/scheduled/{id}/edit  {amount?, execute_at?, pin} — تعديل جدولة قائمة
+POST /api/scheduled/{id}/pause · /resume — إيقاف مؤقت واستئناف
+GET  /api/goals             أهداف التوفير + التقدم
+POST /api/goals             {name, target_amount, emoji} — إنشاء هدف (بدون PIN)
+POST /api/goals/{id}/deposit   {amount, pin} — توفير من الرصيد للهدف
+POST /api/goals/{id}/withdraw  {amount?, pin} — سحب التوفير للمحفظة
+POST /api/goals/{id}/delete    {pin} — حذف مع إرجاع التوفير
 GET  /api/favorites · POST /api/favorites {card_number} · DELETE /api/favorites/{user_id}
 GET  /api/notifications     + /read-all, /{id}/read — يشمل ملخص الصرف الأسبوعي التلقائي
 POST /api/agent/voice        multipart audio → نص (ASR عبر جسر z-ai)
@@ -107,9 +113,24 @@ GET  /api/stats · /api/billers · /api/cities
 **أدوات الوكيل الذكي (أور):** get_balance · list_bills · pay_bill (hint-guarded) ·
 search_users · transfer_money · recent_transactions · topup_wallet · get_profile · set_budget ·
 get_spending (تحليل الصرف الشهري + حالة الميزانيات) · schedule_payment · list_scheduled ·
-cancel_scheduled (دفع مجدول بفهم عربي للتوقيت: «غدًا»، «بعد يومين»، «أول الشهر الجاي»، «كل شهر»)
+cancel_scheduled (دفع مجدول بفهم عربي للتوقيت: «غدًا»، «بعد يومين»، «أول الشهر الجاي»، «كل شهر») ·
+list_goals · create_goal · deposit_goal («سوّي لي هدف حج بمليون» / «وفّر 50 الف وبعدها PIN»)
 
 **إضافات حديثة:**
+- 🎯 **أهداف التوفير (Savings Goals)** — وفّر لحجّة أو سيارة أو مشروع: أنشئ هدفًا (اسم + رمز +
+  مبلغ مستهدف بدون PIN)، و«وفّر» له من رصيدك بإقرار PIN — يتخزن خارج الرصيد المتاح ويظهر
+  شارة «وفّرت بأهدافك» في بطاقة الرصيد. عند بلوغ الهدف يتحول لوضع ذهبي «اكتمل 🎉» مع إشعار
+  تهنئة. سحب كلي/جزئي وقتما تشاء، والحذف يعيد التوفير للمحفظة تلقائيًا. معاملات التوفير لا
+  تُحسب صرفًا في التحليلات/الميزانيات (خارجها تمامًا) وتظهر بنوعها الخاص «توفير لهدف».
+  الوكيل أور يفهمها: «شنو أهدافي؟»، «سوّي لي هدف حج بمليون»، «وفّر 25 الف وبعدها PIN».
+- ⏸ **إيقاف/استئناف الجدولات** — زر إيقاف مؤقت جانب كل جدولة: تتجمد دون إلغاء (حدود
+  متقطعة + شارة «موقوفة مؤقتًا» + إخفاء العدّاد) وتُستبعد من الإجماليات، وزر الاستئناف
+  يعيدها (وإن فات موعدها أثناء الإيقاف يعاد تسليحها بعد 5 دقائق).
+- 🟢 **مشاركة الإيصال عبر واتساب** — زر واتساب أخضر بجانب زر PDF في الإيصال وتفاصيل أي
+  معاملة: ورقة إيصال عربية/إنجليزية منسقة (المبلغ، المرجع، الرصيد بعدها) تفتح wa.me
+  للمشاركة الفورية — أو ورقة المشاركة الأصلية على الجوال (navigator.share).
+- ☀️ **موجز يومك مع أور (إشعار صباحي)** — مرة يوميًا: رصيدك، فواتير تستحق اليوم/غدًا،
+  جدولات تنفّذ اليوم، وأقرب هدف توفير بنسبته — بأيقونة شروق في مركز الإشعارات.
 - 💰 **QR بمبلغ محدد (طلب حوالة)** — نمط «استلم مبلغًا محددًا» في رمز الاستلام: ثبّت المبلغ
   (٥–٥٠ ألف بلمسة أو رقم حر) فيتغير الرمز إلى صيغة URPAY:2:البطاقة:الاسم:المبلغ مع شارة
   ذهبية — عند مسحه تتعبى بيانات المستلم والمبلغ معًا. تم التحقق أن الرمز قابل للفك آليًا.
