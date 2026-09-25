@@ -37,7 +37,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background overflow-x-clip">
       {/* ============================== NAV ============================== */}
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${

@@ -135,6 +135,7 @@
   }
   html {
     scroll-behavior: smooth;
+    overflow-x: clip; /* RTL-safe: kills phantom horizontal scroll metrics */
   }
   body {
     @apply bg-background text-foreground;

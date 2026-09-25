@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { BadgeCheck, Loader2, ShieldCheck, X } from "lucide-react";
 import {
@@ -38,6 +38,9 @@ export function PinDialog({
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* synchronous in-flight guard — prevents the onComplete + button-click
+     double-submit race (both would otherwise read a stale `loading`) */
+  const inFlight = useRef(false);
 
   /* reset state when the dialog opens — derived during render (lint-safe) */
   const [wasOpen, setWasOpen] = useState(open);
@@ -47,20 +50,30 @@ export function PinDialog({
       setPin("");
       setError(null);
       setLoading(false);
+      inFlight.current = false;
     }
   }
 
   async function submit() {
-    if (pin.length < 4 || loading) return;
+    if (pin.length < 4 || loading || inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     setError(null);
-    const err = await onConfirm(pin);
-    setLoading(false);
-    if (err) {
-      setError(err);
+    try {
+      const err = await onConfirm(pin);
+      if (err) {
+        setError(err);
+        setPin("");
+        inFlight.current = false;
+      } else {
+        onOpenChange(false); // parent closes; reset happens on next open
+      }
+    } catch {
+      setError("صار خطأ غير متوقع — حاول مرة ثانية");
       setPin("");
-    } else {
-      onOpenChange(false);
+      inFlight.current = false;
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -219,16 +232,35 @@ export function UserAvatar({
 
 /* ------------------------------ bill row ----------------------------- */
 
+/* urgency: how close the due date is — drives the progress bar color/width */
+function urgency(bill: Bill): { pct: number; tone: string; bar: string } {
+  if (bill.status === "paid") return { pct: 0, tone: "", bar: "" };
+  if (bill.overdue) return { pct: 100, tone: "text-destructive", bar: "bg-destructive" };
+  const days = Math.ceil((+new Date(bill.due_date) - Date.now()) / 86_400_000);
+  if (days <= 3) return { pct: 85, tone: "text-destructive", bar: "bg-destructive/80" };
+  if (days <= 7) return { pct: 60, tone: "text-gold-deep", bar: "bg-gold" };
+  return { pct: 30, tone: "text-muted-foreground", bar: "bg-primary/60" };
+}
+
 export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void }) {
+  const u = urgency(bill);
   return (
     <div
-      className={`flex items-center gap-3.5 rounded-2xl border bg-card p-3.5 sm:p-4 transition-all ${
+      className={`relative overflow-hidden flex items-center gap-3.5 rounded-2xl border bg-card p-3.5 sm:p-4 transition-all ${
         bill.status === "unpaid"
           ? "border-border/70 hover:border-primary/40 hover:shadow-lift"
           : "border-border/40 bg-secondary/30"
       }`}
       dir="rtl"
     >
+      {/* urgency bar (right edge in RTL) */}
+      {bill.status === "unpaid" && (
+        <span
+          className={`absolute bottom-0 start-0 h-1 rounded-full transition-all ${u.bar}`}
+          style={{ width: `${u.pct}%` }}
+          aria-hidden="true"
+        />
+      )}
       <CategoryIcon category={bill.category} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -250,7 +282,7 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
           #{bill.id} · {bill.period || "بلا فترة"} · اشتراك {bill.subscriber_no}
         </p>
         {bill.status === "unpaid" && (
-          <p className={`text-[0.7rem] mt-1 font-medium ${bill.overdue ? "text-destructive" : "text-muted-foreground"}`}>
+          <p className={`text-[0.7rem] mt-1 font-semibold ${u.tone}`}>
             الاستحقاق: {dueLabel(bill.due_date)}
           </p>
         )}
@@ -283,7 +315,10 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
 
 export function TxnRow({ txn }: { txn: Txn }) {
   return (
-    <div className="flex items-center gap-3.5 rounded-2xl border border-border/60 bg-card p-3.5" dir="rtl">
+    <div
+      className="flex items-center gap-3.5 rounded-2xl border border-border/60 bg-card p-3.5 transition-all hover:border-primary/35 hover:shadow-lift"
+      dir="rtl"
+    >
       <CategoryIcon category={txn.category === "transfer" ? "transfer" : txn.category} />
       <div className="flex-1 min-w-0">
         <p className="font-bold text-sm truncate">{txn.title}</p>
@@ -293,8 +328,10 @@ export function TxnRow({ txn }: { txn: Txn }) {
       </div>
       <div className="text-end shrink-0">
         <p
-          className={`num font-bold flex items-center gap-1 justify-end ${
-            txn.direction === "in" ? "text-emerald-600" : "text-foreground"
+          className={`num font-bold flex items-center gap-1 justify-end rounded-xl px-2 py-1 ${
+            txn.direction === "in"
+              ? "text-emerald-700 bg-emerald-50"
+              : "text-foreground bg-secondary"
           }`}
           dir="rtl"
         >
@@ -302,7 +339,7 @@ export function TxnRow({ txn }: { txn: Txn }) {
           {txn.direction === "out" ? "−" : "+"}
           {fmtIQD(txn.amount, false)}
         </p>
-        <p className="text-[0.62rem] text-muted-foreground num mt-0.5" dir="rtl">
+        <p className="text-[0.62rem] text-muted-foreground num mt-1" dir="rtl">
           رصيد: {fmtIQD(txn.balance_after)}
         </p>
       </div>

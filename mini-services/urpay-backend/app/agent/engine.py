@@ -75,6 +75,12 @@ TOOL_SCHEMAS = [
         "parameters": {"type": "object", "properties": {
             "limit": {"type": "integer"}}}}},
     {"type": "function", "function": {
+        "name": "topup_wallet",
+        "description": "Credit the user's wallet with IQD (simulated cash-in at an UrPay kiosk). Requires amount and the user's PIN. If the PIN was not provided, ask the user first.",
+        "parameters": {"type": "object", "required": ["amount", "pin"], "properties": {
+            "amount": {"type": "integer"},
+            "pin": {"type": "string"}}}}},
+    {"type": "function", "function": {
         "name": "get_profile",
         "description": "Get the current user's profile (name, city, masked card).",
         "parameters": {"type": "object", "properties": {}}}},
@@ -98,6 +104,9 @@ async def _execute_tool(session: AsyncSession, user: User,
                                       int(args.get("amount", 0)), str(args.get("pin", "")))
     if name == "recent_transactions":
         return await T.recent_transactions(session, user, args.get("limit", 5))
+    if name == "topup_wallet":
+        return await T.topup_wallet(session, user, args.get("amount", 0),
+                                    str(args.get("pin", "")))
     if name == "get_profile":
         return await T.get_profile(session, user)
     return {"error": f"unknown tool {name}"}
@@ -109,6 +118,8 @@ def _tool_summary_for_actions(name: str, result: dict) -> dict | None:
         return {"tool": "pay_bill", "ok": True, "data": result["receipt"]}
     if name == "transfer_money" and result.get("ok"):
         return {"tool": "transfer_money", "ok": True, "data": result["receipt"]}
+    if name == "topup_wallet" and result.get("ok"):
+        return {"tool": "topup_wallet", "ok": True, "data": result["receipt"]}
     return None
 
 
@@ -368,6 +379,25 @@ async def local_engine(session: AsyncSession, user: User,
                     f"({target['period'] or 'بدون فترة'}).\n"
                     "أكتب «نعم» وبعدها سأطلب منك رمز الـ PIN لإتمام الدفع.")
 
+    # --- top-up ------------------------------------------------------------
+    if re.search(r"اشحن|عب[يّ]?|ايداع|إيداع|تعبئة|topup|top.?up|recharge", low):
+        amount = _parse_amount(low)
+        if amount and amount >= 1000:
+            pin_match = PIN_RE.search(low)
+            if pin_match:
+                result = await T.topup_wallet(session, user, amount, pin_match.group(1))
+                if result.get("ok"):
+                    r = result["receipt"]
+                    actions.append({"tool": "topup_wallet", "ok": True, "data": r})
+                    return (f"✅ تمت التعبئة! أضفنا {amount:,} د.ع لمحفظتك.\n"
+                            f"المرجع: {r['reference']}\nرصيدك الآن: {r['balance_after']:,} د.ع")
+                if result.get("error") == "pin":
+                    return "رمز الـ PIN غلط — جرب مرة ثانية."
+                return "المبلغ لازم يكون بين 1,000 و 5,000,000 د.ع."
+            return (f"حاضر أعبيك {amount:,} د.ع — أرسل لي رمز الـ PIN لإتمام التعبئة.")
+        return ("أكتب المبلغ اللي تريد تعبيه، مثل: «اشحن رصيدي 50000» "
+                "(بين 1,000 و 5,000,000 د.ع).")
+
     # --- transfer ----------------------------------------------------------
     if re.search(r"حو[لّ]?|تحويل|حوالة|transfer|send", low):
         card = CARD_RE.search(msg)
@@ -415,5 +445,6 @@ async def local_engine(session: AsyncSession, user: User,
         "• «ادفع رقم 3» — دفع فاتورة (بيطلب PIN)\n"
         "• «حوّل 25000 على 4539123412341234» — تحويل\n"
         "• «سجل معاملاتي» — آخر الحركات\n"
+        "• «اشحن رصيدي 50000» — تعبئة المحفظة\n"
         "شنو تحب نسوي؟"
     )

@@ -193,6 +193,40 @@ async def transfer_money(session: AsyncSession, user: User,
     }
 
 
+async def topup_wallet(session: AsyncSession, user: User,
+                       amount: int, pin: str) -> dict:
+    """Simulated cash-in at an UrPay kiosk — PIN-protected."""
+    from ..security import verify_pin
+
+    if not verify_pin(pin or "", user.pin_salt, user.pin_hash):
+        return {"ok": False, "error": "pin"}
+    try:
+        amount = int(amount)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "bad_amount"}
+    if amount <= 1000 or amount > 5_000_000:
+        return {"ok": False, "error": "bad_amount",
+                "detail": "المبلغ لازم يكون بين 1,000 و 5,000,000 د.ع"}
+
+    now = utcnow()
+    ref = new_reference()
+    user.balance += amount
+    session.add(Transaction(
+        reference=ref, user_id=user.id, type="topup", direction="in",
+        amount=amount, balance_after=user.balance,
+        title="تعبئة محفظة — وكيل أور پاي", subtitle="كاش إن · إيداع نقدي",
+        category="wallet", created_at=now,
+    ))
+    await session.commit()
+    return {
+        "ok": True, "receipt": {
+            "reference": ref, "title": "تعبئة محفظة — وكيل أور پاي",
+            "subtitle": "كاش إن · إيداع نقدي", "amount": amount,
+            "balance_after": user.balance, "created_at": now.isoformat(),
+        }, "balance_formatted": fmt_iqd(user.balance),
+    }
+
+
 async def recent_transactions(session: AsyncSession, user: User,
                               limit: int = 5) -> dict:
     limit = max(1, min(int(limit or 5), 20))

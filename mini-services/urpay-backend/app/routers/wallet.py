@@ -3,6 +3,8 @@ import secrets
 import string
 from datetime import timedelta
 
+from pydantic import BaseModel, Field
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,10 +112,28 @@ async def my_transactions(user: User = Depends(get_current_user),
 
 
 # ------------------------------------------------------------- transfers ---
+
+async def expire_stale_requests(session: AsyncSession, user: User) -> int:
+    """Cancel pending transfer requests older than 24h (TTL)."""
+    cutoff = utcnow() - timedelta(hours=24)
+    stale = (await session.execute(
+        select(TransferRequest).where(
+            TransferRequest.sender_id == user.id,
+            TransferRequest.status == "pending",
+            TransferRequest.created_at < cutoff,
+        ))).scalars().all()
+    for r in stale:
+        r.status = "expired"
+    if stale:
+        await session.commit()
+    return len(stale)
+
+
 @router.post("/transfer/request", status_code=202)
 async def make_transfer(body: TransferRequestIn,
                         user: User = Depends(get_current_user),
                         session: AsyncSession = Depends(get_session)):
+    await expire_stale_requests(session, user)  # TTL housekeeping
     receiver = None
     if body.receiver_card:
         receiver = (await session.execute(
@@ -146,6 +166,7 @@ async def make_transfer(body: TransferRequestIn,
 @router.get("/transfer/requests")
 async def my_transfer_requests(user: User = Depends(get_current_user),
                                session: AsyncSession = Depends(get_session)):
+    await expire_stale_requests(session, user)  # TTL housekeeping
     rows = (await session.execute(
         select(TransferRequest).where(
             or_(TransferRequest.sender_id == user.id,
@@ -225,6 +246,38 @@ async def cancel_transfer(request_id: int,
     req.status = "cancelled"
     await session.commit()
     return {"message": "تم إلغاء طلب التحويل"}
+
+
+# ---------------------------------------------------------------- top-up ---
+class TopUpRequest(BaseModel):
+    amount: int = Field(gt=1000, le=5_000_000)
+    pin: str
+
+
+@router.post("/topup", response_model=Receipt)
+async def topup_wallet(body: TopUpRequest,
+                       user: User = Depends(get_current_user),
+                       session: AsyncSession = Depends(get_session)):
+    """Simulated cash-in at an UrPay agent kiosk — PIN-protected."""
+    from ..schemas import Receipt as ReceiptModel
+
+    if not verify_pin(body.pin, user.pin_salt, user.pin_hash):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "رمز الـ PIN غير صحيح")
+
+    now = utcnow()
+    ref = _ref()
+    user.balance += body.amount
+    session.add(Transaction(
+        reference=ref, user_id=user.id, type="topup", direction="in",
+        amount=body.amount, balance_after=user.balance,
+        title="تعبئة محفظة — وكيل أور پاي", subtitle="كاش إن · إيداع نقدي",
+        category="wallet", created_at=now,
+    ))
+    await session.commit()
+    return ReceiptModel(
+        reference=ref, title="تعبئة محفظة — وكيل أور پاي",
+        subtitle="كاش إن · إيداع نقدي", amount=body.amount,
+        balance_after=user.balance, created_at=now)
 
 
 # ----------------------------------------------------------- user search ---

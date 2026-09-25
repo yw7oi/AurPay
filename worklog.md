@@ -70,3 +70,42 @@ Unresolved / next-phase recommendations:
 - Transfer pending requests have no TTL cleanup (reference repo used 24h expiry).
 - Could add: agent streaming responses, spend analytics chart, dark mode toggle, Arabic-English UI toggle.
 - When user runs locally with GROQ_API_KEY, verify native tool-calling loop once with a real key (sandbox has no Groq key — z-ai bridge is the active provider here).
+
+---
+Task ID: cron-round-1 (2026-09-25 ~22:20 Asia/Baghdad)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + fixes + new features (analytics, wallet top-up, transfer TTL)
+
+Work Log:
+- Verified both servers healthy (frontend :3000 / backend :8000, 200s, clean logs).
+- agent-browser QA: landing → demo login → overview → bills payment → receipt → agent chat. No console errors.
+- BUG FOUND & FIXED: Overview quick-pay receipt was a manual `fixed inset-0` div — not a Radix dialog: ignored Escape, not [role=dialog], blocked the page after payment until clicked. Replaced with the same Radix Dialog pattern as bills-view (sr-only header + ReceiptCard + close button). Verified: Escape closes it, no leftover overlay.
+- BUG FOUND & FIXED: PinDialog double-submit race — onComplete + button click could both read stale `loading=false` closure and fire two POSTs. Added synchronous `inFlight` useRef guard + try/catch/finally; reset on dialog open. Verified single POST /api/bills/pay per payment.
+- BUG FOUND & FIXED: duplicate `Dialog` import in overview.tsx (my earlier patch applied twice) crashed the page with "name Dialog is defined multiple times" — deduped, page restored.
+- NEW FEATURE — Wallet Top-Up (عبّي المحفظة):
+  - Backend: POST /api/topup {amount, pin} → PIN-verified, adds balance + topup transaction + receipt (amount 1k–5M IQD).
+  - Agent: new `topup_wallet` tool (schema + dispatch + receipt action) wired into the LLM loop AND local engine («اشحن رصيدي 50000» intent + help text).
+  - Frontend: TopUpDialog in Overview hero (quick amounts 50k/100k/250k/500k → PIN step → receipt); hero actions reorganized into a 2-col grid (حوّل / عبّي المحفظة).
+  - Verified E2E: wrong PIN rejected (403), correct PIN credits + receipt (UR-TEIDTDNQ), agent chat top-up works via Z-AI Bridge with receipt card (UR-DZDGT1WT).
+- NEW FEATURE — Spend Analytics:
+  - Backend: GET /api/analytics (90-day spend by category, 6-month in/out trend with correct month-start arithmetic — fixed a month-duplication bug in the first version, bills status summary, top-3 transfer counterparties).
+  - Frontend: AnalyticsCard in Overview — recharts donut (brand palette per category + center total + legend) + monthly in/out bars + top counterparties chips. Custom RTL tooltip. Hidden when no data.
+  - Verified: renders in browser; VLM confirms charts professional, no overlap/clipping.
+- NEW FEATURE — Transfer TTL: pending transfer requests older than 24h auto-expire (status=expired) whenever a user creates/lists transfer requests. Verified by inserting a 3-day-old request directly in DB and watching the housekeeping expire it.
+- STYLING POLISH:
+  - BillRow: bottom urgency bar (red overdue ≤3d / gold ≤7d / green otherwise) with proportional width; bolder due-date text tones.
+  - TxnRow: hover lift; amount now a tinted pill (emerald for in, neutral for out).
+  - Hero action buttons: 2-col grid layout.
+- BUG FOUND & FIXED: mobile (390px) phantom horizontal scroll (scrollWidth 461) with no visible overflowing element (RTL measurement quirk) → `overflow-x: clip` on html + dashboard/landing roots. Now 390=390 exact.
+- Final: bun run lint clean; dev.log clean; mobile screenshot verified.
+
+Stage Summary:
+- Current status: STABLE — all flows green (auth, bills+PIN, transfer+PIN, agent chat with tools, top-up+PIN, analytics, TTL housekeeping).
+- New endpoints: POST /api/topup, GET /api/analytics. New agent tool: topup_wallet.
+- Files touched: app/routers/wallet.py, app/routers/analytics.py (new), app/main.py, app/agent/tools.py, app/agent/engine.py; src/components/urpay/{parts,overview,analytics(new)}.tsx, src/lib/urpay.ts, src/app/globals.css, dashboard.tsx, landing.tsx.
+- Unresolved / next-phase priorities:
+  1. Agent response streaming (SSE) for a snappier chat feel.
+  2. Dark mode toggle (palette vars already exist — needs ThemeProvider wiring + toggle button).
+  3. Landing page could surface live platform stats in the agent section (currently only hero).
+  4. Transfer pending-requests UI (list/cancel) — backend exists (GET /transfer/requests, POST cancel) but no frontend surface yet.
+  5. Arabic/English UI language toggle.

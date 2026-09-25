@@ -100,6 +100,17 @@ export type UserSummary = {
   avatar_hue: number;
 };
 
+export type Analytics = {
+  window_days: number;
+  spend_total: number;
+  categories: { category: string; total: number; count: number }[];
+  months: { label: string; out: number; in: number }[];
+  bills: { unpaid_count: number; unpaid_total: number; overdue_count: number };
+  top_counterparties: {
+    name: string; total: number; count: number; avatar_hue: number;
+  }[];
+};
+
 /* ------------------------------------------------------------------ */
 
 export class ApiError extends Error {
@@ -196,6 +207,13 @@ export const urpay = {
       body: { pin },
       token,
     }),
+
+  topup: (token: string, amount: number, pin: string) =>
+    api<Receipt>("topup", { method: "POST", body: { amount, pin }, token }),
+
+  /* analytics */
+  analytics: (token: string) =>
+    api<Analytics>(`analytics`, { token }),
 
   /* agent */
   agentChat: (token: string, message: string) =>

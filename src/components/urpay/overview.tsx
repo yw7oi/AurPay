@@ -6,7 +6,11 @@ import {
   Wallet, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { useSession } from "@/lib/store";
 import {
   Bill, Txn, dueLabel, fmtIQD, urpay, type Receipt,
@@ -16,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CategoryIcon } from "./icons";
 import type { DashTab } from "./dashboard";
 import { UrPayMark } from "./logo";
+import { AnalyticsCard } from "./analytics";
 
 export function OverviewView({
   setTab,
@@ -30,6 +35,8 @@ export function OverviewView({
   const [txns, setTxns] = useState<Txn[] | null>(null);
   const [paying, setPaying] = useState<Bill | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [topupOpen, setTopupOpen] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -85,13 +92,22 @@ export function OverviewView({
               <Zap className="h-4 w-4" />
               ادفع فاتورة
             </Button>
-            <Button
-              onClick={() => setTab("transfer")}
-              className="rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:text-white font-bold h-11 px-5"
-            >
-              <Send className="h-4 w-4" />
-              حوّل مبلغ
-            </Button>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Button
+                onClick={() => setTab("transfer")}
+                className="rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:text-white font-bold h-11 px-4"
+              >
+                <Send className="h-4 w-4" />
+                حوّل
+              </Button>
+              <Button
+                onClick={() => setTopupOpen(true)}
+                className="rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:text-white font-bold h-11 px-4"
+              >
+                <Wallet className="h-4 w-4" />
+                عبّي المحفظة
+              </Button>
+            </div>
             <Button
               onClick={() => setTab("agent")}
               className="rounded-2xl bg-transparent border border-[#E8C867]/40 text-[#E8C867] hover:bg-[#E8C867]/10 hover:text-[#E8C867] font-bold h-11 px-5"
@@ -117,6 +133,9 @@ export function OverviewView({
           </Button>
         </div>
       )}
+
+      {/* spend analytics */}
+      <AnalyticsCard refreshKey={refreshKey} />
 
       <div className="grid lg:grid-cols-[1.15fr_.85fr] gap-6">
         {/* upcoming bills */}
@@ -252,22 +271,47 @@ export function OverviewView({
           }
         }}
       />
-      {receipt && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setReceipt(null)}
-        >
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm">
-            <ReceiptCard receipt={receipt} floating />
-            <button
-              onClick={() => setReceipt(null)}
-              className="mt-3 w-full rounded-2xl border border-border bg-card py-3 font-bold hover:bg-secondary transition-colors"
-            >
-              تم، إغلاق
-            </button>
-          </div>
-        </div>
-      )}
+      {/* wallet top-up */}
+      <TopUpDialog
+        open={topupOpen}
+        onOpenChange={(v) => {
+          setTopupOpen(v);
+          if (!v) setTopupAmount("");
+        }}
+        amountStr={topupAmount}
+        setAmountStr={setTopupAmount}
+        onDone={(r) => {
+          setReceipt(r);
+          const me = urpay.me(token);
+          me.then(setUser).catch(() => null);
+          toast({
+            title: "تمت التعبئة ✅",
+            description: `أضفنا ${fmtIQD(r.amount)} — رصيدك الآن ${fmtIQD(r.balance_after)}`,
+          });
+        }}
+      />
+
+      {/* receipt — same Radix pattern as bills view (Escape + a11y) */}
+      <Dialog open={!!receipt} onOpenChange={(v) => !v && setReceipt(null)}>
+        <DialogContent className="max-w-sm rounded-3xl" dir="rtl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>إيصال الدفع</DialogTitle>
+            <DialogDescription>تفاصيل العملية الناجحة</DialogDescription>
+          </DialogHeader>
+          {receipt && (
+            <>
+              <ReceiptCard receipt={receipt} floating />
+              <Button
+                variant="outline"
+                onClick={() => setReceipt(null)}
+                className="mt-3 w-full rounded-2xl font-bold"
+              >
+                تم، إغلاق
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -289,5 +333,111 @@ export function SkeletonRows({ rows = 3 }: { rows?: number }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function TopUpDialog({
+  open,
+  onOpenChange,
+  amountStr,
+  setAmountStr,
+  onDone,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  amountStr: string;
+  setAmountStr: (v: string) => void;
+  onDone: (r: Receipt) => void;
+}) {
+  const { token } = useSession();
+  const [pinOpen, setPinOpen] = useState(false);
+  const amount = Number(amountStr);
+  const valid = amount >= 1000 && amount <= 5_000_000;
+
+  return (
+    <>
+      <Dialog open={open && !pinOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm rounded-3xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Wallet className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+              </span>
+              عبّي محفظتك
+            </DialogTitle>
+            <DialogDescription>
+              إيداع نقدي محاكى عند وكيل أور پاي — يتطلب تأكيد الـ PIN.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="relative">
+              <Input
+                dir="ltr"
+                inputMode="numeric"
+                placeholder="100000"
+                value={amountStr}
+                onChange={(e) => setAmountStr(e.target.value.replace(/\D/g, "").slice(0, 7))}
+                className="num text-left text-lg font-bold pe-12 h-12"
+              />
+              <span className="absolute inset-y-0 end-4 flex items-center text-xs font-semibold text-muted-foreground">
+                د.ع
+              </span>
+            </div>
+            <div className="flex gap-1.5">
+              {[50000, 100000, 250000, 500000].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setAmountStr(String(v))}
+                  className={`flex-1 rounded-xl border px-2 py-2 text-[0.68rem] font-bold num transition-colors ${
+                    amount === v
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/70 bg-secondary text-muted-foreground hover:border-primary/40"
+                  }`}
+                  dir="rtl"
+                >
+                  {v.toLocaleString("en-US")}
+                </button>
+              ))}
+            </div>
+            <Button
+              disabled={!valid}
+              onClick={() => setPinOpen(true)}
+              className="w-full h-12 rounded-2xl font-bold text-base shadow-lift"
+            >
+              <Wallet className="h-4 w-4" />
+              متابعة التعبئة
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <PinDialog
+        open={pinOpen}
+        onOpenChange={(v) => {
+          setPinOpen(v);
+          if (!v) onOpenChange(false);
+        }}
+        title="تأكيد تعبئة المحفظة"
+        description="إيداع نقدي — وكيل أور پاي (محاكاة)"
+        amount={valid ? amount : undefined}
+        confirmText="نفّذ التعبئة"
+        onConfirm={async (pin) => {
+          if (!token || !valid) return "خطأ غير متوقع";
+          try {
+            const r = await urpay.topup(token, amount, pin);
+            onDone(r);
+            setPinOpen(false);
+            onOpenChange(false);
+            return null;
+          } catch (err) {
+            return err instanceof Error ? err.message : "فشلت العملية";
+          }
+        }}
+      />
+    </>
   );
 }
