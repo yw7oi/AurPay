@@ -378,6 +378,10 @@ SCHED_ALIASES = {
     "شحن": "mobile", "mobile": "mobile", "زين": "mobile", "باقة": "mobile",
     "جامع": "education", "education": "education", "رسوم": "education", "مدرس": "education",
     "مرور": "traffic", "مخالف": "traffic", "traffic": "traffic", "غرام": "traffic",
+    "صح": "health", "مستشف": "health", "علاج": "health", "فحص": "health",
+    "طب": "health", "أسنان": "health", "اسنان": "health", "health": "health",
+    "hospital": "health", "medical": "health", "تطعيم": "health",
+    "غاز": "gas", "اسطوان": "gas", "gas": "gas",
 }
 
 

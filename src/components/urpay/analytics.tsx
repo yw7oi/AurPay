@@ -19,6 +19,8 @@ const CAT_COLORS: Record<string, string> = {
   mobile: "#D96C57",
   education: "#2E8B6A",
   traffic: "#C47F3D",
+  health: "#C94F4F",
+  gas: "#A8557A",
   transfer: "#5B7C99",
   wallet: "#9C8F7A",
   topup: "#7FA65A",

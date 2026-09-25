@@ -165,7 +165,7 @@ async def export_transactions(user: User = Depends(get_current_user),
 # ------------------------------------------------------------- transfers ---
 
 async def expire_stale_requests(session: AsyncSession, user: User) -> int:
-    """Cancel pending transfer requests older than 24h (TTL)."""
+    """Cancel pending transfer requests older than 24h (TTL) + notify both sides."""
     cutoff = utcnow() - timedelta(hours=24)
     stale = (await session.execute(
         select(TransferRequest).where(
@@ -175,6 +175,19 @@ async def expire_stale_requests(session: AsyncSession, user: User) -> int:
         ))).scalars().all()
     for r in stale:
         r.status = "expired"
+        receiver = await session.get(User, r.receiver_id)
+        amount_ar = f"{r.amount:,} د.ع".replace(",", "،")
+        notify(session, user.id, kind="transfer_expired",
+               title="انتهت صلاحية طلب حوالة",
+               body=f"طلب حوالة بمبلغ {amount_ar} إلى {receiver.full_name if receiver else 'مستخدم'} "
+                    f"انتهت صلاحيته بعد ٢٤ ساعة بدون تأكيد.",
+               amount=r.amount, reference=f"tr-{r.id}")
+        if receiver is not None:
+            notify(session, receiver.id, kind="transfer_expired",
+                   title="انتهت صلاحية طلب حوالة",
+                   body=f"طلب حوالة بمبلغ {amount_ar} من {user.full_name} "
+                        f"انتهت صلاحيته بعد ٢٤ ساعة بدون تأكيد.",
+                   amount=r.amount, reference=f"tr-{r.id}")
     if stale:
         await session.commit()
     return len(stale)

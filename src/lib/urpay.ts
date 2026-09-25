@@ -597,6 +597,8 @@ export const CATEGORY_AR: Record<string, string> = {
   mobile: "اتصالات",
   education: "تعليم",
   traffic: "مرور",
+  health: "صحة",
+  gas: "غاز",
   transfer: "تحويل",
   wallet: "محفظة",
 };
@@ -608,6 +610,8 @@ export const CATEGORY_EN: Record<string, string> = {
   mobile: "Mobile",
   education: "Education",
   traffic: "Traffic",
+  health: "Health",
+  gas: "Gas",
   transfer: "Transfer",
   wallet: "Wallet",
 };

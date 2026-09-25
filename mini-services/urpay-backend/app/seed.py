@@ -133,6 +133,10 @@ def make_bills_for(user: dict) -> list[dict]:
             amount = rng.randrange(50_000, 350_000, 25_000)
         elif cat == "water":
             amount = rng.randrange(5_000, 25_000, 1_000)
+        elif cat == "health":
+            amount = rng.randrange(20_000, 250_000, 5_000)
+        elif cat == "gas":
+            amount = rng.randrange(6_000, 30_000, 2_000)
         else:
             amount = rng.randrange(10_000, 120_000, 5_000)
 

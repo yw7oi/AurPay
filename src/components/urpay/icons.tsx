@@ -1,8 +1,9 @@
 "use client";
 
 import {
-  ArrowDownLeft, ArrowUpRight, Banknote, CarFront, Droplets, GraduationCap,
-  Landmark, Smartphone, Wallet, Wifi, Zap, type LucideIcon,
+  ArrowDownLeft, ArrowUpRight, Banknote, CarFront, Droplets, Flame,
+  GraduationCap, HeartPulse, Landmark, Smartphone, Wallet, Wifi, Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,8 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   mobile: Smartphone,
   education: GraduationCap,
   traffic: CarFront,
+  health: HeartPulse,
+  gas: Flame,
   transfer: ArrowUpRight,
   wallet: Wallet,
   topup: Banknote,
@@ -48,6 +51,16 @@ const CATEGORY_HUES: Record<string, { bg: string; fg: string; ring: string }> = 
     bg: "bg-orange-100 dark:bg-orange-400/15",
     fg: "text-orange-700 dark:text-orange-300",
     ring: "ring-orange-200 dark:ring-orange-400/25",
+  },
+  health: {
+    bg: "bg-red-100 dark:bg-red-400/15",
+    fg: "text-red-700 dark:text-red-300",
+    ring: "ring-red-200 dark:ring-red-400/25",
+  },
+  gas: {
+    bg: "bg-fuchsia-100 dark:bg-fuchsia-400/15",
+    fg: "text-fuchsia-700 dark:text-fuchsia-300",
+    ring: "ring-fuchsia-200 dark:ring-fuchsia-400/25",
   },
   transfer: {
     bg: "bg-slate-100 dark:bg-slate-400/15",

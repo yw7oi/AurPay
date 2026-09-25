@@ -23,6 +23,7 @@ async def lifespan(_app: FastAPI):
         result = await seed_if_empty(session)
         logging.getLogger("urpay").info("DB ready: %s", result)
         await _ensure_demo_scheduled(session)
+        await _ensure_demo_new_categories(session)
     # background scheduled-payment executor (every 20s)
     sched_task = asyncio.create_task(scheduler_loop(session_factory))
     yield
@@ -70,6 +71,75 @@ async def _ensure_demo_scheduled(session) -> None:
             next_run_at=now.replace(hour=9, minute=0, second=0, microsecond=0)
             .replace(day=min(now.day + 3, 28)),
             status="pending", created_at=now))
+    await session.commit()
+
+
+async def _ensure_demo_new_categories(session) -> None:
+    """Showcase bills for the health & gas categories (once, idempotent),
+    and keep the demo wallet stocked with unpaid bills for judges."""
+    from datetime import timedelta
+
+    from sqlalchemy import func, select
+
+    from .models import Bill, User, utcnow
+
+    demo = (await session.execute(
+        select(User).where(User.is_demo == True)  # noqa: E712
+        .order_by(User.id).limit(1))).scalar_one_or_none()
+    if demo is None:
+        return
+    has_health = (await session.execute(
+        select(Bill.id).where(Bill.user_id == demo.id, Bill.category == "health")
+        .limit(1))).scalar_one_or_none()
+    now = utcnow()
+    if has_health is None:
+        session.add(Bill(
+            user_id=demo.id, category="health", biller_code="HLT-KARAMA",
+            biller_name="مستشفى الكرامة التعليمي", subscriber_no="55210077",
+            amount=65_000, period=f"زيارة {now.year}",
+            due_date=now.replace(microsecond=0) + timedelta(days=4),
+            status="unpaid", issued_at=now))
+        session.add(Bill(
+            user_id=demo.id, category="health", biller_code="HLT-BGDLAB",
+            biller_name="مركز بغداد للفحوصات الطبية", subscriber_no="88341002",
+            amount=38_000, period=f"فحوصات {now.year}",
+            due_date=now.replace(microsecond=0) + timedelta(days=9),
+            status="unpaid", issued_at=now))
+    has_gas = (await session.execute(
+        select(Bill.id).where(Bill.user_id == demo.id, Bill.category == "gas")
+        .limit(1))).scalar_one_or_none()
+    if has_gas is None:
+        session.add(Bill(
+            user_id=demo.id, category="gas", biller_code="GAS-BGD",
+            biller_name="غاز بغداد — نقاط البيع", subscriber_no="33019045",
+            amount=12_000, period=f"أسطوانات {now.year}",
+            due_date=now.replace(microsecond=0) + timedelta(days=6),
+            status="unpaid", issued_at=now))
+
+    # --- keep classic unpaid bills stocked for the demo (QA rounds pay them) --
+    unpaid_total = (await session.execute(
+        select(func.count(Bill.id)).where(
+            Bill.user_id == demo.id, Bill.status == "unpaid"))).scalar() or 0
+    if unpaid_total < 5:
+        for spec in (
+            ("electricity", "MOE-BGD-R", "وزارة الكهرباء — بغداد الرصافة",
+             "77881234", 58_000, 3, "حصة أيلول"),
+            ("internet", "NET-TARIN", "تارين للاتصالات Tarin",
+             "44550132", 45_000, 6, "اشتراك أيلول"),
+            ("water", "MOW-BGD", "ماء بغداد — عامة الماء",
+             "99112008", 9_500, 8, "قراءة أيلول"),
+        ):
+            has_cat_unpaid = (await session.execute(
+                select(Bill.id).where(
+                    Bill.user_id == demo.id, Bill.category == spec[0],
+                    Bill.status == "unpaid").limit(1))).scalar_one_or_none()
+            if has_cat_unpaid is None:
+                session.add(Bill(
+                    user_id=demo.id, category=spec[0], biller_code=spec[1],
+                    biller_name=spec[2], subscriber_no=spec[3], amount=spec[4],
+                    period=f"{spec[6]} {now.year}",
+                    due_date=now.replace(microsecond=0) + timedelta(days=spec[5]),
+                    status="unpaid", issued_at=now))
     await session.commit()
 
 

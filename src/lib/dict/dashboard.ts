@@ -155,6 +155,10 @@ export const ar: Record<string, string> = {
   "transfer.qrResolvedToast": "تم التعرف على المستلم",
   "transfer.qrFoundByCard": "مستلم من رمز QR",
   "transfer.qrScannerName": "مسح QR",
+  "transfer.qrAmountToggle": "استلم مبلغًا محددًا",
+  "transfer.qrAmountHint": "ثبّت المبلغ بالرمز — يتعبى تلقائيًا عند المسح",
+  "transfer.qrAmountPlaceholder": "المبلغ",
+  "transfer.qrAmountInvalid": "المبلغ لازم يكون بين ١,٠٠٠ و ٥,٠٠٠,٠٠٠ د.ع",
 
   /* ---- analytics ---- */
   "analytics.title": "تحليلات الإنفاق",
@@ -396,6 +400,10 @@ export const en: Record<string, string> = {
   "transfer.qrShareBtn": "Share",
   "transfer.qrDownloadBtn": "Save image",
   "transfer.qrSavedToast": "QR image saved",
+  "transfer.qrAmountToggle": "Request a specific amount",
+  "transfer.qrAmountHint": "Pin the amount into the code — it fills in automatically on scan",
+  "transfer.qrAmountPlaceholder": "Amount",
+  "transfer.qrAmountInvalid": "Amount must be between 1,000 and 5,000,000 IQD",
   "transfer.qrScanTitle": "Scan a QR code",
   "transfer.qrScanDesc": "Point the camera at an UrPay receive code — or use manual entry below",
   "transfer.qrCameraOn": "Camera live — point it at the code…",

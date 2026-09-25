@@ -448,7 +448,7 @@ export function TxnDetailDialog({
 
   return (
     <Dialog open={!!txn} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm rounded-3xl p-6" dir={lang === "ar" ? "rtl" : "ltr"}>
+      <DialogContent aria-describedby={undefined} className="max-w-sm rounded-3xl p-6" dir={lang === "ar" ? "rtl" : "ltr"}>
         {txn && (
           <>
             <DialogHeader className="text-center">
@@ -564,10 +564,19 @@ export function EmptyState({
         className="absolute -top-10 start-1/2 -translate-x-1/2 h-28 w-48 rounded-full bg-primary/[.07] blur-2xl"
         aria-hidden="true"
       />
-      <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border/80 text-muted-foreground shadow-sm">
+      {/* faint background ring — depth cue */}
+      <span
+        className="pointer-events-none absolute start-1/2 top-[4.4rem] -translate-x-1/2 h-28 w-28 rounded-full border border-dashed border-border/60"
+        aria-hidden="true"
+      />
+      <span className="relative animate-float flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border/80 text-muted-foreground shadow-sm">
+        <span
+          className="absolute inset-0 rounded-2xl ring-1 ring-primary/10"
+          aria-hidden="true"
+        />
         <Icon className="h-6 w-6" />
       </span>
-      <p className="relative mt-4 font-bold">{title}</p>
+      <p className="relative mt-5 font-bold">{title}</p>
       <p className="relative mt-1 text-sm text-muted-foreground max-w-xs leading-relaxed">{desc}</p>
       {action && <div className="relative mt-4">{action}</div>}
     </div>

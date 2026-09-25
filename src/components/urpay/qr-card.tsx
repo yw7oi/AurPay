@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "react-qr-code";
 import { motion } from "framer-motion";
 import {
-  BadgeCheck, Camera, CameraOff, Copy, Download, Loader2,
+  BadgeCheck, Banknote, Camera, CameraOff, Copy, Download, Loader2,
   QrCode, ScanLine, Share2, UserRoundCheck, X,
 } from "lucide-react";
 import {
@@ -13,8 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useSession } from "@/lib/store";
-import { urpay, type UserSummary } from "@/lib/urpay";
+import { fmtIQD, urpay, type UserSummary } from "@/lib/urpay";
 import { useT } from "@/lib/i18n";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useToast } from "@/hooks/use-toast";
@@ -22,28 +23,50 @@ import { UrPayMark } from "./logo";
 import { UserAvatar } from "./parts";
 
 /* ------------------------------------------------------------------ */
-/* QR payload — URPAY:1:<16-digit card>:<full name>                    */
+/* QR payload — URPAY:1:<card>:<name>            (receive, any amount)  */
+/*          URPAY:2:<card>:<name>:<amount>       (request a specific)   */
 /* ------------------------------------------------------------------ */
 
-export function buildQrPayload(cardNumber: string, fullName: string): string {
+export function buildQrPayload(cardNumber: string, fullName: string, amount?: number | null): string {
+  if (amount && amount > 0) {
+    return `URPAY:2:${cardNumber}:${fullName}:${Math.round(amount)}`;
+  }
   return `URPAY:1:${cardNumber}:${fullName}`;
 }
 
-export function parseQrPayload(raw: string): { card: string; name: string | null } | null {
+export function parseQrPayload(raw: string): { card: string; name: string | null; amount: number | null } | null {
   const text = raw.trim();
-  const colon = /^(?:urpay:?)?(?:1:)?([\d]{14,19}):(.+)$/i.exec(text);
+  const typed = /^urpay:?(\d):([\d]{14,19}):(.+)$/i.exec(text);
   let card = "";
   let name: string | null = null;
-  if (colon) {
-    card = colon[1];
-    name = colon[2];
+  let amount: number | null = null;
+  if (typed) {
+    card = typed[2];
+    const rest = typed[3];
+    if (typed[1] === "2") {
+      const m = /^(.*):(\d{2,9})$/.exec(rest);
+      if (m) {
+        name = m[1];
+        amount = parseInt(m[2], 10);
+      } else {
+        name = rest;
+      }
+    } else {
+      name = rest;
+    }
   } else {
-    const digits = text.replace(/\D/g, "");
-    if (digits.length === 16) card = digits;
+    const colon = /^(?:urpay:?)?([\d]{14,19}):(.+)$/i.exec(text);
+    if (colon) {
+      card = colon[1];
+      name = colon[2];
+    } else {
+      const digits = text.replace(/\D/g, "");
+      if (digits.length === 16) card = digits;
+    }
   }
   card = card.replace(/\D/g, "");
   if (card.length < 14 || card.length > 19) return null;
-  return { card, name };
+  return { card, name, amount };
 }
 
 /* ------------------------------------------------------------------ */
@@ -157,9 +180,15 @@ export function QrDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const { t, lang } = useT();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [amountOn, setAmountOn] = useState(false);
+  const [amountText, setAmountText] = useState("");
   const qrWrapRef = useRef<HTMLDivElement | null>(null);
 
-  const payload = user ? buildQrPayload(user.card_number, user.full_name) : "";
+  const amountNum = Math.round(Number(amountText.replace(/\D/g, "")));
+  const amountValid = !amountOn || (amountNum >= 1000 && amountNum <= 5_000_000);
+  const payload = user
+    ? buildQrPayload(user.card_number, user.full_name, amountOn && amountNum > 0 ? amountNum : null)
+    : "";
 
   async function copyCard() {
     if (!user) return;
@@ -172,7 +201,8 @@ export function QrDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
 
   async function share() {
     if (!user) return;
-    const text = `${t("transfer.qrDialogTitle")} — ${user.full_name} · ${user.card_number}`;
+    const amountPart = amountOn && amountNum > 0 ? ` · ${fmtIQD(amountNum, true, lang)}` : "";
+    const text = `${t("transfer.qrDialogTitle")} — ${user.full_name}${amountPart} · ${user.card_number}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: "UrPay", text });
@@ -205,6 +235,64 @@ export function QrDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
           <DialogDescription>{t("transfer.qrDialogDesc")}</DialogDescription>
         </DialogHeader>
 
+        {/* request-a-specific-amount mode */}
+        <div className="rounded-2xl border border-border/70 bg-secondary/40 px-3.5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gold/15 text-gold-deep ring-1 ring-gold/25">
+                <Banknote className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold truncate">{t("transfer.qrAmountToggle")}</p>
+                <p className="text-[0.65rem] text-muted-foreground truncate">{t("transfer.qrAmountHint")}</p>
+              </div>
+            </div>
+            <Switch
+              checked={amountOn}
+              onCheckedChange={setAmountOn}
+              aria-label={t("transfer.qrAmountToggle")}
+            />
+          </div>
+          {amountOn && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 flex items-center gap-2">
+                <Input
+                  dir="ltr"
+                  inputMode="numeric"
+                  value={amountText}
+                  onChange={(e) => setAmountText(e.target.value.replace(/\D/g, "").slice(0, 7))}
+                  placeholder={t("transfer.qrAmountPlaceholder")}
+                  className="num h-10 rounded-xl font-bold"
+                />
+                <span className="text-xs font-bold text-muted-foreground shrink-0">{t("common.iqd")}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[5_000, 10_000, 25_000, 50_000].map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setAmountText(String(v))}
+                    className={`num rounded-full border px-3 py-1 text-[0.65rem] font-bold transition-colors ${
+                      amountNum === v
+                        ? "border-gold/60 bg-gold/15 text-gold-deep"
+                        : "border-border/70 bg-card text-muted-foreground hover:border-gold/40 hover:text-gold-deep"
+                    }`}
+                  >
+                    {fmtIQD(v, true, lang)}
+                  </button>
+                ))}
+              </div>
+              {!amountValid && (
+                <p className="mt-2 text-[0.65rem] font-semibold text-destructive">{t("transfer.qrAmountInvalid")}</p>
+              )}
+            </motion.div>
+          )}
+        </div>
+
         <div className="flex flex-col items-center pt-1 pb-2">
           {/* branded QR frame with corner brackets */}
           <div className="relative rounded-3xl bg-white p-5 shadow-lift-lg ring-1 ring-primary/20">
@@ -228,6 +316,18 @@ export function QrDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
               </span>
             </div>
           </div>
+
+          {/* requested-amount badge */}
+          {amountOn && amountNum > 0 && amountValid && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="-mt-3 z-10 num rounded-full bg-gold-deep px-4 py-1.5 text-xs font-bold text-white shadow-lift ring-2 ring-white"
+              dir="ltr"
+            >
+              {fmtIQD(amountNum, true, lang)}
+            </motion.div>
+          )}
 
           {/* identity */}
           <div className="mt-4 flex items-center gap-3">
@@ -258,11 +358,11 @@ export function QrDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
 
           {/* actions */}
           <div className="mt-4 grid w-full grid-cols-2 gap-2.5">
-            <Button variant="outline" onClick={share} className="rounded-xl h-10 font-bold text-xs">
+            <Button variant="outline" onClick={share} disabled={!amountValid} className="rounded-xl h-10 font-bold text-xs">
               <Share2 className="h-4 w-4" />
               {t("transfer.qrShareBtn")}
             </Button>
-            <Button variant="outline" onClick={download} className="rounded-xl h-10 font-bold text-xs">
+            <Button variant="outline" onClick={download} disabled={!amountValid} className="rounded-xl h-10 font-bold text-xs">
               <Download className="h-4 w-4" />
               {t("transfer.qrDownloadBtn")}
             </Button>
@@ -299,7 +399,7 @@ export function ScanDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onResolved: (card: string, name: string | null) => void;
+  onResolved: (card: string, name: string | null, amount: number | null) => void;
 }) {
   const { token } = useSession();
   const { t, lang } = useT();
@@ -404,10 +504,10 @@ export function ScanDialog({
       setError(t("transfer.qrInvalid"));
       return;
     }
-    await resolveCard(parsed.card, parsed.name);
+    await resolveCard(parsed.card, parsed.name, parsed.amount);
   }
 
-  async function resolveCard(card: string, name: string | null) {
+  async function resolveCard(card: string, name: string | null, amount: number | null = null) {
     setError(null);
     setResolving(true);
     try {
@@ -416,21 +516,24 @@ export function ScanDialog({
           const users: UserSummary[] = await urpay.searchUsers(token, card);
           const exact = users.find((u) => u.card_number === card);
           if (exact) {
-            finish(exact.card_number, exact.full_name, exact);
+            finish(exact.card_number, exact.full_name, amount, exact);
             return;
           }
         } catch { /* fall through to raw card */ }
       }
-      finish(card, name);
+      finish(card, name, amount);
     } finally {
       setResolving(false);
     }
   }
 
-  function finish(card: string, name: string | null, _u?: UserSummary) {
-    toast({ title: t("transfer.qrResolvedToast"), description: name ?? `•••• ${card.slice(-4)}` });
+  function finish(card: string, name: string | null, amount: number | null = null, _u?: UserSummary) {
+    toast({
+      title: t("transfer.qrResolvedToast"),
+      description: name ?? `•••• ${card.slice(-4)}`,
+    });
     onOpenChange(false);
-    onResolved(card, name);
+    onResolved(card, name, amount);
   }
 
   async function submitManual(e: React.FormEvent) {

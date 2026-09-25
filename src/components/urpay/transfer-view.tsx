@@ -413,7 +413,7 @@ export function TransferView() {
 
   /* ------------------------- QR scan resolution ------------------------ */
 
-  async function handleQrResolved(card: string) {
+  async function handleQrResolved(card: string, _name: string | null, amountFromQr?: number | null) {
     if (!token) return;
     try {
       const users = await urpay.searchUsers(token, card);
@@ -430,6 +430,9 @@ export function TransferView() {
     } catch {
       setReceiver(null);
       setCardInput(card);
+    }
+    if (amountFromQr && amountFromQr > 0) {
+      setAmount(String(amountFromQr));
     }
     amountRef.current?.focus();
   }

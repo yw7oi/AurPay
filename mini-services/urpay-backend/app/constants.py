@@ -19,6 +19,10 @@ CATEGORIES = [
      "desc": "رسوم جامعية ومدارس ومعاهد"},
     {"key": "traffic", "ar": "مرور", "en": "Traffic", "icon": "car-front",
      "desc": "مخالفات وسداد ضروع المرور"},
+    {"key": "health", "ar": "صحة", "en": "Health", "icon": "heart-pulse",
+     "desc": "مستشفيات ومراكز فحوصات خاصة"},
+    {"key": "gas", "ar": "غاز", "en": "Gas", "icon": "flame",
+     "desc": "تعبئة أسطوانات الغاز وخدماتها"},
 ]
 
 BILLERS = {
@@ -35,6 +39,10 @@ BILLERS = {
         {"code": "MOE-WAS", "name": "وزارة الكهرباء — واسط"},
         {"code": "MOE-DHQ", "name": "وزارة الكهرباء — ذي قار"},
         {"code": "MOE-KRB", "name": "وزارة الكهرباء — كربلاء"},
+        {"code": "MOE-ANB", "name": "وزارة الكهرباء — الأنبار"},
+        {"code": "MOE-MYS", "name": "وزارة الكهرباء — ميسان"},
+        {"code": "MOE-SLD", "name": "وزارة الكهرباء — صلاح الدين"},
+        {"code": "MOE-DHU", "name": "وزارة الكهرباء — دهوك"},
     ],
     "water": [
         {"code": "MOW-BGD", "name": "ماء بغداد — عامة الماء"},
@@ -46,6 +54,9 @@ BILLERS = {
         {"code": "MOW-DHQ", "name": "ماء ذي قار"},
         {"code": "MOW-KRK", "name": "ماء كركوك"},
         {"code": "MOW-SLD", "name": "ماء صلاح الدين"},
+        {"code": "MOW-SLM", "name": "ماء السليمانية"},
+        {"code": "MOW-MYS", "name": "ماء ميسان"},
+        {"code": "MOW-DYA", "name": "ماء ديالى"},
     ],
     "internet": [
         {"code": "NET-TARIN", "name": "تارين للاتصالات Tarin"},
@@ -57,6 +68,8 @@ BILLERS = {
         {"code": "NET-NOORSAT", "name": "نور سات NoorSat"},
         {"code": "NET-FURAT", "name": "الفرات للاتصالات Al-Furat"},
         {"code": "NET-URNET", "name": "أور نت UrNet"},
+        {"code": "NET-HALASAT", "name": "هلا سات Halasat"},
+        {"code": "NET-NEWROZ", "name": "نيروز تليكوم Newroz Telecom"},
     ],
     "mobile": [
         {"code": "TEL-ZAIN", "name": "زين العراق Zain Iraq"},
@@ -74,6 +87,10 @@ BILLERS = {
         {"code": "EDU-UOD", "name": "جامعة دهوك"},
         {"code": "EDU-MTU", "name": "الجامعة التقنية الوسطى"},
         {"code": "EDU-BHD", "name": "معهد بغداد العالي"},
+        {"code": "EDU-UOS", "name": "جامعة السليمانية"},
+        {"code": "EDU-UOMS", "name": "جامعة ميسان"},
+        {"code": "EDU-UOTK", "name": "جامعة تكريت"},
+        {"code": "EDU-UOK", "name": "جامعة الكوفة"},
     ],
     "traffic": [
         {"code": "TRF-MOI", "name": "المديرية العامة للمرور — مخالفات"},
@@ -82,13 +99,30 @@ BILLERS = {
         {"code": "TRF-NIN", "name": "مرور نينوى"},
         {"code": "TRF-KRK", "name": "مرور كركوك"},
         {"code": "TRF-DVR", "name": "دائرة تسجيل السيارات — ضروط"},
+        {"code": "TRF-ERB", "name": "مرور أربيل"},
+        {"code": "TRF-DHQ", "name": "مرور ذي قار"},
+        {"code": "TRF-BAB", "name": "مرور بابل"},
+    ],
+    "health": [
+        {"code": "HLT-IBNSINA", "name": "مستشفى ابن سينا التعليمي"},
+        {"code": "HLT-KARAMA", "name": "مستشفى الكرامة التعليمي"},
+        {"code": "HLT-BGDLAB", "name": "مركز بغداد للفحوصات الطبية"},
+        {"code": "HLT-RAHMA", "name": "مستشفى الرحمة التخصصي"},
+        {"code": "HLT-NOOR", "name": "مستشفى النور التخصصي"},
+        {"code": "HLT-HAYATDENT", "name": "مركز حياة لطب الأسنان"},
+    ],
+    "gas": [
+        {"code": "GAS-NAT", "name": "الشركة العامة لتعبئة الغاز"},
+        {"code": "GAS-BGD", "name": "غاز بغداد — نقاط البيع"},
+        {"code": "GAS-BSR", "name": "غاز البصرة"},
+        {"code": "GAS-NIN", "name": "غاز نينوى"},
     ],
 }
 
 # categories the user can set a monthly spending limit on
 BUDGETABLE_CATEGORIES = [
     "electricity", "water", "internet", "mobile", "education", "traffic",
-    "transfer",
+    "transfer", "health", "gas",
 ]
 
 # Arabic labels for every spendable category (incl. non-bill ones)
@@ -99,6 +133,8 @@ CATEGORY_AR = {
     "mobile": "اتصالات",
     "education": "تعليم",
     "traffic": "مرور",
+    "health": "صحة",
+    "gas": "غاز",
     "transfer": "تحويلات",
     "wallet": "محفظة",
     "topup": "تعبئة",

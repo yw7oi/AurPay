@@ -5,7 +5,7 @@ import re
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..constants import CATEGORY_AR
+from ..constants import BUDGETABLE_CATEGORIES, CATEGORY_AR
 from ..models import AgentMessage, Budget, User
 from . import providers, tools as T
 from .providers import extract_json
@@ -124,9 +124,14 @@ TOOL_SCHEMAS = [
         "parameters": {"type": "object", "properties": {}}}},
     {"type": "function", "function": {
         "name": "set_budget",
-        "description": "Set (or remove) a monthly spending limit for a category. Categories: electricity, water, internet, mobile, education, traffic, transfer. A limit of 0 removes the budget. No PIN required (not a money movement). Also returns month-to-date spend for the category.",
+        "description": ("Set (or remove) a monthly spending limit for a category. "
+                        "Categories: " + ", ".join(BUDGETABLE_CATEGORIES) +
+                        ". Arabic names: " +
+                        ", ".join(f"{CATEGORY_AR.get(c, c)}={c}" for c in BUDGETABLE_CATEGORIES) +
+                        ". A limit of 0 removes the budget. No PIN required (not a money movement). "
+                        "Also returns month-to-date spend for the category."),
         "parameters": {"type": "object", "required": ["category", "monthly_limit"], "properties": {
-            "category": {"type": "string", "enum": ["electricity", "water", "internet", "mobile", "education", "traffic", "transfer"]},
+            "category": {"type": "string", "enum": list(BUDGETABLE_CATEGORIES)},
             "monthly_limit": {"type": "integer", "minimum": 0}}}}},
     {"type": "function", "function": {
         "name": "get_spending",
