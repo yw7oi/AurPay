@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowDownLeft, ArrowUpRight, Bell, CheckCheck, ChevronLeft, Gauge, Inbox,
-  ReceiptText, TriangleAlert, UserPlus, Wallet,
+  ArrowDownLeft, ArrowUpRight, Bell, CalendarCheck2, CalendarX2, CheckCheck,
+  ChevronLeft, Gauge, Inbox, ReceiptText, TriangleAlert, UserPlus, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -26,6 +26,8 @@ const KIND_META: Record<
   transfer_declined: { icon: TriangleAlert, cls: "bg-rose-500/10 text-rose-600 dark:text-rose-300" },
   bill_due: { icon: TriangleAlert, cls: "bg-amber-500/10 text-amber-600 dark:text-amber-300" },
   budget_exceeded: { icon: Gauge, cls: "bg-rose-500/10 text-rose-600 dark:text-rose-300" },
+  scheduled_executed: { icon: CalendarCheck2, cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
+  scheduled_failed: { icon: CalendarX2, cls: "bg-rose-500/10 text-rose-600 dark:text-rose-300" },
   welcome: { icon: Bell, cls: "bg-primary/10 text-primary" },
 };
 
@@ -39,6 +41,8 @@ const KIND_TAB: Record<string, DashTab> = {
   transfer_declined: "transfer",
   bill_due: "bills",
   budget_exceeded: "overview",
+  scheduled_executed: "overview",
+  scheduled_failed: "overview",
   welcome: "overview",
 };
 

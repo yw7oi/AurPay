@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, CheckCheck, Clock3, Loader2,
-  Search, Send, TimerOff, Users, XCircle,
+  Search, Send, Star, TimerOff, Users, X, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/lib/store";
-import { fmtIQD, urpay, type Receipt, type TransferReq, type UserSummary } from "@/lib/urpay";
+import { fmtIQD, urpay, type FavoriteItem, type Receipt, type TransferReq, type UserSummary } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
 import { tr, useT, type Lang } from "@/lib/i18n";
 import { EmptyState, PinDialog, ReceiptCard, UserAvatar } from "./parts";
@@ -273,7 +273,9 @@ export function TransferView() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [pendingReq, setPendingReq] = useState<{ id: number; receiver: string; amount: number } | null>(null);
   const [reqSignal, setReqSignal] = useState(0);
+  const [favs, setFavs] = useState<FavoriteItem[] | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const amountRef = useRef<HTMLInputElement | null>(null);
 
   /* live user search */
   useEffect(() => {
@@ -300,11 +302,27 @@ export function TransferView() {
     };
   }, [query, token]);
 
+  /* favorites quick-pick — reloaded after transfers (reqSignal) and add/remove */
+  const loadFavs = useCallback(async () => {
+    if (!token) return;
+    try {
+      setFavs(await urpay.favorites(token));
+    } catch {
+      setFavs([]); /* silent */
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadFavs();
+  }, [loadFavs, reqSignal]);
+
   const amountNum = Number(amount);
   const cardClean = cardInput.replace(/\D/g, "");
   const targetCard = receiver?.card_number ?? (cardClean.length === 16 ? cardClean : null);
   const valid =
     !!targetCard && amountNum > 0 && amountNum <= (user?.balance ?? 0);
+  const isFav =
+    !!receiver && !!favs?.some((f) => f.card_number === receiver.card_number);
 
   async function confirmTransfer(pin: string): Promise<string | null> {
     if (!token || !targetCard || !pendingReq) return t("common.unexpectedError");
@@ -344,6 +362,52 @@ export function TransferView() {
     }
   }
 
+  /* ----------------------------- favorites ---------------------------- */
+
+  function pickFavorite(f: FavoriteItem) {
+    setReceiver({
+      id: f.user_id,
+      full_name: f.full_name,
+      city: f.city,
+      card_number: f.card_number,
+      avatar_hue: f.avatar_hue,
+    });
+    setQuery("");
+    setResults(null);
+    setCardInput("");
+    amountRef.current?.focus();
+  }
+
+  async function removeFav(userId: number) {
+    if (!token) return;
+    try {
+      await urpay.favoriteRemove(token, userId);
+      toast({ title: t("transfer.favRemoveToastTitle") });
+      await loadFavs();
+    } catch {
+      /* silent */
+    }
+  }
+
+  async function toggleFav() {
+    if (!token || !receiver) return;
+    if (isFav) {
+      await removeFav(receiver.id);
+      return;
+    }
+    try {
+      await urpay.favoriteAdd(token, receiver.card_number);
+      toast({ title: t("transfer.favAddedToastTitle") });
+      await loadFavs();
+    } catch (err) {
+      toast({
+        title: t("transfer.favFailToastTitle"),
+        description: err instanceof Error ? err.message : t("common.tryAgain"),
+        variant: "destructive",
+      });
+    }
+  }
+
   return (
     <div className="space-y-5 max-w-2xl">
       <div>
@@ -362,6 +426,62 @@ export function TransferView() {
         </div>
       ) : (
         <form onSubmit={startTransfer} className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6 space-y-5">
+          {/* favorites quick-pick */}
+          {favs !== null && favs.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Star className="h-3.5 w-3.5 text-gold-deep fill-gold-deep/20" />
+                  {t("transfer.favTitle")}
+                </Label>
+                <p className="text-[0.68rem] text-muted-foreground">{t("transfer.favHint")}</p>
+              </div>
+              <div className="flex gap-2 overflow-x-auto scrollbar-slim pt-1.5 pb-1">
+                {favs.map((f) => {
+                  const selected = receiver?.card_number === f.card_number;
+                  return (
+                    <div key={f.id} className="relative group shrink-0">
+                      <button
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => pickFavorite(f)}
+                        className={`flex items-center gap-2.5 rounded-2xl border ps-2.5 pe-3 py-2 transition-colors ${
+                          selected
+                            ? "border-gold/60 bg-gold/10"
+                            : "border-border/70 bg-secondary/60 hover:border-gold/50 hover:bg-gold/[.06]"
+                        }`}
+                      >
+                        <UserAvatar name={f.full_name} hue={f.avatar_hue} size={32} />
+                        <span className="text-start">
+                          <span className="block text-xs font-bold leading-tight max-w-28 truncate">{f.full_name}</span>
+                          <span className="block text-[0.62rem] text-muted-foreground num" dir="ltr">
+                            •••• {f.card_number.slice(-4)}
+                          </span>
+                        </span>
+                      </button>
+                      {selected && (
+                        <span
+                          className="absolute -top-1 -start-1 flex h-4 w-4 items-center justify-center rounded-full border border-gold/40 bg-gold/15"
+                          aria-hidden="true"
+                        >
+                          <Star className="h-2.5 w-2.5 fill-gold-deep text-gold-deep" />
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        aria-label="remove favorite"
+                        onClick={() => removeFav(f.user_id)}
+                        className="absolute -top-1.5 -end-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-card shadow-sm opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 hover:bg-destructive/10 hover:border-destructive/40 [&>svg]:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* search */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -417,13 +537,36 @@ export function TransferView() {
             <Label className="text-xs font-semibold text-muted-foreground">{t("transfer.recipientLabel")}</Label>
             {receiver ? (
               <div className="flex items-center gap-3 rounded-2xl border border-primary/35 bg-primary/[.05] p-3.5">
-                <UserAvatar name={receiver.full_name} hue={receiver.avatar_hue} size={44} />
+                <span className="relative shrink-0">
+                  <UserAvatar name={receiver.full_name} hue={receiver.avatar_hue} size={44} />
+                  {isFav && (
+                    <span
+                      className="absolute -bottom-0.5 -end-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-gold/40 bg-card"
+                      aria-hidden="true"
+                    >
+                      <Star className="h-2.5 w-2.5 fill-gold-deep text-gold-deep" />
+                    </span>
+                  )}
+                </span>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold">{receiver.full_name}</p>
                   <p className="text-xs text-muted-foreground num" dir="ltr">
                     {receiver.card_number.replace(/(\d{4})(?=\d)/g, "$1 ")}
                   </p>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-pressed={isFav}
+                  onClick={toggleFav}
+                  className="rounded-xl text-muted-foreground hover:text-gold-deep"
+                >
+                  <Star
+                    className={`h-4 w-4 ${isFav ? "fill-gold-deep text-gold-deep" : "text-muted-foreground"}`}
+                  />
+                  <span className="hidden sm:inline">{t("transfer.favAddBtn")}</span>
+                </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -458,6 +601,7 @@ export function TransferView() {
             <Label className="text-xs font-semibold text-muted-foreground">{t("transfer.amountLabel")}</Label>
             <div className="relative">
               <Input
+                ref={amountRef}
                 dir="ltr"
                 inputMode="numeric"
                 placeholder="25000"

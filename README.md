@@ -92,6 +92,10 @@ POST /api/topup             {amount, pin}
 GET  /api/analytics         90-day categories + 6-month trend
 GET  /api/budgets           per-category monthly limits + live progress
 PUT  /api/budgets           {category, monthly_limit} — 0 removes
+GET  /api/scheduled         pending + history (runs due mandates on read)
+POST /api/scheduled         {kind: bill|transfer, biller_code|receiver_card, amount, execute_at, frequency, pin}
+POST /api/scheduled/{id}/cancel
+GET  /api/favorites · POST /api/favorites {card_number} · DELETE /api/favorites/{user_id}
 GET  /api/notifications     + /read-all, /{id}/read
 POST /api/agent/chat        {message}
 POST /api/agent/chat/stream SSE (tool steps + token streaming)
@@ -100,9 +104,14 @@ GET  /api/stats · /api/billers · /api/cities
 
 **أدوات الوكيل الذكي (أور):** get_balance · list_bills · pay_bill (hint-guarded) ·
 search_users · transfer_money · recent_transactions · topup_wallet · get_profile · set_budget ·
-get_spending (تحليل الصرف الشهري + حالة الميزانيات)
+get_spending (تحليل الصرف الشهري + حالة الميزانيات) · schedule_payment · list_scheduled ·
+cancel_scheduled (دفع مجدول بفهم عربي للتوقيت: «غدًا»، «بعد يومين»، «أول الشهر الجاي»، «كل شهر»)
 
 **إضافات حديثة:**
+- ⏰ **المدفوعات المجدولة (autopay)** — جدولة فاتورة أو حوالة بتخويل PIN لمرة واحدة، ومنفّذ
+  خلفي ينفذها تلقائيًا بوقتها (كل 20 ثانية فحص) مع إشعار فوري وتحديث الميزانيات — حتى لو
+  نسيتها أو كنت نائمًا. بطاقة حية في النظرة العامة مع عدّاد تنازلي وتاريخ التنفيذات.
+- ⭐ **المفضلين للتحويل السريع** — رقائق أفاتار بلمسة واحدة تعبّئ المستلم + زر نجمة لإضافة/إزالة.
 - 🌐 **واجهة ثنائية اللغة (عربي ⇄ English)** — زر تبديل اللغة في الشريط العلوي والحساب،
   مع تبديل الاتجاه RTL/LTR تلقائيًا وحفظ الاختيار. الوكيل يرد بلغة رسالة المستخدم.
 - 📊 **وعي الوكيل بالميزانيات** — بيانات الصرف الشهرية ضمن سياق الوكيل حتى ينبهك قبل تجاوز الحد.

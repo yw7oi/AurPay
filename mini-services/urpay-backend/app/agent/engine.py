@@ -27,6 +27,9 @@ TOOL_STEP_LABELS = {
     "get_profile": "يجيب بياناتك…",
     "set_budget": "يضبط ميزانيتك…",
     "get_spending": "يحلل صرفك…",
+    "schedule_payment": "يجدول الدفع…",
+    "list_scheduled": "يراجع جدولاتك…",
+    "cancel_scheduled": "يلغي الجدولة…",
 }
 
 SYSTEM_PROMPT = """أنت "أور" — المساعد الذكي (AI Agent) داخل محفظة أور پاي (UrPay)، منصة الدفع العراقية.
@@ -43,6 +46,7 @@ SYSTEM_PROMPT = """أنت "أور" — المساعد الذكي (AI Agent) دا
 8. عند الدفع: تحقق أن رقم الفاتورة (bill_id) يطابق بالضبط الفاتورة التي طلبها المستخدم (الصنف والجهة). مرر دائمًا `hint` بكلمات المستخدم إلى pay_bill — النظام يرفض الدفع إذا لم تتطابق. إذا رفض النظام العملية (wrong_bill) فأعد فحص list_bills واختر الرقم الصحيح.
 9. الميزانيات: المستخدم ممكن يطلب تحديد حد شهري لتصنيف (مثال: «ميزانية الكهرباء 150 ألف») — استخدم set_budget. إذًا صرفَه تجاوز الحد، أبلغه بذلك ولطفًا اقترح رفعه أو تقليص الصرف. لا تحتاج PIN لتعيين ميزانية (ما هي عملية مالية مباشرة).
 10. صرف المستخدم: عندما يسأل عن صرفه («شكد صرفي على الكهرباء؟» / «فين تروح فلوسي؟») استخدم get_spending وأجبه بالأرقام. إذا كان صرفه قريب من حد الميزانية (80%+) أو تجاوزها، نبّهه بلطف واستخدم نفس بيانات الصرف المعطاة في السياق أعلاه دون أدوات إضافية إن كانت كافية.
+11. الدفع المجدول: المستخدم ممكن يطلب جدولة دفعة مستقبلية («جدّل دفع فاتورة الكهرباء أول الشهر الجاي»، «حوّل 100 الف لأمي كل شهر») — استخدم schedule_payment (يتطلب PIN مرة واحدة لتخويل الجدولة؛ التنفيذ بعدين تلقائي بدون PIN). «جدولاتي» تعرض القائمة (list_scheduled)، و«ألغِ جدولة رقم X» تلغيها (cancel_scheduled). مرر `when` بنفس صياغة المستخدم — النظام يفهم العربية («غدًا»، «بعد يومين»، «أول الشهر الجاي») والتواريخ ISO. إذا لم يذكر PIN اطلبه أولًا.
 
  persona: اسمك "أور" — مستوحى من مدينة أور السومرية حيث سُجّلت أولى عمليات التبادل في التاريخ.
 """
@@ -128,6 +132,25 @@ TOOL_SCHEMAS = [
         "name": "get_spending",
         "description": "Get the user's month-to-date spending breakdown by category, with monthly budget limits and status (ok / near 80%+ / over). Use it when the user asks how much they spent (e.g. 'شكد صرفي على الكهرباء هذا الشهر') or where their money goes.",
         "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {
+        "name": "schedule_payment",
+        "description": "Schedule a future/recurring payment (a PIN-authorized mandate executed automatically at its time — no PIN needed later). kind='bill' for a biller (target = biller code like 'MOE-BGD-R') or kind='transfer' for a user card (target = 16-digit card). `when` accepts Arabic phrases (غدًا، بعد يومين، أول الشهر الجاي، كل شهر) or ISO dates (2026-10-01). If the user did not provide their PIN, ask for it first.",
+        "parameters": {"type": "object", "required": ["kind", "target", "amount", "when", "pin"], "properties": {
+            "kind": {"type": "string", "enum": ["bill", "transfer"]},
+            "target": {"type": "string"},
+            "amount": {"type": "integer"},
+            "when": {"type": "string"},
+            "pin": {"type": "string"},
+            "frequency": {"type": "string", "enum": ["once", "monthly"]}}}}},
+    {"type": "function", "function": {
+        "name": "list_scheduled",
+        "description": "List the user's pending scheduled payments (upcoming bills/transfers mandates) with ids, amounts and next run times.",
+        "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {
+        "name": "cancel_scheduled",
+        "description": "Cancel a pending scheduled payment by its id (from list_scheduled). No PIN needed.",
+        "parameters": {"type": "object", "required": ["scheduled_id"], "properties": {
+            "scheduled_id": {"type": "integer"}}}}},
 ]
 
 
@@ -158,6 +181,15 @@ async def _execute_tool(session: AsyncSession, user: User,
                                   args.get("monthly_limit", 0))
     if name == "get_spending":
         return await T.get_spending(session, user)
+    if name == "schedule_payment":
+        return await T.schedule_payment(
+            session, user, str(args.get("kind", "")), str(args.get("target", "")),
+            args.get("amount", 0), str(args.get("when", "")),
+            str(args.get("pin", "")), str(args.get("frequency", "")))
+    if name == "list_scheduled":
+        return await T.list_scheduled(session, user)
+    if name == "cancel_scheduled":
+        return await T.cancel_scheduled(session, user, int(args.get("scheduled_id", 0)))
     return {"error": f"unknown tool {name}"}
 
 
@@ -514,9 +546,12 @@ async def local_engine(session: AsyncSession, user: User,
         amount = _parse_amount(low)
         if amount and amount >= 1000:
             pin_match = PIN_RE.search(low)
-            if pin_match:
+            # guard: a bare digit run equal to the amount is NOT a PIN
+            pin = (pin_match.group(1)
+                   if pin_match and pin_match.group(1) != str(amount) else None)
+            if pin:
                 await _emit("topup_wallet")
-                result = await T.topup_wallet(session, user, amount, pin_match.group(1))
+                result = await T.topup_wallet(session, user, amount, pin)
                 if result.get("ok"):
                     r = result["receipt"]
                     actions.append({"tool": "topup_wallet", "ok": True, "data": r})
@@ -535,10 +570,13 @@ async def local_engine(session: AsyncSession, user: User,
         amount = _parse_amount(low)
         if card and amount:
             pin_match = PIN_RE.search(low)
-            if pin_match:
+            # guard: never treat the amount itself as the PIN
+            pin = (pin_match.group(1)
+                   if pin_match and pin_match.group(1) != str(amount) else None)
+            if pin:
                 await _emit("transfer_money")
                 result = await T.transfer_money(session, user, card.group(1),
-                                                amount, pin_match.group(1))
+                                                amount, pin)
                 if result.get("ok"):
                     r = result["receipt"]
                     actions.append({"tool": "transfer_money", "ok": True, "data": r})
@@ -593,6 +631,78 @@ async def local_engine(session: AsyncSession, user: User,
                 "• «ميزانية تحويلات 500 ألف»\n"
                 "أو «ميزانياتي» حتى تشوف القائمة الحالية.")
 
+    # --- scheduled payments -------------------------------------------------
+    if re.search(r"جدول|جدّل|جدول|schedule|recurring|autopay", low):
+        # list
+        if re.search(r"جدولاتي|جدولي|جدولات |my schedule|list scheduled", low):
+            await _emit("list_scheduled")
+            rows = await T.list_scheduled(session, user)
+            if rows["count"] == 0:
+                return ("ما عندك جدولات بعد ⏰\n"
+                        "مثال: «جدّل دفع فاتورة الكهرباء أول الشهر الجاي»")
+            lines = [f"عندك {rows['count']} جدولة قيد الانتظار:"]
+            for it in rows["items"]:
+                freq = " · شهريًا" if it["frequency"] == "monthly" else ""
+                lines.append(f"• رقم {it['id']} — {it['label']}: "
+                             f"{it['amount']:,} د.ع · "
+                             f"{it['next_run_at'][:16].replace('T', ' ')}{freq}")
+            lines.append("«الغ جدولة رقم X» للإلغاء.")
+            return "\n".join(lines).replace(",", "،")
+
+        # cancel
+        m = re.search(r"(?:الغ|إلغاء|احذف|امسح)\s*(?:جدولة)?\s*(?:رقم)?\s*(\d+)", low)
+        if m and re.search(r"الغ|إلغاء|احذف|امسح|cancel", low):
+            await _emit("cancel_scheduled")
+            res = await T.cancel_scheduled(session, user, int(m.group(1)))
+            return "✅ " + res["message"] if res.get("ok") else "ما لقيت الجدولة — تأكد من رقمها."
+
+        # create: needs kind + amount + when (+PIN)
+        amount = _parse_amount(low)
+        when_txt = msg  # pass the raw text — the parser understands Arabic
+        pin_match = PIN_RE.search(low)
+        card = CARD_RE.search(msg)
+
+        # detect kind: transfer if a card or «حوالة/حوّل» present, else bill
+        is_transfer = bool(card) or re.search(r"حوالة|حوّل|حو ل", low)
+        # find the biller by category keyword
+        cat = next((c for c, words in CATEGORY_KEYWORDS.items()
+                    if any(w in low for w in words)), None)
+
+        if not amount or amount < 1000:
+            return ("حاضر أجدوللك ⏰ اكتب المبلغ، مثال:\n"
+                    "• «جدّل دفع فاتورة الكهرباء 45 الف أول الشهر الجاي»\n"
+                    "• «جدّل حوالة 100 الف على بطاقة ... بعد يومين»")
+        if not is_transfer and cat is None:
+            return ("أي فاتورة أجدوللك؟ حدد النوع، مثال:\n"
+                    "• «جدّل فاتورة الكهرباء 45 الف أول الشهر»\n"
+                    "• «جدّل فاتورة الماء 20 الف كل شهر»")
+
+        target = card.group(1) if is_transfer and card else (cat or "")
+        kind = "transfer" if is_transfer else "bill"
+        if is_transfer and not card:
+            return "أعطني رقم بطاقة المستلم (16 رقم) ضمن الرسالة، مثل: «جدّل حوالة 100 الف على 4539555544441234 بعد يومين»."
+
+        if pin_match and pin_match.group(1) != str(amount):
+            await _emit("schedule_payment")
+            # resolve the biller from the raw message (city-aware)
+            if kind == "bill":
+                resolved = T.resolve_biller(msg, user.city)
+                if resolved is None:
+                    return ("ما لقيت الجهة — اذكر نوع الفاتورة، مثل: "
+                            "«جدّل فاتورة الكهرباء 45 الف أول الشهر»")
+                target = resolved[0]["code"]
+            res = await T.schedule_payment(session, user, kind, target,
+                                           amount, when_txt, pin_match.group(1))
+            if res.get("ok"):
+                return "✅ " + res["message"]
+            if res.get("error") == "pin":
+                return "رمز الـ PIN غلط — جرب مرة ثانية."
+            if res.get("error") == "bad_when":
+                return res.get("detail", "ما فهمت التوقيت — جرب «غدًا» أو «أول الشهر الجاي».")
+            return res.get("detail", "ما أكملت الجدولة — تأكد من البيانات.")
+        return ("تمام — أرسل لي رمز الـ PIN مرة واحدة لتخويل الجدولة "
+                "(التنفيذ بعدين تلقائي).")
+
     # --- transactions ------------------------------------------------------
     if re.search(r"سجل|معاملات|حركات|آخر|transactions|history", low):
         await _emit("recent_transactions")
@@ -614,5 +724,6 @@ async def local_engine(session: AsyncSession, user: User,
         "• «اشحن رصيدي 50000» — تعبئة المحفظة\n"
         "• «ميزانية الكهرباء 150 ألف» — حد صرف شهري\n"
         "• «شكد صرفي هذا الشهر؟» — تحليل الصرف\n"
+        "• «جدّل فاتورة الكهرباء أول الشهر الجاي» — دفع مجدول\n"
         "شنو تحب نسوي؟"
     )

@@ -371,3 +371,134 @@ Unresolved / next-phase priorities:
 3. True LLM token streaming through the z-ai bridge (still chunked server-side).
 4. Groq key verification on a local Windows run via start.bat.
 5. fmtIQD uses Arabic "،" thousands separator in EN mode too (cosmetic; Western commas in EN would be a one-line change in urpay.ts).
+
+---
+Task ID: cron-round-6 (backend part)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + scheduled payments + favorites + fixes
+
+Work Log (backend so far):
+- QA pass: both servers healthy; full E2E verified via agent-browser (landing → demo login → all tabs → agent SSE chat via Z-AI Bridge → bills generate/pay with wrong-PIN rejection + shake + correct-PIN receipt UR-OUD6ZJO4 → transfer/txns/profile render → EN mode ltr no-overflow → back to AR). Zero console errors.
+- FIX: fmtIQD EN mode now uses Western "1,678,000" separators (was Arabic "،" in both languages).
+- NEW BACKEND — Scheduled Payments (الدفع المجدول):
+  - models.py: ScheduledPayment (kind bill|transfer, category/biller/subscriber_no, receiver_card/name, amount, frequency once|monthly, next_run_at, last_run_at, status pending|executed|cancelled|failed) + Favorite (user+target unique pair).
+  - app/scheduler.py (new): execute_one() (bill: creates paid Bill + txn + notify kind=scheduled_executed + budget guard; transfer: direct both-sides txns + notify + budget guard; insufficient → status=failed + notify kind=scheduled_failed; monthly → _next_month clamp), run_due_scheduled() (lazy housekeeping), scheduler_loop() (asyncio task every 20s started in lifespan). MIN_AHEAD 30s / MAX_AHEAD 1y.
+  - routers/scheduled.py (new): GET /api/scheduled (pending + history + totals; runs lazy housekeeping first), POST /api/scheduled (PIN-verified mandate creation; ISO execute_at; clamps <30s; biller from BILLERS catalog; transfer card validated + not-self), POST /api/scheduled/{id}/cancel.
+  - main.py: routers registered, scheduler_loop task in lifespan, _ensure_demo_scheduled() idempotent seeding (demo user gets: monthly electricity 45k first-of-next-month + one-time transfer 100k to زينب in 3 days) — fixed 2 startup bugs (limit(1) on multi-row scalar queries).
+  - agent tools: schedule_payment (kind/target/amount/when/pin/frequency; _parse_when understands غدًا/بعد يومين/بعد دقيقتين/أول الشهر الجاي/كل شهر/ISO dates; resolve_biller code→name→Arabic category word with CITY preference), list_scheduled, cancel_scheduled. Wired into TOOL_SCHEMAS + dispatch + step labels + SYSTEM_PROMPT rule 11.
+  - local engine: جدول/جدولاتي/الغ جدولة رقم X intents + help text line.
+  - VERIFIED: live execution (scheduled transfer 25k in 40s → executed by background loop → notification نُفّذت حوالتك المجدولة + txn + ref UR-R0ULG615); agent chat «جدولاتي» lists both mandates; agent «جدّل دفع فاتورة الماء 20 الف بعد يومين والرمز 1234» → creates water biller (city-aware بغداد) — initial wrong-biller bug fixed via resolve_biller; cancel works.
+- NEW BACKEND — Favorites: GET/POST/DELETE /api/favorites (add by card, dedup, not-self) — VERIFIED add/list/remove/dedup via API.
+- BUG FIXED (pre-existing, local engine): PIN_RE matched the amount digits («اشحن رصيدي 50000» → PIN="50000" → wrong-PIN error). Added pin != amount guards in topup + transfer + scheduled local intents.
+- Frontend prep done: urpay.ts types (ScheduledItem/ScheduledFeed/FavoriteItem) + 6 methods; Notification kind extended (scheduled_executed/scheduled_failed); notifications-bell KIND_META (CalendarCheck2/CalendarX2) + KIND_TAB (→ overview).
+- Demo user state: 2 scheduled mandates pending + 1 favorite (زينب).
+
+Stage Summary:
+- Backend COMPLETE for both features; next: frontend ScheduledCard + ScheduleDialog (overview), favorites chips (transfer view), i18n keys, styling polish, final QA.
+
+---
+Task ID: 6-b
+Agent: Z.ai Code (frontend subagent — favorites quick-transfer)
+Task: Transfer-view favorites frontend (chips + star toggle) for the round-6 favorites backend
+
+Work Log:
+- Read worklog (cron-round-6), transfer-view.tsx, parts.tsx (UserAvatar), i18n.tsx (useT), urpay.ts (FavoriteItem + favorites/favoriteAdd/favoriteRemove), dict/dashboard.ts fav* keys — backend contract confirmed, no dict/urpay changes needed.
+- Edited ONLY src/components/urpay/transfer-view.tsx:
+  - State: favs: FavoriteItem[] | null + amountRef (focus target for quick-pick).
+  - loadFavs useCallback (silent catch → []) + useEffect on [loadFavs, reqSignal] → refreshes after successful transfers (reqSignal bump) and after add/remove (direct await loadFavs()).
+  - Favorites quick-pick section inside the transfer form card, ABOVE the search field (renders only when favs !== null && favs.length > 0; empty → nothing, star button is the discovery path):
+    - Header row: gold Star icon (fill-gold-deep/20) + t("transfer.favTitle") + t("transfer.favHint") hint on the far side (mirrors PendingRequests header pattern).
+    - Horizontal scrollable chips (overflow-x-auto scrollbar-slim, pt-1.5 so the ✕ isn't clipped): UserAvatar 32 + name (truncate max-w-28) + •••• last-4 (num, dir=ltr). Chip = rounded-2xl border-border/70 bg-secondary/60, hover border-gold/50 bg-gold/[.06].
+    - Selected chip (matches receiver by card_number): border-gold/60 bg-gold/10 + tiny gold star badge at top-start + aria-pressed.
+    - Remove ✕: absolute -top-1.5 -end-1.5, opacity-0 → group-hover/focus opacity-100, hover destructive tints, [&>svg]:text-destructive. (Fixed spec snippet's conflicting hidden/flex display toggling by using flex-always + opacity transition — keeps it focusable/keyboard-visible.)
+  - pickFavorite(f): sets receiver {id: f.user_id, ...}, clears query/results/cardInput, focuses amount input via ref.
+  - removeFav(userId): urpay.favoriteRemove → toast favRemoveToastTitle → reload; silent catch.
+  - Receiver row (selected state): star Button (sm/ghost/rounded-xl) BEFORE the change button — filled Star (fill-gold-deep text-gold-deep) when receiver is in favs (click removes), outline Star otherwise (click → favoriteAdd → favAddedToastTitle toast → reload; error → favFailToastTitle destructive toast). Label t("transfer.favAddBtn") hidden below sm. aria-pressed={isFav}. Tiny gold star badge on the 44px avatar when favorited (optional polish).
+  - isFav derived: favs?.some(card_number match) — null-safe while loading.
+  - i18n: all visible strings from existing t("transfer.fav*") keys (favTitle/favHint/favRemoveToastTitle/favAddBtn/favAddedToastTitle/favFailToastTitle); favEmpty intentionally unused (empty state renders nothing per spec). No dict edits.
+  - Design: matches codebase language — gold accents only (no blue/indigo), logical ps/pe/start/end props (RTL/LTR safe), inherited dir, dark-mode-safe tint patterns (gold/15, gold/[.06], border-gold/40-60, bg-card badges).
+- Verification: bunx eslint src/components/urpay/transfer-view.tsx → exit 0; bunx tsc --noEmit → zero errors mentioning transfer-view (zero errors in src/ at all; only pre-existing examples/ + skills/ scaffold errors). dev.log clean (recompiled ✓, no errors). No build run, no browser testing (parent handles E2E QA), no other files touched.
+
+Deviations from spec sketch (intentional, all within "adjust for correctness"):
+- ✕ button classes: replaced contradictory hidden/group-hover:flex/flex with always-flex + opacity-0 group-hover:opacity-100 focus:opacity-100 (spec also had focus:opacity-100, which only works when the element is focusable/displayed).
+- Added pt-1.5 to the chips scroll container so the -6px-offset ✕ (and selected badge) aren't clipped by overflow-x-auto.
+- Added favHint text to the section header (key already existed in dict for this purpose; matches PendingRequests title+hint pattern).
+- Chip selected-state (gold border/bg + corner star badge) and aria-pressed added as the "tiny gold star badge" optional polish.
+
+Stage Summary:
+- Favorites frontend COMPLETE: quick-pick chips + add/remove star toggle wired to the verified /api/favorites backend, RTL-first, i18n-complete (ar+en), lint/tsc clean. Ready for parent E2E QA.
+
+---
+Task ID: 6-a
+Agent: Z.ai Code (scheduled payments frontend)
+Task: ScheduledCard + ScheduleDialog on the Overview page (frontend for the verified /api/scheduled backend)
+
+Work Log:
+- Read worklog (cron-round-6 backend entry), budget-card.tsx, parts.tsx (PinDialog/EmptyState), overview.tsx, i18n.tsx, urpay.ts, dict/dashboard.ts scheduled.* keys (ar+en), transfer-view.tsx (card input + PendingRequests row patterns), bills-view.tsx (lazy billers Select pattern), notifications-bell.tsx (violet transfer tint).
+- NEW src/components/urpay/scheduled-card.tsx (~470 lines):
+  - ScheduledCard({ refreshKey }): loads urpay.scheduled(token) on [token, refreshKey, signal]; internal `signal` bumped after create/cancel for instant reload; hides entirely only on FIRST-load failure (stale feed kept on refetch failure, budget-card pattern); 3-row pulse skeleton while loading; 30s live-tick clock drives countdown labels.
+  - Header: CalendarClock icon chip (bg-primary/10 ring-primary/15), title + subtitle, gold "الإجمالي الشهري" badge with fmtIQD(monthly_total) when >0, outline sm "جدولة دفع" button (CalendarPlus).
+  - Pending rows (max-h-96 scroll, scrollbar-slim): ReceiptText emerald tint (ring) for bill / ArrowUpRight violet tint (notifications-bell pattern) for transfer with title tooltips (billIconTitle/transferIconTitle keys); label bold + frequency badge (monthly=gold-tinted outline, once=muted outline); next-run line = t(scheduled.nextRun,{when:fmtDateTime}) + gold t(scheduled.countdown,{left:countdownLabel()}) with inline numeric units ("45 دقيقة"/"3h" — spec-sanctioned, mirrors dueLabel/timeAgo); amount fmtIQD(false)+common.iqd underneath (PendingRequests style); XCircle ghost cancel → scheduledCancel → cancelToastTitle + signal reload (no confirm, per spec).
+  - History section (history.length>0): border-t divider + historyTitle + compact rows (label + status badge: executed=emerald / cancelled=muted outline / failed=destructive + muted num amount).
+  - Empty state (pending=0): parts.tsx EmptyState with CalendarClock + emptyTitle/emptyDesc + same "جدولة دفع" CTA; history still rendered below if present.
+  - Footer autopayHint; framer-motion section entrances (opacity 0 y 14) on list/empty/history blocks.
+  - ScheduleDialog (same file): max-w-sm rounded-3xl, CalendarClock title chip, dialogDesc; kind segmented control (bill ReceiptText / transfer Send, TopUp chip style, aria-pressed); bill → grouped biller Select (SelectGroup/SelectLabel per category ar/en, lazy urpay.billers() once on first open, max-h-72, bills.selectBiller/common.loading placeholders); transfer → 16-digit card Input (dir=ltr, auto-space every 4, tracking-[0.08em], transfer.cardPlaceholder); amount Input + د.ع suffix + quick chips 25k/50k/100k (TopUp style); when = 4 chips (tomorrow/3days/firstOfMonth/custom) + custom reveals datetime-local Input (dir=ltr num, animate-in); frequency once/monthly chips; Continue (h-12 rounded-2xl shadow-lift) disabled unless valid (bill: biller_code + amount 1000..5M; transfer: 16 digits + amount; execute_at resolvable) → PinDialog (pinTitle/pinDesc/pinConfirm, amount shown).
+  - confirmSchedule: urpay.scheduleCreate with kind-conditional biller_code/receiver_card, execute_at ALWAYS new Date(...).toISOString() (tomorrow=+1d@09:00 local, 3days=now+3d, firstOfMonth=next month 1st@09:00, custom from datetime-local local value) → success: close both dialogs + successToastTitle toast (label · date) + onCreated signal, return null; error: return message (wrong-PIN shake inside PinDialog).
+  - Dialog field reset on open via budget-card's wasOpen render-time pattern (no setState-in-effect); PIN dismiss returns to the filled form (only success closes both).
+- EDIT src/components/urpay/overview.tsx: import ScheduledCard; inserted motion.div (delay 0.11, opacity 0 y 14) after the BudgetCard block (0.09) and before the bills/txns grid (0.12).
+- NO dict changes (all scheduled.*/common.* keys pre-existed); NO urpay.ts changes; no blue/indigo — emerald/gold/violet/rose tints only; dark-mode-safe (token colors + dark: variants); RTL-safe (no hardcoded dir).
+
+Verification:
+- bunx eslint scheduled-card.tsx overview.tsx → exit 0, zero warnings.
+- bunx tsc --noEmit → zero errors in src/ (only pre-existing examples//skills/ noise, confirmed by raw output).
+- dev.log: clean compile; GET /api/scheduled 200 (145ms) fires on overview load.
+- API shape check via curl: pending(2: transfer 100k once + electricity 45k monthly) + history(1 executed) + monthly_total match ScheduledFeed type exactly.
+- Did NOT run bun run build / browser E2E (parent agent handles QA), per instructions.
+
+Stage Summary:
+- Scheduled payments frontend COMPLETE: overview card (pending list + live countdowns + history + empty state + monthly-total chip) and full creation dialog (bill/transfer, quick-when presets, custom datetime, once/monthly, PIN-authorized) wired to the verified backend. Lint + tsc clean. Ready for parent E2E QA.
+
+---
+Task ID: cron-round-6 (frontend + integration + final QA)
+Agent: Z.ai Code (scheduled web dev review)
+Task: Scheduled payments + favorites frontend, PIN echo masking, dark-mode polish, full E2E QA
+
+Work Log:
+- i18n keys pre-added by parent (46 scheduled.* + 8 transfer.fav* keys, ar/en parity) in dict/dashboard.ts to avoid subagent file races.
+- Subagent 6-a built scheduled-card.tsx (643 lines: ScheduledCard with pending rows + live 30s countdown + monthly-total chip + history statuses + empty state + skeleton; ScheduleDialog with kind toggle, grouped biller Select, card input, amount chips, when-presets [غدًا/بعد 3 أيام/أول الشهر الجاي/تاريخ مخصص datetime-local], frequency, PinDialog flow) + overview.tsx insertion (motion delay 0.11). Lint/tsc clean.
+- Subagent 6-b built transfer-view favorites: scrollable avatar chips (UserAvatar + name + •••• last4, hover ✕ remove, selected gold state, pickFavorite prefill + amount focus) + star toggle on the selected receiver row (filled=remove/outline=add with toasts). Lint/tsc clean.
+- E2E VERIFIED IN BROWSER (agent-browser):
+  - ScheduledCard renders with the 2 seeded demo mandates (monthly electricity 45k «باقي 5 يوم» + transfer to زينب 100k «باقي 2 يوم») + history rows (نُفّذت/أُلغيت).
+  - ScheduleDialog full flow: bill kind → grouped biller Select (ماء بغداد picked) → 30,000 → غدًا → PIN 1234 → success toast + row appears. Cancel works.
+  - LIVE EXECUTION through the UI: created a custom-datetime transfer (+2m45s) via the dialog → background scheduler executed it at :44 → history flips to نُفّذت, notification «نُفّذت حوالتك المجدولة» with reference, balance dropped, txn pair recorded both sides. (Note: one test run executed 1,500,020 instead of 15,000 — root-caused to my automation typing the datetime string into the amount field via an empty-selector fill command; app logic was correct; demo balance restored via topup UR-NF3WRA43 → 1,592,980.)
+  - Favorites: chip click prefills receiver + focuses amount; full quick-transfer → PIN → receipt UR-SB6JIVKI verified.
+  - Agent SSE chat: «جدولاتي شنو عندي؟» → correct 3-schedule listing via Z-AI Bridge; «جدّل دفع فاتورة الإنترنت 35 الف أول الشهر الجاي والرمز 1234» → schedule created (فاتورة بغداد الجديدة للاتصالات, 1 Oct) — city-aware biller resolution working.
+  - EN mode: card fully translated (Scheduled Payments / Runs 28 Sept · in 2d / Monthly total), dir=ltr, no overflow. Dark mode verified. Mobile 390px exact fit (390=390) on overview + transfer.
+- BUG FIXED (found in QA): agent chat live echo showed the raw PIN («والرمز 1234») while DB history was masked — added client-side maskPin() in agent-view.tsx (regex mirrors backend PIN_MASK_RE; card numbers untouched — \b semantics; unit-tested with 5 cases via bun).
+- BUG FIXED (backend, found during build): LLM passed Arabic words instead of biller codes to schedule_payment → resolve_biller() with code→name→Arabic-category matching + user-city preference («فاتورة الماء» from a بغداد user → ماء بغداد, not a random governorate).
+- BUG FIXED (backend, pre-existing): local-engine PIN_RE matched the amount digits («اشحن رصيدي 50000» → PIN="50000" → wrong-PIN error) — pin≠amount guards added in topup/transfer/schedule intents.
+- BUG FIXED (backend startup): scalar_one_or_none on multi-row queries (زينب name lookup + pending-mandate check) crashed lifespan twice → .limit(1).
+- STYLING POLISH (VLM-guided: AR light 8/10, EN light 7.5/10, EN dark 6.5/10 → addressed the dark items):
+  - Dark-mode --border raised 12%→16% alpha (cards separate cleanly from the page).
+  - Hero date line contrast: text-white/40 → /55.
+  - Budget over-limit bar: bg-destructive + dark:bg-red-500/85 (softer in dark).
+  - ScheduledCard: 60s auto-refresh (executions move to history live on screen) + 30s countdown tick.
+  - VLM "budget bar 102% overflow" claim DISPROVEN (bar clamps at Math.min(100, pct) — only the text shows 102%).
+- README updated: new endpoints block + agent tools list + "إضافات حديثة" section (autopay + favorites).
+- Final state: bun run lint CLEAN; tsc --noEmit CLEAN for src/; dev.log + backend log all 200s; zero console errors; both servers healthy.
+
+Stage Summary:
+- Current status: STABLE — two headline features (Scheduled Payments/autopay + Favorites) verified end-to-end including a real timed background execution observed live in the UI.
+- New endpoints: GET/POST /api/scheduled, POST /api/scheduled/{id}/cancel, GET/POST/DELETE /api/favorites.
+- New DB tables: scheduled_payments, favorites (auto-created by create_all; demo user auto-seeded with 2 mandates on startup — idempotent).
+- New agent tools: schedule_payment (Arabic when-parser + city-aware biller resolver), list_scheduled, cancel_scheduled. Local engine: جدول/جدولاتي/الغ جدولة رقم X intents.
+- New frontend: scheduled-card.tsx (643 lines), transfer-view favorites, agent-view maskPin, notifications scheduled_executed/scheduled_failed kinds (CalendarCheck2/CalendarX2 icons → overview tab).
+- Demo state for judges: 3 pending mandates (monthly electricity + transfer to زينب + agent-created internet), 1 favorite (زينب), balance 1,592,980 IQD, budgets (electricity over 102% shows the warning state, mobile 69%).
+- QA screenshots: download/qa7-*.png (overview-ar, bills-paid, scheduled-card, schedule-dialog, favorites-transfer, scheduled-en, scheduled-en-dark, scheduled-mobile, favorites-mobile, agent-schedule, final-overview).
+
+Unresolved / next-phase priorities:
+1. Local-engine (offline fallback) replies remain Arabic-only (fine for demo; ~30 templates).
+2. Backend-generated strings (notifications, tool labels, bill titles) remain Arabic by design.
+3. True LLM token streaming through the z-ai bridge (currently chunked server-side).
+4. Groq key verification on a local Windows run via start.bat.
+5. Optional ideas: QR receive-money code, spending insights digest notification (weekly), agent proactive morning brief, scheduled-payment edit (currently cancel + recreate).

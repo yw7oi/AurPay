@@ -33,6 +33,19 @@ const PROVIDER_LABEL: Record<string, string> = {
   zai: "Z-AI Bridge",
 };
 
+/* mask PIN-like digit runs in the user's own live echo (server already masks
+   stored history — this keeps the on-screen bubble consistent + shoulder-surf
+   safe). Mirrors the backend PIN_MASK_RE behavior. */
+const PIN_ECHO_RE = /\b(?:pin|بصورة|رمز)?\s*[:=]?\s*(\d{4,6})\b/gi;
+function maskPin(text: string): string {
+  return text.replace(PIN_ECHO_RE, (m, digits: string, offset: number) => {
+    /* don't mask 16-digit card numbers or amounts attached to الف/ألف */
+    const before = text.slice(Math.max(0, offset - 2), offset);
+    if (/\d/.test(before) || m.replace(/\D/g, "").length >= 8) return m;
+    return m.replace(digits, "•".repeat(digits.length));
+  });
+}
+
 export function AgentView() {
   const { token, setUser, user } = useSession();
   const { t, lang } = useT();
@@ -75,7 +88,7 @@ export function AgentView() {
     setSending(true);
     setSteps([]);
     setStreamText("");
-    setMessages((ms) => [...ms, { role: "user", content: message }]);
+    setMessages((ms) => [...ms, { role: "user", content: maskPin(message) }]);
     try {
       /* SSE streaming path — tool steps + word-by-word reply */
       const res = await urpay.agentChatStream(token, message, {

@@ -24,6 +24,7 @@ import type { DashTab } from "./dashboard";
 import { UrPayMark } from "./logo";
 import { AnalyticsCard } from "./analytics";
 import { BudgetCard } from "./budget-card";
+import { ScheduledCard } from "./scheduled-card";
 
 export function OverviewView({
   setTab,
@@ -80,7 +81,7 @@ export function OverviewView({
             <p className="text-white/55 text-sm font-medium">
               {t("overview.greetingLine", { greeting: greeting.text, name: user.first_name, emoji: greeting.emoji })}
             </p>
-            <p className="text-white/40 text-[0.7rem] mt-1 num">
+            <p className="text-white/55 text-[0.7rem] mt-1 num">
               {new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "ar-IQ-u-nu-latn", {
                 weekday: "long",
                 day: "numeric",
@@ -173,6 +174,15 @@ export function OverviewView({
         transition={{ duration: 0.4, delay: 0.09 }}
       >
         <BudgetCard refreshKey={refreshKey} />
+      </motion.div>
+
+      {/* scheduled payments */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.11 }}
+      >
+        <ScheduledCard refreshKey={refreshKey} />
       </motion.div>
 
       <motion.div

@@ -123,7 +123,8 @@ class Notification(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     # payment | topup | transfer_in | transfer_out | transfer_request |
-    # transfer_declined | bill_due | welcome | budget_exceeded
+    # transfer_declined | bill_due | welcome | budget_exceeded |
+    # scheduled_executed | scheduled_failed
     kind: Mapped[str] = mapped_column(String(32))
     title: Mapped[str] = mapped_column(String(160))
     body: Mapped[str] = mapped_column(String(280), default="")
@@ -131,3 +132,49 @@ class Notification(Base):
     reference: Mapped[str] = mapped_column(String(32), default="", index=True)
     is_read: Mapped[bool] = mapped_column(default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class ScheduledPayment(Base):
+    """User-authorized mandate for a future/recurring payment.
+
+    Created with a one-time PIN authorization; executed automatically by the
+    scheduler loop when next_run_at is due (no PIN at execution time — the
+    mandate itself was PIN-authorized).
+    """
+    __tablename__ = "scheduled_payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # bill | transfer
+    # bill mandate fields
+    category: Mapped[str] = mapped_column(String(32), default="")
+    biller_code: Mapped[str] = mapped_column(String(32), default="")
+    biller_name: Mapped[str] = mapped_column(String(128), default="")
+    subscriber_no: Mapped[str] = mapped_column(String(32), default="")
+    # transfer mandate fields
+    receiver_card: Mapped[str] = mapped_column(String(32), default="")
+    receiver_name: Mapped[str] = mapped_column(String(128), default="")
+    amount: Mapped[int] = mapped_column(Integer)
+    frequency: Mapped[str] = mapped_column(String(16), default="once")  # once | monthly
+    next_run_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
+    # pending | executed | cancelled | failed
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    @property
+    def label(self) -> str:
+        if self.kind == "bill":
+            return f"فاتورة {self.biller_name}"
+        return f"حوالة إلى {self.receiver_name or self.receiver_card[-4:]}"
+
+
+class Favorite(Base):
+    """Quick-transfer favorite contact (target user)."""
+    __tablename__ = "favorites"
+    __table_args__ = (UniqueConstraint("user_id", "target_user_id", name="uq_fav_pair"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    target_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

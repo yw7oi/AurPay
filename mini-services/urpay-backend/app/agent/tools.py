@@ -2,13 +2,14 @@
 import re
 import secrets
 import string
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..budget import check_budget_crossing
 from ..constants import CATEGORY_AR
-from ..models import Bill, Budget, Transaction, User, utcnow
+from ..models import Bill, Budget, ScheduledPayment, Transaction, User, utcnow
 from ..notify import notify
 
 REF_ALPHABET = string.ascii_uppercase + string.digits
@@ -366,3 +367,246 @@ async def get_profile(session: AsyncSession, user: User) -> dict:
         "phone": user.phone, "card_masked": f"•••• {user.card_number[-4:]}",
         "balance": user.balance, "age": user.age,
     }
+
+
+# ------------------------------------------------------- scheduled payments --
+
+SCHED_ALIASES = {
+    "كهرب": "electricity", "electricity": "electricity", "power": "electricity",
+    "ماء": "water", "مياه": "water", "water": "water",
+    "نت": "internet", "internet": "internet", "انترنت": "internet", "إنترنت": "internet",
+    "شحن": "mobile", "mobile": "mobile", "زين": "mobile", "باقة": "mobile",
+    "جامع": "education", "education": "education", "رسوم": "education", "مدرس": "education",
+    "مرور": "traffic", "مخالف": "traffic", "traffic": "traffic", "غرام": "traffic",
+}
+
+
+def resolve_biller(target: str, user_city: str = ""):
+    """Resolve a biller from a code, a (partial) name, or an Arabic category
+    word — preferring billers that serve the user's governorate."""
+    from ..constants import BILLERS
+
+    t = (target or "").strip()
+    if not t:
+        return None
+    # 1. exact biller code
+    for cat, bs in BILLERS.items():
+        for b in bs:
+            if b["code"] == t:
+                return b, cat
+    # 2. name containment
+    for cat, bs in BILLERS.items():
+        for b in bs:
+            if t in b["name"] or b["name"] in t:
+                return b, cat
+    # 3. Arabic/English category keyword
+    low = t.lower()
+    cat = next((c for k, c in SCHED_ALIASES.items() if k in low), None)
+    if cat:
+        bs = BILLERS[cat]
+        city = (user_city or "").strip()
+        if city:
+            for b in bs:
+                if city in b["name"]:
+                    return b, cat
+        return bs[0], cat
+    return None
+
+
+def _parse_when(text: str):
+    """Parse a scheduling time from Arabic phrases or ISO datetime.
+
+    Returns (datetime|None, frequency_hint) — frequency_hint is "monthly" when
+    the user asked for a recurring mandate.
+    """
+    from ..scheduler import MIN_AHEAD
+
+    t = (text or "").strip()
+    low = re.sub(r"\s+", " ", t.lower())
+    now = utcnow()
+
+    if re.search(r"كل شهر|شهري|شهر[يي]ا|monthly|every month", low):
+        # first of next month at 09:00
+        y, m = (now.year, now.month + 1) if now.month < 12 else (now.year + 1, 1)
+        return now.replace(year=y, month=m, day=1, hour=9, minute=0,
+                           second=0, microsecond=0), "monthly"
+
+    # relative minutes: «بعد دقيقة» / «بعد دقيقتين» / «بعد 5 دقائق»
+    m = re.search(r"بعد\s+(?:بو?ص?\s*)?(\d+)\s*دقيق", low) or \
+        re.search(r"after\s+(\d+)\s*min", low)
+    if m:
+        return now + timedelta(minutes=int(m.group(1))), ""
+    if re.search(r"بعد\s+دقيق[تي]?ين|بعد دقيقة", low):
+        return now + timedelta(minutes=2), ""
+
+    # relative hours
+    m = re.search(r"بعد\s+(\d+)\s*ساع", low) or re.search(r"after\s+(\d+)\s*hour", low)
+    if m:
+        return now + timedelta(hours=int(m.group(1))), ""
+    if re.search(r"بعد\s+ساع[تي]?ين", low):
+        return now + timedelta(hours=2), ""
+
+    # tomorrow
+    if re.search(r"غدا|غدًا|بكر[هة]|بكرة|tomorrow", low):
+        return (now + timedelta(days=1)).replace(hour=9, minute=0, second=0,
+                                                 microsecond=0), ""
+
+    # relative days: «بعد يومين» / «بعد 3 أيام» / «بعد أسبوع»
+    if re.search(r"بعد\s+يومين|بعد\s+يومان", low):
+        return now + timedelta(days=2), ""
+    if re.search(r"بعد\s+أسبوع|بعد\s+اسبوع|in a week|next week", low):
+        return now + timedelta(days=7), ""
+    m = re.search(r"بعد\s+(\d+)\s*(?:يوم|أيام|ايام|day|days)", low)
+    if m:
+        return now + timedelta(days=int(m.group(1))), ""
+
+    # first of next month
+    if re.search(r"أول الشهر|اول الشهر|بداية الشهر|first of (the )?month|start of month", low):
+        y, mth = (now.year, now.month + 1) if now.month < 12 else (now.year + 1, 1)
+        return now.replace(year=y, month=mth, day=1, hour=9, minute=0,
+                           second=0, microsecond=0), ""
+
+    # explicit ISO: 2026-10-01 or 2026-10-01T09:00 / 2026-10-01 09:00
+    m = re.search(r"(\d{4}-\d{2}-\d{2})(?:[T\s](\d{2}:\d{2}))?", t)
+    if m:
+        try:
+            when = datetime.fromisoformat(
+                m.group(1) + ("T" + (m.group(2) or "09:00") if m.group(2) else "T09:00"))
+            return when, ""
+        except ValueError:
+            pass
+
+    # day/month Arabic style: «1-10» or «1/10»
+    m = re.search(r"\b(\d{1,2})[-/](\d{1,2})\b", t)
+    if m:
+        day, month = int(m.group(1)), int(m.group(2))
+        year = now.year if month >= now.month else now.year + 1
+        try:
+            when = datetime(year, month, day, 9, 0)
+            return when, ""
+        except ValueError:
+            pass
+
+    if re.search(r"الان|الآن|الحين|حالا|باسرع|now|asap", low):
+        return now + MIN_AHEAD, ""
+
+    return None, ""
+
+
+async def schedule_payment(session: AsyncSession, user: User, kind: str,
+                           target: str, amount: int, when: str,
+                           pin: str, frequency: str = "") -> dict:
+    """Create a PIN-authorized scheduled payment mandate.
+
+    kind: "bill" (target = biller code) or "transfer" (target = 16-digit card).
+    when: Arabic phrase («غدًا», «بعد يومين», «أول الشهر الجاي») or ISO date.
+    """
+    from ..constants import BILLERS
+    from ..scheduler import MAX_AHEAD, MIN_AHEAD, _next_month
+    from ..security import verify_pin
+
+    kind = (kind or "").strip().lower()
+    if kind not in ("bill", "transfer"):
+        return {"ok": False, "error": "bad_kind"}
+
+    if not verify_pin(pin or "", user.pin_salt, user.pin_hash):
+        return {"ok": False, "error": "pin"}
+
+    try:
+        amount = int(amount)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "bad_amount"}
+    if not (1000 <= amount <= 5_000_000):
+        return {"ok": False, "error": "bad_amount",
+                "detail": "المبلغ لازم يكون بين 1,000 و 5,000,000 د.ع"}
+
+    when_dt, freq_hint = _parse_when(when)
+    if when_dt is None:
+        return {"ok": False, "error": "bad_when",
+                "detail": ("ما فهمت التوقيت — استخدم مثلًا «غدًا»، «بعد يومين»، "
+                           "«أول الشهر الجاي»، أو تاريخ ISO مثل 2026-10-01")}
+    frequency = (frequency or freq_hint or "once").strip().lower()
+    if frequency not in ("once", "monthly"):
+        frequency = "once"
+
+    now = utcnow()
+    if when_dt < now + MIN_AHEAD:
+        when_dt = now + MIN_AHEAD
+    if when_dt > now + MAX_AHEAD:
+        return {"ok": False, "error": "bad_when",
+                "detail": "ما تصير جدولة أبعد من سنة"}
+
+    if kind == "bill":
+        resolved = resolve_biller(target, user.city)
+        if resolved is None:
+            return {"ok": False, "error": "bad_target",
+                    "detail": "ما لقيت الجهة — اذكر نوع الفاتورة (كهرباء، ماء، إنترنت…) أو كود الجهة"}
+        biller, category = resolved
+        sp = ScheduledPayment(
+            user_id=user.id, kind="bill", category=category,
+            biller_code=biller["code"], biller_name=biller["name"],
+            amount=amount, frequency=frequency, next_run_at=when_dt,
+            status="pending", created_at=now)
+        label = f"فاتورة {biller['name']}"
+    else:
+        card = re.sub(r"\D", "", target or "")
+        if len(card) != 16:
+            return {"ok": False, "error": "bad_target",
+                    "detail": "رقم بطاقة المستلم لازم 16 رقم"}
+        receiver = (await session.execute(
+            select(User).where(User.card_number == card)
+        )).scalar_one_or_none()
+        if receiver is None:
+            return {"ok": False, "error": "not_found"}
+        if receiver.id == user.id:
+            return {"ok": False, "error": "self"}
+        sp = ScheduledPayment(
+            user_id=user.id, kind="transfer", receiver_card=card,
+            receiver_name=receiver.full_name, amount=amount,
+            frequency=frequency, next_run_at=when_dt,
+            status="pending", created_at=now)
+        label = f"حوالة إلى {receiver.full_name}"
+
+    session.add(sp)
+    await session.commit()
+    await session.refresh(sp)
+
+    freq_txt = "وتتكرر شهريًا" if frequency == "monthly" else "لمرة واحدة"
+    return {
+        "ok": True, "scheduled": {
+            "id": sp.id, "kind": sp.kind, "label": label,
+            "amount": sp.amount, "frequency": sp.frequency,
+            "next_run_at": sp.next_run_at.isoformat(),
+        },
+        "message": (f"تمت الجدولة ✅ {label} بمبلغ {amount:,} د.ع "
+                    f"بتاريخ {sp.next_run_at:%Y-%m-%d} {freq_txt}.").replace(",", "،"),
+    }
+
+
+async def list_scheduled(session: AsyncSession, user: User) -> dict:
+    from ..scheduler import run_due_scheduled
+    await run_due_scheduled(session)
+    rows = (await session.execute(
+        select(ScheduledPayment).where(
+            ScheduledPayment.user_id == user.id,
+            ScheduledPayment.status == "pending",
+        ).order_by(ScheduledPayment.next_run_at))).scalars().all()
+    return {
+        "count": len(rows),
+        "monthly_total": sum(sp.amount for sp in rows if sp.frequency == "monthly"),
+        "items": [{
+            "id": sp.id, "kind": sp.kind, "label": sp.label,
+            "amount": sp.amount, "frequency": sp.frequency,
+            "next_run_at": sp.next_run_at.isoformat() if sp.next_run_at else None,
+        } for sp in rows],
+    }
+
+
+async def cancel_scheduled(session: AsyncSession, user: User,
+                           scheduled_id: int) -> dict:
+    sp = await session.get(ScheduledPayment, int(scheduled_id))
+    if sp is None or sp.user_id != user.id or sp.status != "pending":
+        return {"ok": False, "error": "not_found"}
+    sp.status = "cancelled"
+    await session.commit()
+    return {"ok": True, "message": f"انحذفت جدولة {sp.label}"}

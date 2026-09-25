@@ -117,7 +117,7 @@ export type Notification = {
   kind:
     | "payment" | "topup" | "transfer_in" | "transfer_out"
     | "transfer_request" | "transfer_declined" | "bill_due" | "welcome"
-    | "budget_exceeded";
+    | "budget_exceeded" | "scheduled_executed" | "scheduled_failed";
   title: string;
   body: string;
   amount: number | null;
@@ -162,6 +162,40 @@ export type Analytics = {
   top_counterparties: {
     name: string; total: number; count: number; avatar_hue: number;
   }[];
+};
+
+export type ScheduledItem = {
+  id: number;
+  kind: "bill" | "transfer";
+  label: string;
+  category: string;
+  biller_name: string;
+  subscriber_no: string;
+  receiver_name: string;
+  receiver_card_masked: string;
+  amount: number;
+  frequency: "once" | "monthly";
+  next_run_at: string;
+  last_run_at: string | null;
+  status: "pending" | "executed" | "cancelled" | "failed";
+  created_at: string;
+};
+
+export type ScheduledFeed = {
+  pending: ScheduledItem[];
+  history: ScheduledItem[];
+  monthly_total: number;
+  pending_total: number;
+};
+
+export type FavoriteItem = {
+  id: number;
+  user_id: number;
+  full_name: string;
+  first_name: string;
+  city: string;
+  card_number: string;
+  avatar_hue: number;
 };
 
 /* ------------------------------------------------------------------ */
@@ -400,6 +434,42 @@ export const urpay = {
       token,
     }),
 
+  /* scheduled payments */
+  scheduled: (token: string) =>
+    api<ScheduledFeed>("scheduled", { token }),
+  scheduleCreate: (token: string, body: {
+    kind: "bill" | "transfer";
+    biller_code?: string;
+    subscriber_no?: string;
+    receiver_card?: string;
+    amount: number;
+    execute_at: string;
+    frequency: "once" | "monthly";
+    pin: string;
+  }) =>
+    api<{ message: string; scheduled: ScheduledItem }>("scheduled", {
+      method: "POST",
+      body,
+      token,
+    }),
+  scheduledCancel: (token: string, id: number) =>
+    api<{ message: string }>(`scheduled/${id}/cancel`, { method: "POST", token }),
+
+  /* favorites */
+  favorites: (token: string) =>
+    api<FavoriteItem[]>("favorites", { token }),
+  favoriteAdd: (token: string, card_number: string) =>
+    api<{ message: string; favorite: FavoriteItem }>("favorites", {
+      method: "POST",
+      body: { card_number },
+      token,
+    }),
+  favoriteRemove: (token: string, targetUserId: number) =>
+    api<{ message: string }>(`favorites/${targetUserId}`, {
+      method: "DELETE",
+      token,
+    }),
+
   /* agent */
   agentChat: (token: string, message: string) =>
     api<{ reply: string; actions: AgentAction[]; provider: string }>("agent/chat", {
@@ -415,7 +485,8 @@ export const urpay = {
 /* ------------------------------------------------------------------ */
 
 export function fmtIQD(amount: number, withCurrency = true, lang: Lang = "ar"): string {
-  const s = Math.round(amount).toLocaleString("en-US").replace(/,/g, "،");
+  const n = Math.round(amount);
+  const s = lang === "en" ? n.toLocaleString("en-US") : n.toLocaleString("en-US").replace(/,/g, "،");
   if (!withCurrency) return s;
   return lang === "en" ? `${s} IQD` : `${s} د.ع`;
 }

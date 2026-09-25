@@ -47,7 +47,7 @@ function statusStyle(status: BudgetRow["status"]) {
   switch (status) {
     case "over":
       return {
-        bar: "bg-destructive",
+        bar: "bg-destructive dark:bg-red-500/85",
         track: "bg-destructive/15",
         badge: "bg-destructive/10 text-destructive border-destructive/25",
         badgeText: "budget.statusOver",
