@@ -670,12 +670,18 @@ const BILLERS_ROW = [
   { name: "آسياسيل", icon: Smartphone },
   { name: "كورك", icon: Smartphone },
   { name: "وزارة الكهرباء", icon: Zap },
+  { name: "كهرباء أربيل", icon: Zap },
   { name: "تارين", icon: Wifi },
   { name: "هلال نت", icon: Wifi },
   { name: "إيرثلينك", icon: Wifi },
+  { name: "هيلي", icon: Wifi },
+  { name: "نور سات", icon: Wifi },
   { name: "ماء بغداد", icon: Droplets },
+  { name: "ماء البصرة", icon: Droplets },
   { name: "جامعة بغداد", icon: GraduationCap },
+  { name: "جامعة الموصل", icon: GraduationCap },
   { name: "المرور العراقي", icon: CarFront },
+  { name: "مرور البصرة", icon: CarFront },
 ];
 
 const CATEGORIES = [

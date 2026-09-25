@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..budget import check_budget_crossing
 from ..db import get_session
 from ..models import Bill, Transaction, TransferRequest, User, utcnow
 from ..notify import notify
@@ -77,6 +78,8 @@ async def pay_bill(body: PayBillRequest,
            title=f"تم دفع فاتورة {bill.biller_name}",
            body=f"المرجع {ref} · رصيدك بعد الدفع {user.balance:,} د.ع".replace(",", "،"),
            amount=bill.amount, reference=ref)
+    # budget guard — fires a notification if THIS payment crossed the limit
+    await check_budget_crossing(session, user, bill.category, bill.amount)
     await session.commit()
     return Receipt(
         reference=ref, title=f"فاتورة {bill.biller_name}",
@@ -283,6 +286,8 @@ async def confirm_transfer(request_id: int, body: ConfirmTransferRequest,
            title=f"تم تحويل {req.amount:,} د.ع إلى {receiver.full_name}".replace(",", "،"),
            body=f"المرجع {ref} · رصيدك بعد التحويل {user.balance:,} د.ع".replace(",", "،"),
            amount=req.amount, reference=ref)
+    # budget guard for the transfer category
+    await check_budget_crossing(session, user, "transfer", req.amount)
     await session.commit()
 
     return {

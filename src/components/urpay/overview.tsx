@@ -22,6 +22,7 @@ import { CategoryIcon } from "./icons";
 import type { DashTab } from "./dashboard";
 import { UrPayMark } from "./logo";
 import { AnalyticsCard } from "./analytics";
+import { BudgetCard } from "./budget-card";
 
 export function OverviewView({
   setTab,
@@ -153,6 +154,15 @@ export function OverviewView({
         transition={{ duration: 0.4, delay: 0.05 }}
       >
         <AnalyticsCard refreshKey={refreshKey} />
+      </motion.div>
+
+      {/* monthly budgets */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.09 }}
+      >
+        <BudgetCard refreshKey={refreshKey} />
       </motion.div>
 
       <motion.div

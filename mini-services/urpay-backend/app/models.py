@@ -1,7 +1,7 @@
 """SQLAlchemy models for UrPay."""
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -104,13 +104,26 @@ class AgentMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class Budget(Base):
+    """Per-category monthly spending limit (goal) set by the user."""
+    __tablename__ = "budgets"
+    __table_args__ = (UniqueConstraint("user_id", "category", name="uq_budget_user_cat"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    category: Mapped[str] = mapped_column(String(32), index=True)
+    monthly_limit: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     # payment | topup | transfer_in | transfer_out | transfer_request |
-    # transfer_declined | bill_due | welcome
+    # transfer_declined | bill_due | welcome | budget_exceeded
     kind: Mapped[str] = mapped_column(String(32))
     title: Mapped[str] = mapped_column(String(160))
     body: Mapped[str] = mapped_column(String(280), default="")

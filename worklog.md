@@ -197,3 +197,50 @@ Unresolved / next-phase priorities:
 3. Agent streaming: true LLM token streaming through the bridge (providers don't expose it currently).
 4. Groq key verification on a local Windows run via start.bat (sandbox uses z-ai bridge).
 5. Optional: spending limits/budget goals per category, scheduled/recurring bill payments, agent chat export as .txt file (copy exists).
+
+---
+Task ID: cron-round-4 (2026-09-25 ~23:59 Asia/Baghdad)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + new features (budgets & spending limits, notifications routing, expanded Iraqi billers, agent chat .txt export)
+
+Work Log:
+- QA pass (agent-browser): both servers healthy; session persisted; landing + all 6 tabs + agent SSE chat + notifications verified — zero console errors, no horizontal overflow. VLM concerns on overview (clipped bottom / orphaned "N" badge / sidebar misalignment) all DISPROVEN: N badge = Next.js dev-only `nextjs-portal` indicator (never renders in production); bottom clip = viewport cropping; sidebar verified aligned on full-page shot.
+- NEW FEATURE — Budgets & Monthly Spending Limits (headline, worklog priority #5):
+  - Backend: new `Budget` model (user_id+category unique, monthly_limit, updated_at) auto-created by create_all — no reseed. New router budgets.py: GET /api/budgets (rows merged with month-to-date spend per category, pct + status ok/near/over + month label + totals + budgetable list) and PUT /api/budgets (upsert; limit 0 = delete; range 0–20M; 7 categories incl. transfer).
+  - Budget-crossing guard (app/budget.py, shared): await-ed AFTER a successful outgoing txn is added but BEFORE commit — fires kind=budget_exceeded notification ONLY on the crossing event (spent_before <= limit < spent_now), not on every later payment. Hooked into all 4 outflow paths: wallet pay_bill, wallet transfer/confirm, agent tools pay_bill, agent transfer_money.
+  - Verified E2E: set electricity limit 160k (current spend 155k) → paid bill 649 (45k) → notification "تجاوزت ميزانية كهرباء — صرفك 200,000 من 160,000 (+40,000)" fired exactly once; later payments did not re-fire.
+- NEW FEATURE — Agent set_budget tool (LLM + local):
+  - tools.py set_budget(category, monthly_limit): validates category/amount, upsert/delete, returns Arabic message + month-to-date spend. engine.py: TOOL_SCHEMA + dispatch + step label "يضبط ميزانيتك…" + SYSTEM_PROMPT rule 9 (budgets don't need PIN, notify on overshoot) + local-engine intents («ميزانية الكهرباء 150 ألف» / «ميزانياتي» / «ميزانية تحويلات 500 الف») + help text.
+  - Verified E2E via z-ai bridge: "حدد ميزانية الماء ب 200 الف" → tool called, correct confirmation. SSE stream path verified in UI: «ميزانية الاتصالات 80 الف» → "تم تعيين ميزانية الاتصالات بمبلغ 80,000 د.ع شهريًا — صرفك هذا الشهر 55,000 د.ع".
+- NEW FEATURE — BudgetCard frontend (src/components/urpay/budget-card.tsx):
+  - Rows: CategoryIcon + name + animated (framer-motion, cubic-bezier) progress bar + pct + status badge (ضمن الحد primary / قربت توصل الحد gold / تجاوزت الحد destructive + TriangleAlert) + spent/limit + remaining/over amount + edit pencil. Header: month + totals with overall pct + "ميزانية جديدة". Empty state: dashed-border invitation card with CTA. Footer hint nudges the conversational path.
+  - BudgetDialog (add/edit): category Select (only un-budgeted categories), numeric input + quick chips (50k/100k/250k/500k/1M), validation, destructive delete (limit 0). Render-time reset pattern (wasOpen) — initially placed `amount` state in parent → React "Cannot update component while rendering" error → moved amount INTO the dialog (own state), warning gone, verified clean console.
+  - Placed in Overview between AnalyticsCard and bills grid with staggered entrance (delay 0.09s).
+  - Verified E2E in browser: add (internet 120k) → edit (250k → 300k) → delete; totals + statuses recompute correctly (67% ضمن الحد after 300k). VLM: 9/10 light mode, "highly readable" dark mode, 9/10 mobile 390px.
+- NEW FEATURE — Notifications click-through routing (worklog priority #2):
+  - KIND_TAB map: payment/topup/transfer_in/out → transactions; transfer_request/declined → transfer; bill_due → bills; budget_exceeded/welcome → overview. Row click = mark read + close popover + setTab. dashboard passes setTab to NotificationsBell.
+  - Affordance polish: hover ChevronLeft (translates + colors on hover) on every row, group hover class; footer hint updated to "اضغط أي إشعار ليوديك لمكانه".
+  - New kind budget_exceeded: Gauge icon, rose tint.
+  - Verified E2E: payment notif → landed on السجل (badge 4→3); bill_due notif → landed on الفواتير.
+- NEW FEATURE — Expanded Iraqi billers catalog (user prompt suggestion):
+  - BILLERS 27→49: electricity 6→12 (added كركوك، بابل، ديالى، واسط، ذي قار، كربلاء), water 4→9 (أربيل، النجف، ذي قار، كركوك، صلاح الدين), internet 5→9 (هيلي Hili، نور سات NoorSat، الفرات Al-Furat، أور نت UrNet), education 5→10 (المستنصرية، الموصل، دهوك، التقنية الوسطى، معهد بغداد العالي), traffic 2→6 (البصرة، نينوى، كركوك، دائرة تسجيل السيارات), mobile kept 3 (real carriers only).
+  - Verified: /api/billers returns 49; simulate-bill Select shows all 12 electricity options in UI; landing marquee enriched to 16 biller chips.
+- NEW FEATURE — Agent chat .txt export (worklog optional):
+  - buildTranscript() shared with copy; "ملف" button (Download icon) → UTF-8-BOM .txt blob download (Excel/Notepad-safe Arabic). Verified: urpay-chat.txt (1977 bytes) landed in ~/Downloads with correct content.
+- SUGGESTION chip swapped: transfer demo chip → «ميزانية الكهرباء 150 ألف» (agent tab).
+- README endpoints block updated (all new endpoints + agent tool list).
+
+Stage Summary:
+- Current status: STABLE — all flows green plus 4 new features verified end-to-end (budgets CRUD + agent tool + crossing notifications, notification routing, 49-biller catalog, chat .txt export).
+- New backend: budgets router (GET/PUT /api/budgets), Budget model, budget.py crossing guard + hooks in 4 outflow paths, set_budget agent tool (schema/dispatch/labels/prompt/local intents), CATEGORY_AR + BUDGETABLE_CATEGORIES constants, billers 27→49.
+- New frontend: budget-card.tsx (new), notifications-bell routing + ChevronLeft affordance, agent-view .txt download + suggestion chip, overview BudgetCard slot, dashboard setTab prop, landing marquee 16 chips, urpay.ts BudgetRow/BudgetsFeed types + budgets()/setBudget().
+- Lint clean; dev.log + backend log all 200s; mobile 390px exact; dark mode verified; demo credentials intact (4539…1234 / PIN 1234).
+- QA screenshots: download/qa5-{landing,overview,overview-full,budget-card,budget-card2,budget-edit,dark-budget,mobile-budget,mobile-dark,final-budgets,final-budgets2}.png.
+- Demo data note: demo user now has 2 budgets (electricity 300k @67%, mobile 80k @69%) + 1 budget_exceeded notification — good for showcasing.
+
+Unresolved / next-phase priorities:
+1. Arabic/English UI language toggle (the one remaining original suggestion — large scope: 200+ strings across 10 files).
+2. Budget insight in agent context block (include current budgets in _context_block so the LLM proactively warns near/over budget users unprompted).
+3. Scheduled/recurring bill payments + due-date autopay guardrail (would pair well with budgets).
+4. True LLM token streaming through the bridge (providers don't expose raw tokens).
+5. Groq key verification on a local Windows run via start.bat (sandbox uses z-ai bridge).

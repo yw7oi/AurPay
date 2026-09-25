@@ -114,7 +114,8 @@ export type Notification = {
   id: number;
   kind:
     | "payment" | "topup" | "transfer_in" | "transfer_out"
-    | "transfer_request" | "transfer_declined" | "bill_due" | "welcome";
+    | "transfer_request" | "transfer_declined" | "bill_due" | "welcome"
+    | "budget_exceeded";
   title: string;
   body: string;
   amount: number | null;
@@ -131,6 +132,23 @@ export type NotificationsFeed = {
 export type AgentStreamHandlers = {
   onStep?: (step: { tool: string; label: string }) => void;
   onToken?: (chunk: string) => void;
+};
+
+export type BudgetRow = {
+  category: string;
+  monthly_limit: number;
+  spent: number;
+  remaining: number;
+  pct: number;
+  status: "ok" | "near" | "over";
+};
+
+export type BudgetsFeed = {
+  month: string;
+  month_start: string;
+  items: BudgetRow[];
+  total: { limit: number; spent: number };
+  categories: string[];
 };
 
 export type Analytics = {
@@ -369,6 +387,16 @@ export const urpay = {
   /* analytics */
   analytics: (token: string) =>
     api<Analytics>(`analytics`, { token }),
+
+  /* budgets */
+  budgets: (token: string) =>
+    api<BudgetsFeed>("budgets", { token }),
+  setBudget: (token: string, category: string, monthly_limit: number) =>
+    api<{ message: string; removed: boolean }>("budgets", {
+      method: "PUT",
+      body: { category, monthly_limit },
+      token,
+    }),
 
   /* agent */
   agentChat: (token: string, message: string) =>

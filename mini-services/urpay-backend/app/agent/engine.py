@@ -2,9 +2,11 @@
 import logging
 import re
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import AgentMessage, User
+from ..constants import CATEGORY_AR
+from ..models import AgentMessage, Budget, User
 from . import providers, tools as T
 from .providers import extract_json
 
@@ -23,6 +25,7 @@ TOOL_STEP_LABELS = {
     "recent_transactions": "يراجع معاملاتك…",
     "topup_wallet": "يعبّي المحفظة…",
     "get_profile": "يجيب بياناتك…",
+    "set_budget": "يضبط ميزانيتك…",
 }
 
 SYSTEM_PROMPT = """أنت "أور" — المساعد الذكي (AI Agent) داخل محفظة أور پاي (UrPay)، منصة الدفع العراقية.
@@ -37,6 +40,7 @@ SYSTEM_PROMPT = """أنت "أور" — المساعد الذكي (AI Agent) دا
 6. كن ودودًا ومختصرًا (٢-٥ جمل غالبًا). يمكنك اقتراح خطوة تالية مفيدة.
 7. لا تكشف رقم البطاقة كاملًا أو الـ PIN لأي أحد، ويمكنك إظهار آخر 4 أرقام فقط.
 8. عند الدفع: تحقق أن رقم الفاتورة (bill_id) يطابق بالضبط الفاتورة التي طلبها المستخدم (الصنف والجهة). مرر دائمًا `hint` بكلمات المستخدم إلى pay_bill — النظام يرفض الدفع إذا لم تتطابق. إذا رفض النظام العملية (wrong_bill) فأعد فحص list_bills واختر الرقم الصحيح.
+9. الميزانيات: المستخدم ممكن يطلب تحديد حد شهري لتصنيف (مثال: «ميزانية الكهرباء 150 ألف») — استخدم set_budget. إذًا صرفَه تجاوز الحد، أبلغه بذلك ولطفًا اقترح رفعه أو تقليص الصرف. لا تحتاج PIN لتعيين ميزانية (ما هي عملية مالية مباشرة).
 
  persona: اسمك "أور" — مستوحى من مدينة أور السومرية حيث سُجّلت أولى عمليات التبادل في التاريخ.
 """
@@ -96,6 +100,12 @@ TOOL_SCHEMAS = [
         "name": "get_profile",
         "description": "Get the current user's profile (name, city, masked card).",
         "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {
+        "name": "set_budget",
+        "description": "Set (or remove) a monthly spending limit for a category. Categories: electricity, water, internet, mobile, education, traffic, transfer. A limit of 0 removes the budget. No PIN required (not a money movement). Also returns month-to-date spend for the category.",
+        "parameters": {"type": "object", "required": ["category", "monthly_limit"], "properties": {
+            "category": {"type": "string", "enum": ["electricity", "water", "internet", "mobile", "education", "traffic", "transfer"]},
+            "monthly_limit": {"type": "integer", "minimum": 0}}}}},
 ]
 
 
@@ -121,6 +131,9 @@ async def _execute_tool(session: AsyncSession, user: User,
                                     str(args.get("pin", "")))
     if name == "get_profile":
         return await T.get_profile(session, user)
+    if name == "set_budget":
+        return await T.set_budget(session, user, str(args.get("category", "")),
+                                  args.get("monthly_limit", 0))
     return {"error": f"unknown tool {name}"}
 
 
@@ -462,6 +475,39 @@ async def local_engine(session: AsyncSession, user: User,
             return "\n".join(lines)
         return "أعطني اسم المستلم أو رقم بطاقته (16 رقم) والمبلغ، مثل: «حوّل 50000 على 4539123412341234»."
 
+    # --- budgets -------------------------------------------------------------
+    if re.search(r"ميزاني|بودج|budget|حد شهر|سقف", low):
+        # list budgets
+        if re.search(r"ميزانياتي|كل الميزانيات|اشلون ميزانياتي|my budgets|list budgets", low):
+            rows = (await session.execute(
+                select(Budget).where(Budget.user_id == user.id))).scalars().all()
+            if not rows:
+                return ("ما عندك ميزانيات معينة بعد 📊\n"
+                        "مثال: «ميزانية الكهرباء 150 ألف» حتى أحدّدلك حد شهري.")
+            lines = ["ميزانياتك الشهرية:"]
+            for bd in rows:
+                lines.append(f"• {CATEGORY_AR.get(bd.category, bd.category)}: "
+                             f"{bd.monthly_limit:,} د.ع")
+            return "\n".join(lines)
+
+        cat = next((c for c, words in CATEGORY_KEYWORDS.items()
+                    if any(w in low for w in words)), None)
+        if re.search(r"تحويل|حوال|transfer", low):
+            cat = "transfer"
+        amount = _parse_amount(low)
+        if cat and amount and amount >= 1000:
+            await _emit("set_budget")
+            result = await T.set_budget(session, user, cat, amount)
+            if result.get("ok"):
+                return (f"✅ {result['message']}")
+            if result.get("error") == "bad_amount":
+                return "الحد لازم يكون بين 1,000 و 20,000,000 د.ع (أو 0 للحذف)."
+            return "التصنيف غير مدعوم — الميزانيات تشمل: كهرباء، ماء، إنترنت، اتصالات، تعليم، مرور، تحويلات."
+        return ("حاضر أضبطلك ميزانية 📊 اكتب التصنيف والمبلغ، مثل:\n"
+                "• «ميزانية الكهرباء 150 ألف»\n"
+                "• «ميزانية تحويلات 500 ألف»\n"
+                "أو «ميزانياتي» حتى تشوف القائمة الحالية.")
+
     # --- transactions ------------------------------------------------------
     if re.search(r"سجل|معاملات|حركات|آخر|transactions|history", low):
         await _emit("recent_transactions")
@@ -481,5 +527,6 @@ async def local_engine(session: AsyncSession, user: User,
         "• «حوّل 25000 على 4539123412341234» — تحويل\n"
         "• «سجل معاملاتي» — آخر الحركات\n"
         "• «اشحن رصيدي 50000» — تعبئة المحفظة\n"
+        "• «ميزانية الكهرباء 150 ألف» — حد صرف شهري\n"
         "شنو تحب نسوي؟"
     )

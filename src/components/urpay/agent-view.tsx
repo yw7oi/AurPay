@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, CheckCircle2, Copy, Eraser, Loader2, SendHorizonal, Sparkles, Wrench, Zap } from "lucide-react";
+import {
+  Check, CheckCircle2, Copy, Download, Eraser, Loader2, SendHorizonal,
+  Sparkles, Wrench, Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/lib/store";
@@ -18,8 +21,8 @@ const SUGGESTIONS = [
   "شكد رصيدي؟",
   "فواتيري",
   "ادفع فاتورة الكهرباء",
+  "ميزانية الكهرباء 150 ألف",
   "سجل معاملاتي",
-  "حوّل 25000 على بطاقة 4539555544441236",
 ];
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -119,20 +122,38 @@ export function AgentView() {
     setMessages([]);
   }
 
-  async function copyConversation() {
-    if (messages.length === 0) return;
-    const text = messages
+  function buildTranscript(): string {
+    return messages
       .map((m) =>
         m.role === "user"
           ? `🙋 ${m.content}`
           : `🤖 أور: ${m.content}${m.actions?.length ? `\n${m.actions.map((a) => `↳ ${a.tool}: ${a.ok ? "✅" : "❌"}`).join("\n")}` : ""}`,
       )
       .join("\n\n") + `\n\n— محادثة أور پاي · ${new Date().toLocaleDateString("ar-IQ-u-nu-latn")}`;
-    const ok = await copyToClipboard(text);
+  }
+
+  async function copyConversation() {
+    if (messages.length === 0) return;
+    const ok = await copyToClipboard(buildTranscript());
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     }
+  }
+
+  function downloadConversation() {
+    if (messages.length === 0) return;
+    const blob = new Blob([`\ufeff${buildTranscript()}`], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "urpay-chat.txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   const streaming = sending && (steps.length > 0 || streamText.length > 0);
@@ -171,6 +192,16 @@ export function AgentView() {
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               <span className="hidden sm:inline text-xs">{copied ? "انتسخت" : "نسخ"}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={downloadConversation}
+              className="rounded-xl text-muted-foreground hover:text-primary font-semibold"
+              aria-label="تنزيل المحادثة ملف نصي"
+            >
+              <Download className="h-4 w-4 rtl:-scale-x-100" />
+              <span className="hidden sm:inline text-xs">ملف</span>
             </Button>
             <Button
               variant="ghost"

@@ -80,16 +80,26 @@ my-project/
 ```
 POST /api/auth/register     {first_name, father_name, family_name, age, city, card_number, pin}
 POST /api/auth/login        {card_number, pin}
+POST /api/auth/change-pin   {current_pin, new_pin}
 GET  /api/bills?status=     unpaid|paid|all
 POST /api/bills/pay         {bill_id, pin}
 POST /api/bills/simulate    {category, biller_code, subscriber_no, amount}
-GET  /api/transactions
+GET  /api/transactions · /api/transactions/export (CSV)
 GET  /api/users/search?q=
 POST /api/transfer/request  {receiver_card, amount}
 POST /api/transfer/confirm/{id}  {pin}
+POST /api/topup             {amount, pin}
+GET  /api/analytics         90-day categories + 6-month trend
+GET  /api/budgets           per-category monthly limits + live progress
+PUT  /api/budgets           {category, monthly_limit} — 0 removes
+GET  /api/notifications     + /read-all, /{id}/read
 POST /api/agent/chat        {message}
+POST /api/agent/chat/stream SSE (tool steps + token streaming)
 GET  /api/stats · /api/billers · /api/cities
 ```
+
+**أدوات الوكيل الذكي (أور):** get_balance · list_bills · pay_bill (hint-guarded) ·
+search_users · transfer_money · recent_transactions · topup_wallet · get_profile · set_budget
 
 ## 🎨 الهوية
 

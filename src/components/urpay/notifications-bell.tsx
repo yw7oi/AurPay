@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowDownLeft, ArrowUpRight, Bell, CheckCheck, Inbox, ReceiptText,
-  TriangleAlert, UserPlus, Wallet,
+  ArrowDownLeft, ArrowUpRight, Bell, CheckCheck, ChevronLeft, Gauge, Inbox,
+  ReceiptText, TriangleAlert, UserPlus, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSession } from "@/lib/store";
 import { fmtIQD, timeAgo, urpay, type Notification } from "@/lib/urpay";
+import type { DashTab } from "./dashboard";
 
 /* kind → icon + tint */
 const KIND_META: Record<
@@ -23,10 +24,27 @@ const KIND_META: Record<
   transfer_request: { icon: UserPlus, cls: "bg-violet-500/10 text-violet-600 dark:text-violet-300" },
   transfer_declined: { icon: TriangleAlert, cls: "bg-rose-500/10 text-rose-600 dark:text-rose-300" },
   bill_due: { icon: TriangleAlert, cls: "bg-amber-500/10 text-amber-600 dark:text-amber-300" },
+  budget_exceeded: { icon: Gauge, cls: "bg-rose-500/10 text-rose-600 dark:text-rose-300" },
   welcome: { icon: Bell, cls: "bg-primary/10 text-primary" },
 };
 
-export function NotificationsBell({ refreshKey }: { refreshKey: number }) {
+/* kind → dashboard tab the user should land on when tapping the row */
+const KIND_TAB: Record<string, DashTab> = {
+  payment: "transactions",
+  topup: "transactions",
+  transfer_in: "transactions",
+  transfer_out: "transactions",
+  transfer_request: "transfer",
+  transfer_declined: "transfer",
+  bill_due: "bills",
+  budget_exceeded: "overview",
+  welcome: "overview",
+};
+
+export function NotificationsBell({ refreshKey, onNavigate }: {
+  refreshKey: number;
+  onNavigate?: (tab: DashTab) => void;
+}) {
   const { token } = useSession();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[] | null>(null);
@@ -82,6 +100,15 @@ export function NotificationsBell({ refreshKey }: { refreshKey: number }) {
     );
     setUnread((u) => Math.max(0, u - 1));
     urpay.notificationRead(token, n.id).catch(() => null);
+  }
+
+  function openNotification(n: Notification) {
+    markOne(n);
+    const tab = KIND_TAB[n.kind];
+    if (tab && onNavigate) {
+      setOpen(false);
+      onNavigate(tab);
+    }
   }
 
   return (
@@ -165,8 +192,8 @@ export function NotificationsBell({ refreshKey }: { refreshKey: number }) {
                     layout
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    onClick={() => markOne(n)}
-                    className={`w-full text-start flex gap-3 px-4 py-3 border-b border-border/40 last:border-0 transition-colors ${
+                    onClick={() => openNotification(n)}
+                    className={`group w-full text-start flex gap-3 px-4 py-3 border-b border-border/40 last:border-0 transition-colors ${
                       n.is_read ? "hover:bg-secondary/40" : "bg-primary/[.04] hover:bg-primary/[.08]"
                     }`}
                   >
@@ -180,9 +207,12 @@ export function NotificationsBell({ refreshKey }: { refreshKey: number }) {
                         <span className={`text-[0.8rem] leading-snug ${n.is_read ? "font-semibold text-foreground/80" : "font-bold"}`}>
                           {n.title}
                         </span>
-                        {!n.is_read && (
-                          <span className="mt-1 h-2 w-2 rounded-full bg-gold shrink-0" aria-hidden="true" />
-                        )}
+                        <span className="flex items-center gap-1 shrink-0 mt-0.5">
+                          {!n.is_read && (
+                            <span className="h-2 w-2 rounded-full bg-gold" aria-hidden="true" />
+                          )}
+                          <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-primary group-hover:-translate-x-0.5 transition-all" aria-hidden="true" />
+                        </span>
                       </span>
                       {n.body && (
                         <span className="block mt-0.5 text-[0.68rem] text-muted-foreground leading-relaxed line-clamp-2">

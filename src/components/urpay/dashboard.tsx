@@ -92,7 +92,7 @@ export function Dashboard({
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
-            <NotificationsBell refreshKey={refreshKey} />
+            <NotificationsBell refreshKey={refreshKey} onNavigate={setTab} />
             <button
               onClick={() => setTab("profile")}
               className="flex items-center gap-2.5 rounded-full border border-border/70 bg-card py-1 pe-3 ps-1 hover:border-primary/40 transition-colors"

@@ -3,10 +3,12 @@ import re
 import secrets
 import string
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Bill, Transaction, User, utcnow
+from ..budget import check_budget_crossing
+from ..constants import CATEGORY_AR
+from ..models import Bill, Budget, Transaction, User, utcnow
 from ..notify import notify
 
 REF_ALPHABET = string.ascii_uppercase + string.digits
@@ -109,6 +111,7 @@ async def pay_bill(session: AsyncSession, user: User, bill_id: int, pin: str,
            title=f"تم دفع فاتورة {bill.biller_name}",
            body=f"المرجع {ref} · رصيدك بعد الدفع {user.balance:,} د.ع".replace(",", "،"),
            amount=bill.amount, reference=ref)
+    await check_budget_crossing(session, user, bill.category, bill.amount)
     await session.commit()
 
     return {
@@ -194,6 +197,7 @@ async def transfer_money(session: AsyncSession, user: User,
            title=f"تم تحويل {amount:,} د.ع إلى {receiver.full_name}".replace(",", "،"),
            body=f"المرجع {ref} · رصيدك بعد التحويل {user.balance:,} د.ع".replace(",", "،"),
            amount=amount, reference=ref)
+    await check_budget_crossing(session, user, "transfer", amount)
     await session.commit()
 
     return {
@@ -258,6 +262,62 @@ async def recent_transactions(session: AsyncSession, user: User,
             "title": t.title, "amount": t.amount,
             "created_at": t.created_at.isoformat(),
         } for t in rows],
+    }
+
+
+async def set_budget(session: AsyncSession, user: User, category: str,
+                     monthly_limit: int) -> dict:
+    """Set (or remove, when limit=0) a monthly spending limit per category."""
+    from ..constants import BUDGETABLE_CATEGORIES
+
+    category = (category or "").strip().lower()
+    if category not in BUDGETABLE_CATEGORIES:
+        return {"ok": False, "error": "bad_category",
+                "categories": BUDGETABLE_CATEGORIES}
+    try:
+        monthly_limit = int(monthly_limit)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "bad_amount"}
+    if monthly_limit < 0 or monthly_limit > 20_000_000:
+        return {"ok": False, "error": "bad_amount",
+                "detail": "الحد لازم يكون بين 0 (حذف) و 20,000,000 د.ع"}
+
+    existing = (await session.execute(
+        select(Budget).where(Budget.user_id == user.id,
+                             Budget.category == category)
+    )).scalar_one_or_none()
+
+    ar = CATEGORY_AR.get(category, category)
+    if monthly_limit == 0:
+        if existing:
+            await session.delete(existing)
+            await session.commit()
+            return {"ok": True, "removed": True, "message": f"انحذفت ميزانية {ar}"}
+        return {"ok": True, "removed": True, "message": f"ما كانت معينة أصلًا"}
+
+    if existing:
+        existing.monthly_limit = monthly_limit
+        existing.updated_at = utcnow()
+    else:
+        session.add(Budget(user_id=user.id, category=category,
+                           monthly_limit=monthly_limit))
+    await session.commit()
+
+    # include month-to-date spend for context
+    month_start = utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    spent = (await session.scalar(
+        select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            Transaction.user_id == user.id,
+            Transaction.direction == "out",
+            Transaction.category == category,
+            Transaction.created_at >= month_start,
+        ))) or 0
+
+    return {
+        "ok": True, "category": category, "monthly_limit": monthly_limit,
+        "spent_this_month": spent,
+        "message": (f"تم تعيين ميزانية {ar} بمبلغ {monthly_limit:,} د.ع شهريًا — "
+                    f"صرفك هذا الشهر {spent:,} د.ع".replace(",", "،")),
     }
 
 

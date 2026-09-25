@@ -29,12 +29,23 @@ BILLERS = {
         {"code": "MOE-NSR", "name": "وزارة الكهرباء — النجف"},
         {"code": "MOE-NIN", "name": "وزارة الكهرباء — نينوى"},
         {"code": "MOE-ERB", "name": "وزارة الكهرباء — أربيل"},
+        {"code": "MOE-KRK", "name": "وزارة الكهرباء — كركوك"},
+        {"code": "MOE-BAB", "name": "وزارة الكهرباء — بابل"},
+        {"code": "MOE-DYA", "name": "وزارة الكهرباء — ديالى"},
+        {"code": "MOE-WAS", "name": "وزارة الكهرباء — واسط"},
+        {"code": "MOE-DHQ", "name": "وزارة الكهرباء — ذي قار"},
+        {"code": "MOE-KRB", "name": "وزارة الكهرباء — كربلاء"},
     ],
     "water": [
         {"code": "MOW-BGD", "name": "ماء بغداد — عامة الماء"},
         {"code": "MOW-BSR", "name": "ماء البصرة"},
         {"code": "MOW-NIN", "name": "ماء نينوى"},
         {"code": "MOW-BAB", "name": "ماء بابل"},
+        {"code": "MOW-ERB", "name": "ماء أربيل"},
+        {"code": "MOW-NSR", "name": "ماء النجف"},
+        {"code": "MOW-DHQ", "name": "ماء ذي قار"},
+        {"code": "MOW-KRK", "name": "ماء كركوك"},
+        {"code": "MOW-SLD", "name": "ماء صلاح الدين"},
     ],
     "internet": [
         {"code": "NET-TARIN", "name": "تارين للاتصالات Tarin"},
@@ -42,6 +53,10 @@ BILLERS = {
         {"code": "NET-EARTHLINK", "name": "إيرثلينك EarthLink"},
         {"code": "NET-IQNET", "name": "آي كيو نت IQNet"},
         {"code": "NET-NEWBAGHDAD", "name": "بغداد الجديدة للاتصالات"},
+        {"code": "NET-HILI", "name": "هيلي للاتصالات Hili"},
+        {"code": "NET-NOORSAT", "name": "نور سات NoorSat"},
+        {"code": "NET-FURAT", "name": "الفرات للاتصالات Al-Furat"},
+        {"code": "NET-URNET", "name": "أور نت UrNet"},
     ],
     "mobile": [
         {"code": "TEL-ZAIN", "name": "زين العراق Zain Iraq"},
@@ -54,11 +69,40 @@ BILLERS = {
         {"code": "EDU-UOBC", "name": "جامعة البصرة"},
         {"code": "EDU-UMQ", "name": "جامعة القادسية"},
         {"code": "EDU-MOE", "name": "وزارة التربية — رسوم مدرسية"},
+        {"code": "EDU-UMST", "name": "جامعة المستنصرية"},
+        {"code": "EDU-UOM", "name": "جامعة الموصل"},
+        {"code": "EDU-UOD", "name": "جامعة دهوك"},
+        {"code": "EDU-MTU", "name": "الجامعة التقنية الوسطى"},
+        {"code": "EDU-BHD", "name": "معهد بغداد العالي"},
     ],
     "traffic": [
         {"code": "TRF-MOI", "name": "المديرية العامة للمرور — مخالفات"},
         {"code": "TRF-BGD", "name": "مرور بغداد — ضروع"},
+        {"code": "TRF-BSR", "name": "مرور البصرة"},
+        {"code": "TRF-NIN", "name": "مرور نينوى"},
+        {"code": "TRF-KRK", "name": "مرور كركوك"},
+        {"code": "TRF-DVR", "name": "دائرة تسجيل السيارات — ضروط"},
     ],
+}
+
+# categories the user can set a monthly spending limit on
+BUDGETABLE_CATEGORIES = [
+    "electricity", "water", "internet", "mobile", "education", "traffic",
+    "transfer",
+]
+
+# Arabic labels for every spendable category (incl. non-bill ones)
+CATEGORY_AR = {
+    "electricity": "كهرباء",
+    "water": "ماء",
+    "internet": "إنترنت",
+    "mobile": "اتصالات",
+    "education": "تعليم",
+    "traffic": "مرور",
+    "transfer": "تحويلات",
+    "wallet": "محفظة",
+    "topup": "تعبئة",
+    "other": "أخرى",
 }
 
 AR_MONTHS = [
