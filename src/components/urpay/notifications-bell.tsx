@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSession } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 import { fmtIQD, timeAgo, urpay, type Notification } from "@/lib/urpay";
 import type { DashTab } from "./dashboard";
 
@@ -46,6 +47,7 @@ export function NotificationsBell({ refreshKey, onNavigate }: {
   onNavigate?: (tab: DashTab) => void;
 }) {
   const { token } = useSession();
+  const { t, lang } = useT();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[] | null>(null);
   const [unread, setUnread] = useState(0);
@@ -116,7 +118,7 @@ export function NotificationsBell({ refreshKey, onNavigate }: {
       <PopoverTrigger asChild>
         <button
           className="relative rounded-full hover:bg-secondary transition-colors p-2.5"
-          aria-label={`الإشعارات${unread ? ` — ${unread} غير مقروء` : ""}`}
+          aria-label={unread ? t("notif.unreadAria", { n: unread }) : t("notif.bellAria")}
         >
           <Bell className="h-4 w-4" />
           {unread > 0 && (
@@ -131,16 +133,15 @@ export function NotificationsBell({ refreshKey, onNavigate }: {
         align="start"
         sideOffset={10}
         className="w-[22rem] sm:w-[24rem] p-0 rounded-3xl border-border/70 overflow-hidden shadow-lift"
-        dir="rtl"
       >
         {/* header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-secondary/40">
           <p className="font-display text-sm font-bold flex items-center gap-2">
             <Bell className="h-3.5 w-3.5 text-gold-deep" />
-            الإشعارات
+            {t("notif.title")}
             {unread > 0 && (
               <span className="num rounded-full bg-gold/20 text-gold-deep px-2 py-0.5 text-[0.62rem] font-black">
-                {unread} جديد
+                {t("notif.newCount", { n: unread })}
               </span>
             )}
           </p>
@@ -153,7 +154,7 @@ export function NotificationsBell({ refreshKey, onNavigate }: {
               className="h-7 rounded-lg text-[0.68rem] font-bold text-primary hover:text-primary px-2.5"
             >
               <CheckCheck className="h-3.5 w-3.5" />
-              علّم الكل
+              {t("notif.markAll")}
             </Button>
           )}
         </div>
@@ -177,9 +178,9 @@ export function NotificationsBell({ refreshKey, onNavigate }: {
               <div className="h-14 w-14 rounded-3xl bg-secondary flex items-center justify-center">
                 <Inbox className="h-6 w-6 text-muted-foreground/60" />
               </div>
-              <p className="mt-3 text-sm font-bold">ما وصلك إشعار بعد</p>
+              <p className="mt-3 text-sm font-bold">{t("notif.emptyTitle")}</p>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                هيج رح تطلع هنا فواتيرك المستحقة، التحويلات، وكل عملية دفع.
+                {t("notif.emptyDesc")}
               </p>
             </div>
           ) : (
@@ -221,11 +222,11 @@ export function NotificationsBell({ refreshKey, onNavigate }: {
                       )}
                       <span className="flex items-center gap-2 mt-1">
                         <span className="text-[0.6rem] text-muted-foreground/70">
-                          {timeAgo(n.created_at)}
+                          {timeAgo(n.created_at, lang)}
                         </span>
                         {n.amount != null && (
-                          <span className="num text-[0.62rem] font-bold text-foreground/70" dir="rtl">
-                            {fmtIQD(n.amount)}
+                          <span className="num text-[0.62rem] font-bold text-foreground/70">
+                            {fmtIQD(n.amount, true, lang)}
                           </span>
                         )}
                       </span>
@@ -240,7 +241,7 @@ export function NotificationsBell({ refreshKey, onNavigate }: {
         {/* footer hint */}
         <div className="px-4 py-2 border-t border-border/60 bg-secondary/30">
           <p className="text-[0.6rem] text-muted-foreground/70 text-center">
-            اضغط على الإشعار لتعليمه كمقروء · تحدّث تلقائيًا
+            {t("notif.footerHint")}
           </p>
         </div>
       </PopoverContent>

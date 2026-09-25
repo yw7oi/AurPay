@@ -265,6 +265,45 @@ async def recent_transactions(session: AsyncSession, user: User,
     }
 
 
+async def get_spending(session: AsyncSession, user: User) -> dict:
+    """Month-to-date spend by category + budget status — powers spending questions."""
+    month_start = utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    rows = (await session.execute(
+        select(Transaction.category, func.sum(Transaction.amount))
+        .where(Transaction.user_id == user.id,
+               Transaction.direction == "out",
+               Transaction.created_at >= month_start)
+        .group_by(Transaction.category)
+    )).all()
+    spent = {cat: int(total or 0) for cat, total in rows}
+    budgets = {b.category: b.monthly_limit for b in (await session.execute(
+        select(Budget).where(Budget.user_id == user.id))).scalars()}
+
+    categories = []
+    total_out = 0
+    for cat, s in sorted(spent.items(), key=lambda kv: -kv[1]):
+        total_out += s
+        entry = {"category": cat, "name_ar": CATEGORY_AR.get(cat, cat), "spent": s}
+        if cat in budgets and budgets[cat]:
+            limit = budgets[cat]
+            entry["monthly_limit"] = limit
+            entry["pct"] = round(s / limit * 100, 1)
+            entry["status"] = "over" if s > limit else ("near" if s >= 0.8 * limit else "ok")
+        categories.append(entry)
+    # budgeted categories with zero spend so far
+    for cat, limit in budgets.items():
+        if cat not in spent:
+            categories.append({
+                "category": cat, "name_ar": CATEGORY_AR.get(cat, cat), "spent": 0,
+                "monthly_limit": limit, "pct": 0.0, "status": "ok",
+            })
+    return {
+        "month_start": month_start.isoformat(),
+        "total_spent_this_month": total_out,
+        "categories": categories,
+    }
+
+
 async def set_budget(session: AsyncSession, user: User, category: str,
                      monthly_limit: int) -> dict:
     """Set (or remove, when limit=0) a monthly spending limit per category."""

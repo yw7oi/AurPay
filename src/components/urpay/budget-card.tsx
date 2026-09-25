@@ -19,21 +19,29 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useSession } from "@/lib/store";
-import { fmtIQD, urpay, type BudgetRow } from "@/lib/urpay";
+import { fmtIQD, categoryName, urpay, type BudgetRow } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
+import { tr, useT, type Lang } from "@/lib/i18n";
 import { CategoryIcon } from "./icons";
 
 const QUICK_AMOUNTS = [50_000, 100_000, 250_000, 500_000, 1_000_000];
 
-const CAT_LABEL: Record<string, string> = {
-  electricity: "كهرباء",
-  water: "ماء",
-  internet: "إنترنت",
-  mobile: "اتصالات",
-  education: "تعليم",
-  traffic: "مرور",
-  transfer: "تحويلات",
+/* dict key per quick-amount chip (50k/100k/250k/500k/1M) */
+const QUICK_LABEL: Record<number, string> = {
+  50_000: "budget.q50k",
+  100_000: "budget.q100k",
+  250_000: "budget.q250k",
+  500_000: "budget.q500k",
+  1_000_000: "budget.q1m",
 };
+
+/* Localized category label — "transfer" is plural in this context (budget
+   category), so it resolves through its own dict key instead of the shared
+   CATEGORY maps. */
+function catLabel(cat: string, lang: Lang): string {
+  if (cat === "transfer") return tr(lang, "budget.catTransfer");
+  return categoryName(cat, lang);
+}
 
 function statusStyle(status: BudgetRow["status"]) {
   switch (status) {
@@ -42,21 +50,21 @@ function statusStyle(status: BudgetRow["status"]) {
         bar: "bg-destructive",
         track: "bg-destructive/15",
         badge: "bg-destructive/10 text-destructive border-destructive/25",
-        badgeText: "تجاوزت الحد",
+        badgeText: "budget.statusOver",
       };
     case "near":
       return {
         bar: "bg-gold-deep",
         track: "bg-gold-deep/15",
         badge: "bg-gold/15 text-gold-deep border-gold/30",
-        badgeText: "قربت توصل الحد",
+        badgeText: "budget.statusNear",
       };
     default:
       return {
         bar: "bg-primary",
         track: "bg-primary/15",
         badge: "bg-primary/10 text-primary border-primary/25",
-        badgeText: "ضمن الحد",
+        badgeText: "budget.statusOk",
       };
   }
 }
@@ -65,6 +73,7 @@ function BudgetRowItem({ row, onEdit }: {
   row: BudgetRow;
   onEdit: (r: BudgetRow) => void;
 }) {
+  const { t, lang } = useT();
   const s = statusStyle(row.status);
   const pct = Math.min(100, Math.max(0, row.pct));
   return (
@@ -73,17 +82,17 @@ function BudgetRowItem({ row, onEdit }: {
         <CategoryIcon category={row.category} className="h-9 w-9 rounded-xl" />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-bold">{CAT_LABEL[row.category] ?? row.category}</p>
-            <p className="num text-xs text-muted-foreground" dir="rtl">
+            <p className="text-sm font-bold">{catLabel(row.category, lang)}</p>
+            <p className="num text-xs text-muted-foreground">
               <b className={row.status === "over" ? "text-destructive" : "text-foreground"}>
-                {fmtIQD(row.spent, false)}
+                {fmtIQD(row.spent, false, lang)}
               </b>
-              {" من "}
-              {fmtIQD(row.monthly_limit, false)}
+              {t("budget.of")}
+              {fmtIQD(row.monthly_limit, false, lang)}
             </p>
           </div>
           {/* progress track */}
-          <div className={`mt-2 h-2 rounded-full overflow-hidden ${s.track}`} role="progressbar" aria-valuenow={Math.round(row.pct)} aria-valuemin={0} aria-valuemax={100} aria-label={`ميزانية ${CAT_LABEL[row.category] ?? row.category}`}>
+          <div className={`mt-2 h-2 rounded-full overflow-hidden ${s.track}`} role="progressbar" aria-valuenow={Math.round(row.pct)} aria-valuemin={0} aria-valuemax={100} aria-label={t("budget.ariaBudget", { cat: catLabel(row.category, lang) })}>
             <motion.div
               className={`h-full rounded-full ${s.bar}`}
               initial={{ width: 0 }}
@@ -94,13 +103,13 @@ function BudgetRowItem({ row, onEdit }: {
           <div className="mt-1.5 flex items-center justify-between gap-2">
             <Badge variant="outline" className={`rounded-full text-[0.6rem] font-bold px-2 py-0 h-auto ${s.badge}`}>
               {row.status === "over" ? <TriangleAlert className="h-2.5 w-2.5 me-1" /> : null}
-              {s.badgeText}
+              {t(s.badgeText)}
               <span className="num ms-1">{Math.round(row.pct)}%</span>
             </Badge>
-            <p className="num text-[0.62rem] text-muted-foreground/80" dir="rtl">
+            <p className="num text-[0.62rem] text-muted-foreground/80">
               {row.remaining >= 0
-                ? `باقي ${fmtIQD(row.remaining, false)} د.ع`
-                : `زائد ${fmtIQD(-row.remaining, false)} د.ع`}
+                ? t("budget.remaining", { amount: fmtIQD(row.remaining, false, lang) })
+                : t("budget.overBy", { amount: fmtIQD(-row.remaining, false, lang) })}
             </p>
           </div>
         </div>
@@ -109,7 +118,7 @@ function BudgetRowItem({ row, onEdit }: {
           size="icon"
           onClick={() => onEdit(row)}
           className="rounded-xl h-8 w-8 shrink-0 opacity-60 hover:opacity-100"
-          aria-label={`تعديل ميزانية ${CAT_LABEL[row.category] ?? row.category}`}
+          aria-label={t("budget.ariaEdit", { cat: catLabel(row.category, lang) })}
         >
           <Pencil className="h-3.5 w-3.5" />
         </Button>
@@ -121,6 +130,7 @@ function BudgetRowItem({ row, onEdit }: {
 export function BudgetCard({ refreshKey }: { refreshKey: number }) {
   const { token } = useSession();
   const { toast } = useToast();
+  const { t, lang } = useT();
   const [feed, setFeed] = useState<{
     month: string; items: BudgetRow[]; total: { limit: number; spent: number };
     categories: string[];
@@ -150,7 +160,7 @@ export function BudgetCard({ refreshKey }: { refreshKey: number }) {
     try {
       const res = await urpay.setBudget(token, category, limit);
       toast({
-        title: res.removed ? "انحذفت الميزانية" : "تم حفظ الميزانية ✅",
+        title: res.removed ? t("budget.removedToast") : t("budget.savedToast"),
         description: res.message,
       });
       await load();
@@ -158,8 +168,8 @@ export function BudgetCard({ refreshKey }: { refreshKey: number }) {
       setAddOpen(false);
     } catch (err) {
       toast({
-        title: "ما تم الحفظ",
-        description: err instanceof Error ? err.message : "حاول مرة ثانية",
+        title: t("budget.saveFailToast"),
+        description: err instanceof Error ? err.message : t("budget.tryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -178,7 +188,7 @@ export function BudgetCard({ refreshKey }: { refreshKey: number }) {
   if (feed.items.length === 0) {
     return (
       <>
-        <section className="relative overflow-hidden rounded-3xl border border-dashed border-primary/30 bg-primary/[.03] p-6" dir="rtl">
+        <section className="relative overflow-hidden rounded-3xl border border-dashed border-primary/30 bg-primary/[.03] p-6">
           <div
             className="absolute -top-16 -start-16 h-40 w-40 rounded-full blur-3xl"
             style={{ background: "radial-gradient(closest-side, var(--primary)/12, transparent)" }}
@@ -189,9 +199,9 @@ export function BudgetCard({ refreshKey }: { refreshKey: number }) {
               <Gauge className="h-6 w-6" />
             </span>
             <div className="flex-1 min-w-0">
-              <h3 className="font-display text-lg leading-tight">حدد ميزانية لصرفك الشهري</h3>
+              <h3 className="font-display text-lg leading-tight">{t("budget.emptyTitle")}</h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                حط حد شهري لأي تصنيف (كهرباء، ماء، تحويلات…) — نراقب صرفك ونخبرك قبل لا يتجاوز الحد. 📊
+                {t("budget.emptyDesc")}
               </p>
             </div>
             <Button
@@ -199,7 +209,7 @@ export function BudgetCard({ refreshKey }: { refreshKey: number }) {
               className="rounded-2xl font-bold"
             >
               <Plus className="h-4 w-4" />
-              ابدأ الآن
+              {t("budget.startBtn")}
             </Button>
           </div>
         </section>
@@ -220,19 +230,19 @@ export function BudgetCard({ refreshKey }: { refreshKey: number }) {
 
   return (
     <>
-      <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6" dir="rtl">
+      <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2.5">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
               <Gauge className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="font-display text-lg leading-tight">ميزانياتي الشهرية</h2>
+              <h2 className="font-display text-lg leading-tight">{t("budget.title")}</h2>
               <p className="text-[0.7rem] text-muted-foreground mt-0.5">
-                شهر {feed.month} — إجمالي:{" "}
-                <b className="num text-foreground">{fmtIQD(feed.total.spent, false)}</b>
-                {" من "}
-                <b className="num text-primary">{fmtIQD(feed.total.limit, false)}</b>
+                {t("budget.monthPrefix", { month: feed.month })}{" "}
+                <b className="num text-foreground">{fmtIQD(feed.total.spent, false, lang)}</b>
+                {t("budget.of")}
+                <b className="num text-primary">{fmtIQD(feed.total.limit, false, lang)}</b>
                 <span className="num"> ({totalPct}%)</span>
               </p>
             </div>
@@ -245,7 +255,7 @@ export function BudgetCard({ refreshKey }: { refreshKey: number }) {
               className="rounded-xl font-semibold"
             >
               <Plus className="h-3.5 w-3.5" />
-              ميزانية جديدة
+              {t("budget.newBtn")}
             </Button>
           )}
         </div>
@@ -258,7 +268,7 @@ export function BudgetCard({ refreshKey }: { refreshKey: number }) {
 
         <p className="mt-3.5 text-[0.62rem] text-muted-foreground/70 text-center flex items-center justify-center gap-1.5">
           <Sparkles className="h-3 w-3 text-gold-deep" />
-          جرّب أيضًا من المحادثة: «ميزانية الكهرباء 150 ألف»
+          {t("budget.chatHint")}
         </p>
       </section>
 
@@ -297,6 +307,7 @@ function BudgetDialog({
   onSave: (category: string, limit: number) => void;
   onRemove?: (category: string) => void;
 }) {
+  const { t, lang } = useT();
   const [cat, setCat] = useState("");
   const [err, setErr] = useState("");
   const [amount, setAmount] = useState("");
@@ -316,41 +327,41 @@ function BudgetDialog({
 
   function submit() {
     const finalCat = mode === "edit" ? row?.category : cat;
-    if (!finalCat) { setErr("اختر التصنيف أولًا"); return; }
-    if (!limit || limit < 1000) { setErr("الحد لازم يكون 1,000 د.ع على الأقل"); return; }
-    if (limit > 20_000_000) { setErr("الحد الأقصى 20,000,000 د.ع"); return; }
+    if (!finalCat) { setErr(t("budget.errCategory")); return; }
+    if (!limit || limit < 1000) { setErr(t("budget.errMin")); return; }
+    if (limit > 20_000_000) { setErr(t("budget.errMax")); return; }
     onSave(finalCat, limit);
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!saving) onOpenChange(o); }}>
-      <DialogContent className="max-w-md rounded-3xl" dir="rtl">
+      <DialogContent className="max-w-md rounded-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5 font-display">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Gauge className="h-4.5 w-4.5 h-[18px] w-[18px]" />
             </span>
-            {mode === "add" ? "ميزانية جديدة" : `تعديل ميزانية ${CAT_LABEL[row?.category ?? ""] ?? ""}`}
+            {mode === "add" ? t("budget.newBtn") : t("budget.editTitle", { cat: catLabel(row?.category ?? "", lang) })}
           </DialogTitle>
           <DialogDescription>
-            حد شهري لتصنيف واحد — نراقب صرفك وننبهك عند التجاوز. تعديل الميزانية ما يحتاج PIN.
+            {t("budget.dialogDesc")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-1">
           {mode === "add" && (
             <div>
-              <label className="text-xs font-bold mb-1.5 block">التصنيف</label>
+              <label className="text-xs font-bold mb-1.5 block">{t("budget.categoryLabel")}</label>
               <Select value={cat} onValueChange={(v) => { setCat(v); setErr(""); }}>
-                <SelectTrigger className="rounded-xl h-11" dir="rtl">
-                  <SelectValue placeholder="اختر التصنيف" />
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder={t("budget.selectCategory")} />
                 </SelectTrigger>
-                <SelectContent dir="rtl">
+                <SelectContent>
                   {(categories ?? []).map((c) => (
                     <SelectItem key={c} value={c} className="flex-row-reverse">
                       <span className="flex items-center gap-2">
                         <CategoryIcon category={c} className="h-6 w-6 rounded-lg" boxed={false} />
-                        {CAT_LABEL[c] ?? c}
+                        {catLabel(c, lang)}
                       </span>
                     </SelectItem>
                   ))}
@@ -360,7 +371,7 @@ function BudgetDialog({
           )}
 
           <div>
-            <label className="text-xs font-bold mb-1.5 block">الحد الشهري (د.ع)</label>
+            <label className="text-xs font-bold mb-1.5 block">{t("budget.limitLabel")}</label>
             <Input
               value={amount}
               onChange={(e) => { setAmount(e.target.value.replace(/[^\d]/g, "")); setErr(""); }}
@@ -377,7 +388,7 @@ function BudgetDialog({
                   onClick={() => { setAmount(String(q)); setErr(""); }}
                   className="num rounded-full border border-border/70 bg-secondary/50 px-3 py-1 text-[0.68rem] font-bold text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
                 >
-                  {q >= 1_000_000 ? `${q / 1_000_000}M` : `${q / 1000}k`}
+                  {t(QUICK_LABEL[q])}
                 </button>
               ))}
             </div>
@@ -400,7 +411,7 @@ function BudgetDialog({
               className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive font-bold"
             >
               <Trash2 className="h-4 w-4" />
-              حذف
+              {t("budget.deleteBtn")}
             </Button>
           ) : <span />}
           <Button
@@ -409,7 +420,7 @@ function BudgetDialog({
             className="rounded-xl font-bold"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            حفظ الميزانية
+            {t("budget.saveBtn")}
           </Button>
         </DialogFooter>
       </DialogContent>

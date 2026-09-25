@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight, Building2, CalendarDays, CreditCard, Fingerprint, KeyRound,
-  Loader2, Lock, MapPin, ShieldCheck, User,
+  Loader2, Lock, MapPin, ShieldCheck, User as UserIcon,
 } from "lucide-react";
 import { UrPayLogo, UrSeal } from "./logo";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useSession, useUi } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 import { urpay, type User } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,6 +31,7 @@ export function AuthView({
   demoCard?: { card_number: string; pin: string } | null;
 }) {
   const { authTab, setAuthTab } = useUi();
+  const { t } = useT();
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="absolute inset-0 pattern-ur opacity-60 pointer-events-none" aria-hidden="true" />
@@ -39,7 +41,7 @@ export function AuthView({
           className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowRight className="h-4 w-4" />
-          العودة للرئيسية
+          {t("auth.back.home")}
         </button>
         <UrPayLogo compact />
       </header>
@@ -56,26 +58,25 @@ export function AuthView({
           <div className="relative">
             <UrPayLogo dark />
             <h2 className="font-display mt-10 text-4xl leading-[1.2] max-w-md">
-              من أور السومرية…
+              {t("auth.welcome.headline")}
               <br />
-              <span className="text-gold-gradient">أول وكيل دفع عراقي.</span>
+              <span className="text-gold-gradient">{t("auth.welcome.headlineGold")}</span>
             </h2>
             <p className="mt-4 text-white/65 leading-relaxed max-w-sm">
-              سجّل بمعلوماتك الحقيقية — اسم ثلاثي، عمر، محافظة، بطاقة — واختَر PIN يخصك.
-              كل عملية دفع بعدين رح تطلب هالرمز.
+              {t("auth.welcome.desc")}
             </p>
           </div>
           <div className="relative space-y-4">
             {[
-              { icon: ShieldCheck, text: "PIN مشفّر بـ PBKDF2 — لا يُخزّن نصًا صريحًا" },
-              { icon: KeyRound, text: "كل دفعة وتحويل تتطلب تأكيد الـ PIN" },
-              { icon: Fingerprint, text: "أور، الوكيل الذكي، ما يعرف رمزك أبدًا" },
+              { icon: ShieldCheck, key: "auth.welcome.benefit1" },
+              { icon: KeyRound, key: "auth.welcome.benefit2" },
+              { icon: Fingerprint, key: "auth.welcome.benefit3" },
             ].map((r) => (
-              <div key={r.text} className="flex items-center gap-3 text-sm text-white/75">
+              <div key={r.key} className="flex items-center gap-3 text-sm text-white/75">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/8 ring-1 ring-white/15">
                   <r.icon className="h-4 w-4 text-[#E8C867]" />
                 </span>
-                {r.text}
+                {t(r.key)}
               </div>
             ))}
             <UrSeal className="h-3 w-36 text-[#E8C867]/60 mt-6" />
@@ -89,20 +90,20 @@ export function AuthView({
               <div className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1 mb-6">
                 {(
                   [
-                    { k: "login", label: "تسجيل الدخول" },
-                    { k: "register", label: "حساب جديد" },
+                    { k: "login", labelKey: "auth.login.tab" },
+                    { k: "register", labelKey: "auth.register.tab" },
                   ] as const
-                ).map((t) => (
+                ).map((tab) => (
                   <button
-                    key={t.k}
-                    onClick={() => setAuthTab(t.k)}
+                    key={tab.k}
+                    onClick={() => setAuthTab(tab.k)}
                     className={`rounded-xl py-2.5 text-sm font-bold transition-all ${
-                      authTab === t.k
+                      authTab === tab.k
                         ? "bg-card text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {t.label}
+                    {t(tab.labelKey)}
                   </button>
                 ))}
               </div>
@@ -114,7 +115,7 @@ export function AuthView({
               )}
             </div>
             <p className="mt-4 text-center text-xs text-muted-foreground leading-relaxed">
-                بالمتابعة أنت توافق أن هذي نسخة عرض للهاكاثون — البيانات تجريبية ولا تمثل أموالًا حقيقية.
+                {t("auth.common.disclaimer")}
             </p>
           </div>
         </section>
@@ -128,6 +129,7 @@ export function AuthView({
 function LoginForm({ demoCard }: { demoCard?: { card_number: string; pin: string } | null }) {
   const { setSession } = useSession();
   const { toast } = useToast();
+  const { t } = useT();
   const [card, setCard] = useState("");
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
@@ -139,13 +141,13 @@ function LoginForm({ demoCard }: { demoCard?: { card_number: string; pin: string
       const res = await urpay.login(card.replace(/\D/g, ""), pin);
       setSession(res.access_token, res.user);
       toast({
-        title: `هلا ${res.user.first_name}! 🎉`,
-        description: "تم تسجيل الدخول لمحفظة أور پاي",
+        title: t("auth.login.toastTitle", { name: res.user.first_name }),
+        description: t("auth.login.toastDesc"),
       });
     } catch (err) {
       toast({
-        title: "فشل تسجيل الدخول",
-        description: err instanceof Error ? err.message : "حاول مرة أخرى",
+        title: t("auth.errors.loginFailed"),
+        description: err instanceof Error ? err.message : t("auth.errors.retry"),
         variant: "destructive",
       });
     } finally {
@@ -155,7 +157,7 @@ function LoginForm({ demoCard }: { demoCard?: { card_number: string; pin: string
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <Field label="رقم البطاقة" icon={CreditCard}>
+      <Field label={t("auth.labels.card")} icon={CreditCard}>
         <Input
           dir="ltr"
           inputMode="numeric"
@@ -173,7 +175,7 @@ function LoginForm({ demoCard }: { demoCard?: { card_number: string; pin: string
           required
         />
       </Field>
-      <Field label="الرمز السري PIN" icon={KeyRound}>
+      <Field label={t("auth.labels.pin")} icon={KeyRound}>
         <Input
           dir="ltr"
           inputMode="numeric"
@@ -195,13 +197,13 @@ function LoginForm({ demoCard }: { demoCard?: { card_number: string; pin: string
           }}
           className="w-full rounded-xl border border-dashed border-primary/40 bg-primary/[.05] px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
         >
-          تعبئة الحساب التجريبي — {demoCard.card_number.slice(-4)}
+          {t("auth.login.demoFill", { last4: demoCard.card_number.slice(-4) })}
         </button>
       )}
 
       <Button type="submit" disabled={loading} className="w-full h-12 rounded-2xl font-bold text-base shadow-lift">
         {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
-        ادخل محفظتك
+        {t("auth.login.submit")}
       </Button>
     </form>
   );
@@ -210,6 +212,7 @@ function LoginForm({ demoCard }: { demoCard?: { card_number: string; pin: string
 function RegisterForm() {
   const { setSession } = useSession();
   const { toast } = useToast();
+  const { t } = useT();
   const [form, setForm] = useState({
     first_name: "",
     father_name: "",
@@ -254,13 +257,13 @@ function RegisterForm() {
       });
       setSession(res.access_token, res.user);
       toast({
-        title: `أهلًا ${res.user.first_name} بمحفظة أور پاي! 🎉`,
-        description: "استلمت 250,000 د.ع رصيدًا ترحيبيًا + ٣ فواتير للتجربة",
+        title: t("auth.register.toastTitle", { name: res.user.first_name }),
+        description: t("auth.register.toastDesc"),
       });
     } catch (err) {
       toast({
-        title: "فشل التسجيل",
-        description: err instanceof Error ? err.message : "حاول مرة أخرى",
+        title: t("auth.errors.registerFailed"),
+        description: err instanceof Error ? err.message : t("auth.errors.retry"),
         variant: "destructive",
       });
     } finally {
@@ -271,32 +274,32 @@ function RegisterForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="rounded-xl bg-secondary/70 border border-border/60 px-4 py-3 flex items-center gap-2.5">
-        <User className="h-4 w-4 text-primary shrink-0" />
+        <UserIcon className="h-4 w-4 text-primary shrink-0" />
         <p className="text-xs text-muted-foreground">
-          الاسم الثلاثي كما في البطاقة — <b className="text-foreground">الاسم · اسم الأب · اسم الجد/العائلة</b>
+          {t("auth.register.nameHint")} <b className="text-foreground">{t("auth.register.nameParts")}</b>
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2.5">
-        <Field label="الاسم">
+        <Field label={t("auth.labels.firstName")}>
           <Input
-            placeholder="أحمد"
+            placeholder={t("auth.placeholders.firstName")}
             value={form.first_name}
             onChange={(e) => set("first_name")(e.target.value)}
             required
           />
         </Field>
-        <Field label="اسم الأب">
+        <Field label={t("auth.labels.fatherName")}>
           <Input
-            placeholder="علي"
+            placeholder={t("auth.placeholders.fatherName")}
             value={form.father_name}
             onChange={(e) => set("father_name")(e.target.value)}
             required
           />
         </Field>
-        <Field label="الجد / العائلة">
+        <Field label={t("auth.labels.familyName")}>
           <Input
-            placeholder="حسين"
+            placeholder={t("auth.placeholders.familyName")}
             value={form.family_name}
             onChange={(e) => set("family_name")(e.target.value)}
             required
@@ -305,7 +308,7 @@ function RegisterForm() {
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        <Field label="العمر" icon={CalendarDays}>
+        <Field label={t("auth.labels.age")} icon={CalendarDays}>
           <Input
             dir="ltr"
             inputMode="numeric"
@@ -319,10 +322,10 @@ function RegisterForm() {
             required
           />
         </Field>
-        <Field label="المحافظة (السكن)" icon={MapPin}>
-          <Select dir="rtl" value={form.city} onValueChange={set("city")}>
+        <Field label={t("auth.labels.city")} icon={MapPin}>
+          <Select value={form.city} onValueChange={set("city")}>
             <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="اختر محافظتك" />
+              <SelectValue placeholder={t("auth.placeholders.city")} />
             </SelectTrigger>
             <SelectContent>
               {IRAQ_CITIES.map((c) => (
@@ -335,7 +338,7 @@ function RegisterForm() {
         </Field>
       </div>
 
-      <Field label="رقم الهاتف (اختياري)" icon={Building2}>
+      <Field label={t("auth.labels.phone")} icon={Building2}>
         <Input
           dir="ltr"
           inputMode="tel"
@@ -346,7 +349,7 @@ function RegisterForm() {
         />
       </Field>
 
-      <Field label="رقم البطاقة (16 رقمًا)" icon={CreditCard}>
+      <Field label={t("auth.labels.card16")} icon={CreditCard}>
         <Input
           dir="ltr"
           inputMode="numeric"
@@ -366,7 +369,7 @@ function RegisterForm() {
       </Field>
 
       <div className="grid grid-cols-2 gap-2.5">
-        <Field label="اختر PIN (4–6 أرقام)" icon={KeyRound}>
+        <Field label={t("auth.labels.pinChoose")} icon={KeyRound}>
           <Input
             dir="ltr"
             inputMode="numeric"
@@ -378,7 +381,7 @@ function RegisterForm() {
             required
           />
         </Field>
-        <Field label="تأكيد PIN" icon={ShieldCheck}>
+        <Field label={t("auth.labels.pinConfirm")} icon={ShieldCheck}>
           <Input
             dir="ltr"
             inputMode="numeric"
@@ -397,8 +400,7 @@ function RegisterForm() {
       <div className="rounded-xl border border-gold/40 bg-gold/[.07] px-4 py-3 flex gap-2.5">
         <Fingerprint className="h-4 w-4 text-gold-deep shrink-0 mt-0.5" />
         <p className="text-xs leading-relaxed text-gold-deep">
-          <b>مهم:</b> هالـ PIN رح يُطلب عند <b>كل عملية دفع وتحويل</b> — حتى من المساعد أور. ما
-          تشاركه مع أحد.
+          <b>{t("auth.register.pinNoteLabel")}</b> {t("auth.register.pinNoteLead")} <b>{t("auth.register.pinNoteEvery")}</b> {t("auth.register.pinNoteTail")}
         </p>
       </div>
 
@@ -408,7 +410,7 @@ function RegisterForm() {
         className="w-full h-12 rounded-2xl font-bold text-base shadow-lift"
       >
         {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-        أنشئ محفظتي — مع 250,000 د.ع هدية
+        {t("auth.register.submit")}
       </Button>
     </form>
   );

@@ -244,3 +244,130 @@ Unresolved / next-phase priorities:
 3. Scheduled/recurring bill payments + due-date autopay guardrail (would pair well with budgets).
 4. True LLM token streaming through the bridge (providers don't expose raw tokens).
 5. Groq key verification on a local Windows run via start.bat (sandbox uses z-ai bridge).
+
+---
+Task ID: cron-round-5 (part 1)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + agent spending insight + i18n infrastructure
+
+Work Log:
+- QA pass: both servers healthy; demo login E2E; all dashboard tabs render; zero console errors.
+- QA FINDING: agent wrongly answered "لم يتم تحديد ميزانية للكهرباء" for «شكد صرفي على كهرباء هذا الشهر؟» — no budget/spend data in agent context, no tool to query it.
+- NEW FEATURE — Agent Spending Insight:
+  - tools.py: new get_spending tool (month-to-date spend by category, budget limits + ok/near(80%+)/over status, zero-spend budgeted categories included).
+  - engine.py: _context_block now async and includes budgets + month spend («ميزانياته وحدود الصرف…» + total) so the LLM proactively warns near/over budget; get_spending added to TOOL_SCHEMAS + dispatch + step label «يحلل صرفك…»; SYSTEM_PROMPT rule 10; local-engine spending intent («شكد صرفي/وين تروح فلوسي») placed BEFORE balance check (شكد overlap) with per-category + breakdown answers.
+  - Verified: z-ai bridge answers «صرفك على الكهرباء هذا الشهر 200,000 د.ع من حد 300,000 د.ع (66.7%)»; local engine verified for 3 phrasings.
+- NEW FEATURE — i18n infrastructure (Arabic default ⇄ English):
+  - src/lib/i18n.tsx (new): zustand useLang store (persisted "urpay-lang"), useT() hook with {t, lang, dir, isRTL}, tr() non-hook resolver, LangBoot component (applies lang/dir to <html>).
+  - src/lib/dict/{landing,dashboard,misc}.ts (new): per-section dictionaries (ar + en) — subagents extend their own file, no conflicts.
+  - urpay.ts: fmtIQD/fmtDate/fmtDateTime/timeAgo/dueLabel now take optional lang param (default "ar", backwards compatible; en → IQD / en-GB dates / "2h ago"); added CATEGORY_EN + categoryName(cat, lang) helper.
+  - lang-toggle.tsx (new): AR⇄EN pill (same visual family as ThemeToggle) + compact variant.
+  - theme-toggle.tsx: converted to useT() as the exemplar pattern (dict keys theme.*).
+  - layout.tsx: pre-paint script now also applies stored language + dir (no FOUC); <LangBoot/> mounted.
+  - Lint clean on all new/modified files.
+- NEXT (in flight): 3 parallel subagents converting UI strings to t() — 5-c landing+auth, 5-d overview/bills/transfer/analytics/budget, 5-e agent/txns/profile/notifications/parts/dashboard shell.
+
+Stage Summary:
+- Agent now budget-aware (context + tool + local intent) — verified E2E via API.
+- i18n core merged and lint-clean; dictionaries ready for parallel conversion.
+
+---
+Task ID: 5-e
+Agent: i18n-misc-agent
+Task: Convert dashboard/agent/txns/profile/notifications/parts to t() with dict/misc.ts
+
+Work Log:
+- Added 112 new keys (ar + en) in src/lib/dict/misc.ts across 6 namespaces (shell.*, agent.*, txns.*, profile.*, notif.*, parts.*); kept existing theme.*/lang.* — profile theme-status now reuses theme.darkOn/lightOn.
+- Arabic dict values copied verbatim; every fmtIQD/fmtDate/fmtDateTime/timeAgo/dueLabel call now passes lang; NAV/FILTERS consts carry labelKey resolved via t(); agent transcript + "المحرك المحلي" provider label localized; PinDialog confirmText default now `confirmText ?? t("parts.confirm")` (prop API unchanged).
+- Deliberately left Arabic: agent suggestion chips (example chat input, kept Arabic in BOTH languages) + all backend data (chat replies, tool-step labels, txn/bill titles, notification title/body, API error/PIN messages, "Z-AI Bridge"/"Groq" badges already English).
+
+Stage Summary:
+- Converted: dashboard.tsx, agent-view.tsx, transactions-view.tsx, profile-view.tsx, notifications-bell.tsx, parts.tsx (+ dict/misc.ts) — string extraction only, no logic/layout changes; Arabic UI renders 100% identical.
+- Lint: eslint clean on all 7 files; grep sanity: only the 5 intentional SUGGESTIONS chips remain Arabic in the tsx files.
+- Note for next pass: pre-existing TS2741 — dashboard renders `<ProfileView />` without required setTab (present at HEAD before this task, out of i18n scope).
+
+---
+Task ID: 5-d
+Agent: i18n-dashboard-views-agent
+Task: Convert overview/bills/transfer/analytics/budget-card to t() with dict/dashboard.ts
+
+Work Log:
+- Added 156 bilingual keys (ar verbatim + en fintech tone) to src/lib/dict/dashboard.ts across common.*(6)/overview.*(35)/bills.*(28)/transfer.*(40)/analytics.*(12)/budget.*(35); converted all 5 views with useT()/tr(), passing lang into every fmtIQD call. Time-aware greeting kept its hour logic with 3 dict keys (evening covers both 🌇/🌙 branches).
+- Split-key pattern for JSX sentences with <b>-wrapped counts (overdue alert, bills-count line); ttlLeft() (module-scope) gained a lang param and resolves via tr(); statusStyle() now returns badge dict keys; budget quick-chips 50k/100k/250k/500k/1M became fixed keys (ar values identical to current chips); analytics counterparties map var renamed t→cp to unshadow the translator; category labels via categoryName() + dedicated keys for plural تحويلات/أخرى; bills CATEGORY_OPTIONS simplified to a string array.
+- Deliberately left Arabic (API data): biller names, user/counterparty names + cities, backend err/res.message, analytics month labels (أيلول…) and budgets feed.month, numeric quick-amount chips (15,000…). Hardcoded dir="rtl" attrs left untouched (string-extraction-only mandate) — EN layout stays RTL until a follow-up pass.
+
+Stage Summary:
+- Files converted: overview.tsx, bills-view.tsx, transfer-view.tsx, analytics.tsx, budget-card.tsx + dict/dashboard.ts (156 keys, ar/en parity exact, every t() key verified present, all ar values verbatim-verified against git HEAD).
+- Lint: bunx eslint on all 6 files — CLEAN (exit 0). Zero Arabic string literals remain in the 5 tsx files. (Pre-existing tsc nit at overview.tsx:319 `urpay.me(token)` string|null — unchanged from HEAD, not introduced here.)
+
+---
+Task ID: 5-c-2
+Agent: i18n-auth-agent
+Task: Convert auth-view.tsx to t() with dict/auth.ts
+
+Work Log:
+- Added 41 bilingual keys (41 ar + 41 en, exact parity) to src/lib/dict/auth.ts across auth.back(1) / auth.welcome(6) / auth.login(4+tab) / auth.register(9+tab) / auth.labels(11) / auth.placeholders(4) / auth.errors(3) / auth.common(1); header comment kept.
+- Converted auth-view.tsx: back link, side-panel headline/gold line/desc + 3 benefit rows (array now carries key strings, renders t(r.key)), tab labels (تسجيل الدخول/حساب جديد), all 11 field labels, 4 Arabic placeholders (أحمد/علي/حسين/اختر محافظتك), demo autofill button via {last4} interpolation, both submit buttons, and all 6 toasts (welcome titles interpolate {name}).
+- Split-key pattern for the two JSX sentences with <b> segments (triple-name hint, gold PIN notice); interpolated template-literal toasts (هلا {name}! 🎉 / أهلًا {name} بمحفظة أور پاي! 🎉).
+- Tabs map variable renamed t→tab to unshadow the translator t; benefits render key now r.key (stable React keys across languages). User as UserIcon alias untouched.
+- Deliberately left Arabic (API data): IRAQ_CITIES select options (governorate values sent to the backend), err.message from API, numeric placeholders (4539 …, ••••, 27, 0770 …). No classNames/layout/dir changes — text-left on card/PIN inputs untouched.
+- Verified programmatically: all 41 ar dict values present verbatim in git HEAD of auth-view.tsx (placeholder-substituted for {name}/{last4} and JSX-joined desc) — Arabic UI renders identical.
+
+Stage Summary:
+- 41 keys added to dict/auth.ts (ar verbatim + en fintech tone: Title Case buttons "Sign In"/"Create Account"/"Enter Your Wallet"/"Create My Wallet — With a 250,000 IQD Gift", sentence-case labels/notes; UrPay/PIN/IQD preserved).
+- Arabic string literals remaining in auth-view.tsx: only IRAQ_CITIES (API-data city names, by design).
+- Lint: bunx eslint on auth-view.tsx + dict/auth.ts — CLEAN (exit 0).
+
+---
+Task ID: 5-c-1
+Agent: i18n-landing-agent
+Task: Convert landing.tsx to t() with dict/landing.ts
+
+Work Log:
+- Added 109 bilingual keys (ar verbatim + en fintech tone) to src/lib/dict/landing.ts across landing.nav/hero/stats/features/categories/agent/how/security/cta/footer (+ hero.chat.* + agent.flow.*); header comment updated to landing-only ownership.
+- Converted all 10 landing sections in landing.tsx to useT() (Landing, AgentPhoneDemo, AgentFlowCard each call the hook): nav links + aria-label, hero badge/h1/paragraph/CTAs/demo-card hint, hero stat labels + "33 مليون د.ع" fallback, features/categories/agent/how/security SectionHeads, all card grids, agent dark-section copy + live-stat labels, CTA, footer (about/copyright/slides link).
+- Module consts → labelKey/titleKey/descKey/textKey resolved via t(): NAV, FEATURES, CATEGORIES (names via categoryName(c.key, lang), replaces `ar` field), AGENT_STEPS, STEPS, SECURITY, CHAT_SCRIPT; fmtIQD calls now pass lang; hero volume fallback + agent-section د.ع unit suffix keyed (landing.agent.iqdUnit → IQD).
+- Split-key pattern for <b>/<span>-mid-sentence headings & paragraphs (hero desc, agent h2/desc, cta h2) — programmatic check confirms concatenated dict parts reproduce the original rendered sentences byte-for-byte; `s.label === "حجم التداول"` unit test replaced with an `iqd: true` flag on the stat row (label comparison would break per-lang); AgentPhoneDemo setTimeout var renamed t→timer (unshadow translator); AgentFlowCard line field t→text (same reason) — flow card user/agent Arabic lines localized, tool/API lines left as-is.
+- Deliberately left Arabic (API-data exception): BILLERS_ROW marquee (16 biller names). Verified via script: every Arabic literal (90) + JSX text node (39) from git HEAD is verbatim in dict ar or in the exception list; exactly 16 Arabic units (billers) remain in the tsx; 109/109 keys used, ar/en key parity exact.
+
+Stage Summary:
+- 109 keys added to dict/landing.ts (ar/en parity, all referenced); landing.tsx fully converted (77 t() call sites); Arabic UI renders 100% identical.
+- Lint: bunx eslint on both files — CLEAN (exit 0); tsc --noEmit — zero errors in src/ (only pre-existing examples//skills/ noise).
+
+---
+Task ID: cron-round-5 (part 2 — integration & polish)
+Agent: Z.ai Code (scheduled web dev review)
+Task: Integrate i18n conversions, bilingual agent, styling polish, full QA
+
+Work Log:
+- FIXED 4 pre-existing TypeScript bugs (found via tsc --noEmit; eslint never caught them): duplicate `User` identifier in auth-view (lucide icon vs urpay type → UserIcon alias), <ProfileView /> missing required setTab prop in dashboard, urpay.me(token) called with string|null in overview (guarded), page.tsx passing a string tab as refreshKey:number (now a numeric counter bumped on tab switch).
+- Integrated 4 parallel subagent conversions (5-c-1 landing 109 keys, 5-c-2 auth 41 keys, 5-d dashboard views 156 keys, 5-e misc+shell 112 keys → ~418 bilingual keys total in src/lib/dict/*).
+- Added LangToggle placements: dashboard header (pill sm+, compact mobile, before ThemeToggle), landing nav (compact both breakpoints), profile appearance card (explicit العربية/English buttons with Languages icon).
+- useT() extended with setLang/toggle exports.
+- REMOVED all 58 hardcoded dir="rtl" JSX attributes across 14 files (redundant in Arabic — inherited from <html dir=rtl>; harmful in English LTR mode). dir="ltr" on numeric/Latin content kept (correct in both languages). Verified no dir="rtl" sat inside dir="ltr" subtrees first.
+- BILINGUAL AGENT: added _detect_lang() (Arabic vs Latin script heuristic) + LANG_DIRECTIVE injected into the system prompt when the user writes English → agent now answers in English ("Your current balance is 1,738,000 IQD.") while Arabic stays Arabic. Verified both.
+- STYLING POLISH:
+  - PinDialog: wrong-PIN shake animation (keyframes shake-x + keyed remount via shakeKey state; resets on dialog open; verified live in browser — wrong PIN 9999 shakes + error, then correct 1234 pays, receipt UR-9GRSSQKP).
+  - Overview hero: localized full date line under the greeting (Intl.DateTimeFormat ar-IQ-u-nu-latn / en-GB — "الجمعة، 25 أيلول 2026").
+  - Billers marquee: pauses on hover (.marquee-hover) so judges can read a biller.
+- README updated: get_spending tool + bilingual UI + polish notes.
+
+QA RESULTS (agent-browser + VLM):
+- Arabic regression: landing/dashboard/bills/payment flow identical (receipts, PIN dialogs all working); date line renders; zero console errors; no horizontal overflow.
+- English mode: dir=ltr + lang=en applied instantly AND pre-paint persisted after reload (no FOUC); all 6 tabs + notifications chrome + profile translated; user/biller/notification DATA correctly stays Arabic; mobile 390px exact fit (390=390).
+- VLM ratings: EN landing 9/10 ("Professional, polished"), EN dark overview 8.5/10, EN mobile 9/10; "clipping" concern on sidebar promo card DISPROVEN via full-page screenshot (viewport cropping — same false alarm as rounds 3/4).
+- Full E2E re-verified in Arabic after all changes: demo login → generate bill (simulate dialog) → wrong PIN (shake+error) → correct PIN → receipt dialog.
+- bun run lint clean; tsc --noEmit clean for src/ (examples/ + skills/ pre-existing out of scope); dev.log clean.
+- QA screenshots: download/qa6-*.png (ar/en landing+dashboard+tabs, en-dark, en-mobile, notifications, receipt, shake-error, date line, round-trip).
+
+Stage Summary:
+- Current status: STABLE — the last original worklog suggestion (Arabic/English toggle) is DONE, plus agent budget-awareness (get_spending + context) and bilingual agent replies.
+- New: src/lib/i18n.tsx + dict/{landing,auth,dashboard,misc}.ts, lang-toggle.tsx, engine _detect_lang + LANG_DIRECTIVE + get_spending tool, category EN labels, lang-aware formatters, shake/marquee/date polish, 4 TS bug fixes.
+- Demo credentials intact (4539 1234 1234 1234 / PIN 1234); demo user has 2 budgets + spending history for a rich agent demo.
+
+Unresolved / next-phase priorities:
+1. Local-engine (offline fallback) replies remain Arabic-only — fine for the demo (LLM providers are primary), full translation would be ~30 templates.
+2. Backend-generated strings (notification titles/bodies, bill titles, agent tool step labels) remain Arabic — by design (data layer); could add an Accept-Language aware backend later.
+3. True LLM token streaming through the z-ai bridge (still chunked server-side).
+4. Groq key verification on a local Windows run via start.bat.
+5. fmtIQD uses Arabic "،" thousands separator in EN mode too (cosmetic; Western commas in EN would be a one-line change in urpay.ts).

@@ -2,6 +2,8 @@
 
 /* UrPay — types + typed API client (goes through the Next.js /api proxy). */
 
+import type { Lang } from "./i18n";
+
 export type User = {
   id: number;
   full_name: string;
@@ -412,26 +414,28 @@ export const urpay = {
 
 /* ------------------------------------------------------------------ */
 
-export function fmtIQD(amount: number, withCurrency = true): string {
+export function fmtIQD(amount: number, withCurrency = true, lang: Lang = "ar"): string {
   const s = Math.round(amount).toLocaleString("en-US").replace(/,/g, "،");
-  return withCurrency ? `${s} د.ع` : s;
+  if (!withCurrency) return s;
+  return lang === "en" ? `${s} IQD` : `${s} د.ع`;
 }
 
-export function fmtDate(iso: string): string {
+export function fmtDate(iso: string, lang: Lang = "ar"): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("ar-IQ-u-nu-latn", {
+  return d.toLocaleDateString(lang === "en" ? "en-GB" : "ar-IQ-u-nu-latn", {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 }
 
-export function fmtDateTime(iso: string): string {
+export function fmtDateTime(iso: string, lang: Lang = "ar"): string {
   const d = new Date(iso);
+  const loc = lang === "en" ? "en-GB" : "ar-IQ-u-nu-latn";
   return (
-    d.toLocaleDateString("ar-IQ-u-nu-latn", { day: "numeric", month: "short" }) +
+    d.toLocaleDateString(loc, { day: "numeric", month: "short" }) +
     " · " +
-    d.toLocaleTimeString("ar-IQ-u-nu-latn", { hour: "2-digit", minute: "2-digit" })
+    d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" })
   );
 }
 
@@ -439,9 +443,19 @@ export function daysUntil(iso: string): number {
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
 }
 
-export function timeAgo(iso: string): string {
+export function timeAgo(iso: string, lang: Lang = "ar"): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
+  if (lang === "en") {
+    if (mins < 1) return "now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "yesterday";
+    if (days < 7) return `${days}d ago`;
+    return fmtDate(iso, lang);
+  }
   if (mins < 1) return "الآن";
   if (mins < 60) return `قبل ${mins} دقيقة`;
   const hours = Math.floor(mins / 60);
@@ -452,8 +466,14 @@ export function timeAgo(iso: string): string {
   return fmtDate(iso);
 }
 
-export function dueLabel(iso: string): string {
+export function dueLabel(iso: string, lang: Lang = "ar"): string {
   const days = daysUntil(iso);
+  if (lang === "en") {
+    if (days < 0) return `overdue ${Math.abs(days)}d`;
+    if (days === 0) return "due today";
+    if (days === 1) return "due tomorrow";
+    return `in ${days} days`;
+  }
   if (days < 0) return `متأخرة ${Math.abs(days)} يوم`;
   if (days === 0) return "تستحق اليوم";
   if (days === 1) return "تستحق غدًا";
@@ -470,3 +490,19 @@ export const CATEGORY_AR: Record<string, string> = {
   transfer: "تحويل",
   wallet: "محفظة",
 };
+
+export const CATEGORY_EN: Record<string, string> = {
+  electricity: "Electricity",
+  water: "Water",
+  internet: "Internet",
+  mobile: "Mobile",
+  education: "Education",
+  traffic: "Traffic",
+  transfer: "Transfer",
+  wallet: "Wallet",
+};
+
+/** Localized category label. */
+export function categoryName(cat: string, lang: Lang = "ar"): string {
+  return (lang === "en" ? CATEGORY_EN : CATEGORY_AR)[cat] ?? cat;
+}

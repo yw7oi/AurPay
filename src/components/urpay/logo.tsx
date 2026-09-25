@@ -34,7 +34,7 @@ export function UrPayLogo({
   compact?: boolean;
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-2.5 select-none", className)} dir="rtl">
+    <span className={cn("inline-flex items-center gap-2.5 select-none", className)}>
       <UrPayMark className="h-9 w-9 shrink-0" />
       {!compact && (
         <span className="flex flex-col leading-none">

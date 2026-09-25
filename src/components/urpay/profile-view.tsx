@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   BadgeCheck, CalendarDays, CreditCard, Fingerprint, KeyRound, Landmark,
-  Loader2, LogOut, MapPin, Moon, Phone, ShieldCheck, Sun, User,
+  Loader2, LogOut, MapPin, Moon, Phone, ShieldCheck, Sun, User, Languages,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 import { fmtDate, fmtIQD, urpay } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
 import { UserAvatar } from "./parts";
@@ -33,6 +34,7 @@ function ChangePinDialog({
 }) {
   const { token } = useSession();
   const { toast } = useToast();
+  const { t, lang, setLang } = useT();
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -51,13 +53,13 @@ function ChangePinDialog({
     setError(null);
     try {
       const res = await urpay.changePin(token, currentPin, newPin);
-      toast({ title: "تم التغيير ✅", description: res.message });
+      toast({ title: t("profile.pinChanged"), description: res.message });
       onOpenChange(false);
       setCurrentPin("");
       setNewPin("");
       setConfirmPin("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تحديث الرمز");
+      setError(err instanceof Error ? err.message : t("profile.pinUpdateFail"));
       setCurrentPin("");
     } finally {
       setLoading(false);
@@ -78,21 +80,21 @@ function ChangePinDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm rounded-3xl" dir="rtl">
+      <DialogContent className="max-w-sm rounded-3xl">
         <DialogHeader className="text-center items-center space-y-0">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gold/15 text-gold-deep ring-1 ring-gold/30">
             <KeyRound className="h-7 w-7" />
           </span>
-          <DialogTitle className="font-display text-xl mt-3">غيّر رمز الـ PIN</DialogTitle>
+          <DialogTitle className="font-display text-xl mt-3">{t("profile.changePin")}</DialogTitle>
           <DialogDescription className="text-center leading-relaxed">
-            أدخل رمزك الحالي للتأكيد — الرمز الجديد يُفعّل فورًا لكل العمليات.
+            {t("profile.changePinDesc")}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-3.5">
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground">
-              الرمز الحالي
+              {t("profile.currentPin")}
             </Label>
             <Input
               dir="ltr"
@@ -108,7 +110,7 @@ function ChangePinDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-muted-foreground">
-                الرمز الجديد
+                {t("profile.newPin")}
               </Label>
               <Input
                 dir="ltr"
@@ -122,7 +124,7 @@ function ChangePinDialog({
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-muted-foreground">
-                تأكيد الرمز
+                {t("profile.confirmPin")}
               </Label>
               <Input
                 dir="ltr"
@@ -138,7 +140,7 @@ function ChangePinDialog({
 
           {newPin && confirmPin && newPin !== confirmPin && (
             <p className="text-xs font-semibold text-destructive">
-              التأكيد ما يطابق الرمز الجديد
+              {t("profile.pinMismatch")}
             </p>
           )}
           {error && (
@@ -153,7 +155,7 @@ function ChangePinDialog({
             className="w-full h-12 rounded-2xl font-bold text-base shadow-lift"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <KeyRound className="h-5 w-5" />}
-            حدّث الرمز
+            {t("profile.updatePin")}
           </Button>
         </form>
       </DialogContent>
@@ -166,21 +168,22 @@ function ChangePinDialog({
 export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
   const { user, logout } = useSession();
   const { toast } = useToast();
+  const { t, lang, setLang } = useT();
   const { theme, setTheme } = useTheme();
   const [pinOpen, setPinOpen] = useState(false);
   if (!user) return null;
 
   const rows: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; ltr?: boolean }[] = [
-    { icon: User, label: "الاسم الثلاثي", value: user.full_name },
-    { icon: CalendarDays, label: "العمر", value: `${user.age} سنة`, ltr: true },
-    { icon: MapPin, label: "المحافظة (السكن)", value: `${user.city}${user.district ? ` — ${user.district}` : ""}` },
-    { icon: Phone, label: "الهاتف", value: user.phone, ltr: true },
-    { icon: CreditCard, label: "رقم البطاقة", value: user.card_number.replace(/(\d{4})(?=\d)/g, "$1 "), ltr: true },
-    { icon: BadgeCheck, label: "عضو منذ", value: fmtDate(user.created_at) },
+    { icon: User, label: t("profile.field.name"), value: user.full_name },
+    { icon: CalendarDays, label: t("profile.field.age"), value: t("profile.yearsOld", { n: user.age }), ltr: true },
+    { icon: MapPin, label: t("profile.field.city"), value: `${user.city}${user.district ? ` — ${user.district}` : ""}` },
+    { icon: Phone, label: t("profile.field.phone"), value: user.phone, ltr: true },
+    { icon: CreditCard, label: t("profile.field.card"), value: user.card_number.replace(/(\d{4})(?=\d)/g, "$1 "), ltr: true },
+    { icon: BadgeCheck, label: t("profile.field.memberSince"), value: fmtDate(user.created_at, lang) },
   ];
 
   return (
-    <div className="space-y-5 max-w-2xl" dir="rtl">
+    <div className="space-y-5 max-w-2xl">
       {/* identity card */}
       <section className="relative overflow-hidden rounded-3xl bg-night text-[#F4F1E8] p-6 sm:p-8 grain">
         <div className="absolute inset-0 pattern-ur-dark opacity-70" aria-hidden="true" />
@@ -191,18 +194,18 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
               <h1 className="font-display text-2xl truncate">{user.full_name}</h1>
               {user.is_demo && (
                 <Badge className="rounded-full bg-[#E8C867]/15 text-[#E8C867] border-[#E8C867]/30 hover:bg-[#E8C867]/15">
-                  حساب تجريبي
+                  {t("profile.demoAccount")}
                 </Badge>
               )}
             </div>
             <p className="text-white/60 text-sm mt-1">
-              {user.city} · {user.age} سنة · بطاقة{" "}
+              {user.city} · {t("profile.yearsOld", { n: user.age })} · {t("profile.cardShort")}{" "}
               <span className="num" dir="ltr">
                 •••• {user.card_number.slice(-4)}
               </span>
             </p>
-            <p className="num mt-2 text-xl text-[#3ED9A3]" dir="rtl">
-              {fmtIQD(user.balance)}
+            <p className="num mt-2 text-xl text-[#3ED9A3]">
+              {fmtIQD(user.balance, true, lang)}
             </p>
           </div>
         </div>
@@ -218,9 +221,9 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20 group-hover:scale-105 transition-transform">
             <KeyRound className="h-5 w-5" />
           </span>
-          <p className="mt-3 font-bold">غيّر رمز الـ PIN</p>
+          <p className="mt-3 font-bold">{t("profile.changePin")}</p>
           <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-            رمز جديد لكل عمليات الدفع والتحويل — يتطلب الرمز الحالي.
+            {t("profile.changePinCardDesc")}
           </p>
         </button>
 
@@ -228,9 +231,9 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-primary ring-1 ring-border/60">
             {theme === "dark" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </span>
-          <p className="mt-3 font-bold">مظهر المحفظة</p>
+          <p className="mt-3 font-bold">{t("profile.appearance")}</p>
           <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-            {theme === "dark" ? "الوضع الليلي مفعّل" : "الوضع النهاري مفعّل"} — بدّل حسب راحتك.
+            {theme === "dark" ? t("theme.darkOn") : t("theme.lightOn")}{t("profile.appearanceSuffix")}
           </p>
           <div className="mt-3.5 flex gap-2">
             <Button
@@ -240,7 +243,7 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
               className="rounded-xl font-bold flex-1"
             >
               <Sun className="h-3.5 w-3.5" />
-              نهاري
+              {t("profile.themeLight")}
             </Button>
             <Button
               size="sm"
@@ -249,7 +252,27 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
               className="rounded-xl font-bold flex-1"
             >
               <Moon className="h-3.5 w-3.5" />
-              ليلي
+              {t("profile.themeDark")}
+            </Button>
+          </div>
+          <div className="mt-2.5 flex gap-2">
+            <Button
+              size="sm"
+              variant={lang === "ar" ? "default" : "outline"}
+              onClick={() => setLang("ar")}
+              className="rounded-xl font-bold flex-1"
+            >
+              <Languages className="h-3.5 w-3.5" />
+              العربية
+            </Button>
+            <Button
+              size="sm"
+              variant={lang === "en" ? "default" : "outline"}
+              onClick={() => setLang("en")}
+              className="rounded-xl font-bold flex-1"
+            >
+              <Languages className="h-3.5 w-3.5" />
+              English
             </Button>
           </div>
         </div>
@@ -257,7 +280,7 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
 
       {/* details */}
       <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6">
-        <h2 className="font-display text-lg mb-4">بيانات التسجيل</h2>
+        <h2 className="font-display text-lg mb-4">{t("profile.detailsTitle")}</h2>
         <dl className="divide-y divide-border/60">
           {rows.map((r) => (
             <div key={r.label} className="flex items-center gap-3.5 py-3.5">
@@ -282,21 +305,21 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
         <div className="rounded-3xl border border-gold/35 bg-gold/[.06] p-5">
           <p className="font-bold flex items-center gap-2 text-sm">
             <ShieldCheck className="h-4 w-4 text-gold-deep" />
-            أمان حسابك
+            {t("profile.securityTitle")}
           </p>
           <ul className="mt-3 space-y-2 text-xs text-muted-foreground leading-relaxed">
             <li className="flex gap-2">
               <Fingerprint className="h-3.5 w-3.5 text-gold-deep shrink-0 mt-0.5" />
-              الـ PIN مخزّن PBKDF2-SHA256 مع ملح فردي — الدفع يتطلبه دائمًا.
+              {t("profile.securityPin")}
             </li>
             <li className="flex gap-2">
               <Landmark className="h-3.5 w-3.5 text-gold-deep shrink-0 mt-0.5" />
-              جلساتك موقّعة JWT وتنتهي تلقائيًا بعد ٧ أيام.
+              {t("profile.securityJwt")}
             </li>
           </ul>
         </div>
         <div className="rounded-3xl border border-border/70 bg-card p-5">
-          <p className="font-bold text-sm">تقنية المنصة</p>
+          <p className="font-bold text-sm">{t("profile.techTitle")}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge variant="outline" className="rounded-lg font-semibold">FastAPI · SQLite</Badge>
             <Badge variant="outline" className="rounded-lg font-semibold">Groq gpt-oss-120b</Badge>
@@ -304,7 +327,7 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
             <Badge variant="outline" className="rounded-lg font-semibold">Inter Tight + Plex Arabic</Badge>
           </div>
           <p className="mt-3 text-[0.68rem] text-muted-foreground/80 leading-relaxed">
-            نسخة هاكاثون — البيانات تجريبية بالكامل ولا تمثل أموالًا حقيقية.
+            {t("profile.hackathonNote")}
           </p>
         </div>
       </section>
@@ -315,18 +338,18 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
           onClick={() => setTab("agent")}
           className="rounded-xl font-bold"
         >
-          جرّب المساعد أور
+          {t("profile.tryAgent")}
         </Button>
         <Button
           variant="destructive"
           onClick={() => {
             logout();
-            toast({ title: "تم تسجيل الخروج", description: "نشتاقلك! ترجع بأي وقت." });
+            toast({ title: t("shell.logoutDone"), description: t("shell.logoutBye") });
           }}
           className="rounded-xl font-bold"
         >
           <LogOut className="h-4 w-4 rtl:-scale-x-100" />
-          تسجيل الخروج
+          {t("shell.logout")}
         </Button>
       </div>
 

@@ -99,7 +99,14 @@ GET  /api/stats · /api/billers · /api/cities
 ```
 
 **أدوات الوكيل الذكي (أور):** get_balance · list_bills · pay_bill (hint-guarded) ·
-search_users · transfer_money · recent_transactions · topup_wallet · get_profile · set_budget
+search_users · transfer_money · recent_transactions · topup_wallet · get_profile · set_budget ·
+get_spending (تحليل الصرف الشهري + حالة الميزانيات)
+
+**إضافات حديثة:**
+- 🌐 **واجهة ثنائية اللغة (عربي ⇄ English)** — زر تبديل اللغة في الشريط العلوي والحساب،
+  مع تبديل الاتجاه RTL/LTR تلقائيًا وحفظ الاختيار. الوكيل يرد بلغة رسالة المستخدم.
+- 📊 **وعي الوكيل بالميزانيات** — بيانات الصرف الشهرية ضمن سياق الوكيل حتى ينبهك قبل تجاوز الحد.
+- ✨ لمسات تفاعلية: اهتزاز حقل PIN عند الخطأ، إيقاف شريط الجهات عند التمرير، تاريخ اليوم في البطاقة.
 
 ## 🎨 الهوية
 

@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 import { urpay, type AgentAction, type AgentMessage } from "@/lib/urpay";
 import { copyToClipboard } from "@/lib/clipboard";
 import { UrPayMark } from "./logo";
@@ -17,6 +18,7 @@ import { ReceiptCard } from "./parts";
 type ChatMsg = AgentMessage & { actions?: AgentAction[] };
 type Step = { tool: string; label: string };
 
+/* suggestion chips are Arabic demo phrases (example chat input) — kept as-is in both languages */
 const SUGGESTIONS = [
   "شكد رصيدي؟",
   "فواتيري",
@@ -25,14 +27,15 @@ const SUGGESTIONS = [
   "سجل معاملاتي",
 ];
 
+/* provider badge labels — "local" is resolved via t("agent.providerLocal") */
 const PROVIDER_LABEL: Record<string, string> = {
   groq: "Groq · gpt-oss-120b",
   zai: "Z-AI Bridge",
-  local: "المحرك المحلي",
 };
 
 export function AgentView() {
   const { token, setUser, user } = useSession();
+  const { t, lang } = useT();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -43,6 +46,9 @@ export function AgentView() {
   const [steps, setSteps] = useState<Step[]>([]);
   const [streamText, setStreamText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const providerName = (p: string) =>
+    p === "local" ? t("agent.providerLocal") : PROVIDER_LABEL[p] ?? p;
 
   /* load history */
   useEffect(() => {
@@ -105,7 +111,9 @@ export function AgentView() {
           ...ms,
           {
             role: "assistant",
-            content: `صار خطأ بالاتصال: ${err instanceof Error ? err.message : "حاول مرة ثانية"}`,
+            content: t("agent.error.connection", {
+              msg: err instanceof Error ? err.message : t("agent.error.retry"),
+            }),
           },
         ]);
       }
@@ -123,13 +131,18 @@ export function AgentView() {
   }
 
   function buildTranscript(): string {
-    return messages
-      .map((m) =>
-        m.role === "user"
-          ? `🙋 ${m.content}`
-          : `🤖 أور: ${m.content}${m.actions?.length ? `\n${m.actions.map((a) => `↳ ${a.tool}: ${a.ok ? "✅" : "❌"}`).join("\n")}` : ""}`,
-      )
-      .join("\n\n") + `\n\n— محادثة أور پاي · ${new Date().toLocaleDateString("ar-IQ-u-nu-latn")}`;
+    return (
+      messages
+        .map((m) =>
+          m.role === "user"
+            ? `🙋 ${m.content}`
+            : `${t("agent.transcript.assistant", { content: m.content })}${m.actions?.length ? `\n${m.actions.map((a) => `↳ ${a.tool}: ${a.ok ? "✅" : "❌"}`).join("\n")}` : ""}`,
+        )
+        .join("\n\n") +
+      `\n\n${t("agent.transcript.footer", {
+        date: new Date().toLocaleDateString(lang === "en" ? "en-GB" : "ar-IQ-u-nu-latn"),
+      })}`
+    );
   }
 
   async function copyConversation() {
@@ -159,7 +172,7 @@ export function AgentView() {
   const streaming = sending && (steps.length > 0 || streamText.length > 0);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12.5rem)] lg:h-[calc(100vh-10rem)]" dir="rtl">
+    <div className="flex flex-col h-[calc(100vh-12.5rem)] lg:h-[calc(100vh-10rem)]">
       {/* header */}
       <div className="flex items-center justify-between gap-3 pb-4">
         <div className="flex items-center gap-3.5 min-w-0">
@@ -168,14 +181,14 @@ export function AgentView() {
             <span className="absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full bg-[#3ED9A3] ring-2 ring-background animate-pulse-dot" />
           </div>
           <div className="min-w-0">
-            <h1 className="font-display text-xl leading-tight">أور · وكيل الدفع الذكي</h1>
+            <h1 className="font-display text-xl leading-tight">{t("agent.title")}</h1>
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-              {provider ? PROVIDER_LABEL[provider] ?? provider : "متصل — Groq gpt-oss-120b"}
+              {provider ? providerName(provider) : t("agent.online")}
               {user && (
                 <>
                   <span className="text-border">|</span>
-                  <span className="num">رصيدك: {user.balance.toLocaleString("en-US")} د.ع</span>
+                  <span className="num">{t("agent.yourBalance", { n: user.balance.toLocaleString("en-US") })}</span>
                 </>
               )}
             </p>
@@ -188,20 +201,20 @@ export function AgentView() {
               size="sm"
               onClick={copyConversation}
               className={`rounded-xl font-semibold h-8 px-2.5 ${copied ? "text-emerald-600 dark:text-emerald-300" : "text-muted-foreground hover:text-primary"}`}
-              aria-label="نسخ المحادثة"
+              aria-label={t("agent.copyAria")}
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              <span className="hidden sm:inline text-xs">{copied ? "انتسخت" : "نسخ"}</span>
+              <span className="hidden sm:inline text-xs">{copied ? t("agent.copied") : t("agent.copy")}</span>
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={downloadConversation}
               className="rounded-xl text-muted-foreground hover:text-primary font-semibold"
-              aria-label="تنزيل المحادثة ملف نصي"
+              aria-label={t("agent.downloadAria")}
             >
               <Download className="h-4 w-4 rtl:-scale-x-100" />
-              <span className="hidden sm:inline text-xs">ملف</span>
+              <span className="hidden sm:inline text-xs">{t("agent.download")}</span>
             </Button>
             <Button
               variant="ghost"
@@ -210,7 +223,7 @@ export function AgentView() {
               className="rounded-xl text-muted-foreground hover:text-destructive font-semibold"
             >
               <Eraser className="h-4 w-4" />
-              محادثة جديدة
+              {t("agent.newChat")}
             </Button>
           </div>
         )}
@@ -227,11 +240,10 @@ export function AgentView() {
           <div className="h-full flex flex-col items-center justify-center text-center px-4">
             <UrPayMark className="h-16 w-16" />
             <p className="mt-4 font-display text-lg">
-              هلا {user?.first_name ?? "بك"}! أنا أور — وكيلك المالي
+              {t("agent.welcomeTitle", { name: user?.first_name ?? t("agent.welcomeDefault") })}
             </p>
             <p className="mt-1.5 text-sm text-muted-foreground max-w-sm leading-relaxed">
-              أقدر أدفع فواتيرك، أسويلك تحويلات، أچيك رصيدك وأسرد معاملاتك — كل شي من هنا.
-              أي دفعة بيطلب مني الـ PIN مالك.
+              {t("agent.welcomeDesc")}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2 max-w-md">
               {SUGGESTIONS.map((s) => (
@@ -271,7 +283,7 @@ export function AgentView() {
                   .map((a, j) => <ReceiptCard key={j} receipt={a.data!} floating />)}
                 {m.role === "assistant" && m.provider && (
                   <p className="text-[0.6rem] text-muted-foreground/70 text-end num" dir="ltr">
-                    ⚡ {PROVIDER_LABEL[m.provider] ?? m.provider}
+                    ⚡ {providerName(m.provider)}
                   </p>
                 )}
               </div>
@@ -317,7 +329,7 @@ export function AgentView() {
                   <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" />
                   <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" style={{ animationDelay: "0.2s" }} />
                   <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" style={{ animationDelay: "0.4s" }} />
-                  <span className="text-[0.68rem] text-muted-foreground ms-1">أور يفكر…</span>
+                  <span className="text-[0.68rem] text-muted-foreground ms-1">{t("agent.thinking")}</span>
                 </div>
               )}
             </div>
@@ -331,7 +343,7 @@ export function AgentView() {
               <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" />
               <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" style={{ animationDelay: "0.2s" }} />
               <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" style={{ animationDelay: "0.4s" }} />
-              <span className="text-[0.68rem] text-muted-foreground ms-1">أور يفكر…</span>
+              <span className="text-[0.68rem] text-muted-foreground ms-1">{t("agent.thinking")}</span>
             </div>
           </div>
         )}
@@ -348,18 +360,18 @@ export function AgentView() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="اكتب لأور… (مثال: ادفع فاتورة الإنترنت)"
+          placeholder={t("agent.placeholder")}
           className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60"
           disabled={sending}
           maxLength={500}
-          aria-label="رسالة للمساعد أور"
+          aria-label={t("agent.inputAria")}
         />
         <Button
           type="submit"
           size="icon"
           disabled={!input.trim() || sending}
           className="rounded-xl h-10 w-10 shrink-0"
-          aria-label="إرسال"
+          aria-label={t("agent.send")}
         >
           {sending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -370,7 +382,7 @@ export function AgentView() {
       </form>
       <p className="mt-2 text-[0.65rem] text-muted-foreground/70 text-center flex items-center justify-center gap-1.5">
         <Sparkles className="h-3 w-3 text-gold-deep" />
-        الوكيل ينفّذ أدوات حقيقية (رصيد، فواتير، دفع، تحويل) — أي عملية دفع تتطلب PIN.
+        {t("agent.disclaimer")}
         <Zap className="h-3 w-3 text-gold-deep" />
       </p>
     </div>

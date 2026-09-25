@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useSession } from "@/lib/store";
 import { fmtIQD, urpay, type Receipt, type TransferReq, type UserSummary } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
+import { tr, useT, type Lang } from "@/lib/i18n";
 import { EmptyState, PinDialog, ReceiptCard, UserAvatar } from "./parts";
 
 /* ------------------------------------------------------------------ */
@@ -19,15 +20,17 @@ import { EmptyState, PinDialog, ReceiptCard, UserAvatar } from "./parts";
 /* declines. 24h TTL auto-expiry runs server-side on every list call.  */
 /* ------------------------------------------------------------------ */
 
-function ttlLeft(createdAtIso: string): { hours: number; label: string; danger: boolean } {
+function ttlLeft(createdAtIso: string, lang: Lang): { hours: number; label: string; danger: boolean } {
   const created = new Date(createdAtIso).getTime();
   const expires = created + 24 * 3600_000;
   const ms = expires - Date.now();
-  if (ms <= 0) return { hours: 0, label: "على وشك الانتهاء", danger: true };
+  if (ms <= 0) return { hours: 0, label: tr(lang, "transfer.ttlExpiring"), danger: true };
   const hours = Math.floor(ms / 3600_000);
   const mins = Math.floor((ms % 3600_000) / 60_000);
-  const label = hours >= 1 ? `${hours} سا و${mins} د` : `${mins} دقيقة`;
-  return { hours, label: `تنتهي بعد ${label}`, danger: hours < 2 };
+  const label = hours >= 1
+    ? tr(lang, "transfer.ttlHm", { h: hours, m: mins })
+    : tr(lang, "transfer.ttlMins", { m: mins });
+  return { hours, label: tr(lang, "transfer.ttlExpiresIn", { label }), danger: hours < 2 };
 }
 
 function PendingRequests({
@@ -39,6 +42,7 @@ function PendingRequests({
 }) {
   const { token, setUser } = useSession();
   const { toast } = useToast();
+  const { t, lang } = useT();
   const [reqs, setReqs] = useState<TransferReq[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
   const [confirming, setConfirming] = useState<TransferReq | null>(null);
@@ -62,12 +66,12 @@ function PendingRequests({
     setBusy(id);
     try {
       const res = await urpay.transferCancel(token, id);
-      toast({ title: "تم الإلغاء", description: res.message });
+      toast({ title: t("transfer.cancelToastTitle"), description: res.message });
       await load();
     } catch (err) {
       toast({
-        title: "تعذر الإلغاء",
-        description: err instanceof Error ? err.message : "حاول مرة أخرى",
+        title: t("transfer.cancelFailTitle"),
+        description: err instanceof Error ? err.message : t("common.tryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -80,12 +84,12 @@ function PendingRequests({
     setBusy(id);
     try {
       const res = await urpay.transferDecline(token, id);
-      toast({ title: "تم الرفض", description: res.message });
+      toast({ title: t("transfer.declineToastTitle"), description: res.message });
       await load();
     } catch (err) {
       toast({
-        title: "تعذر الرفض",
-        description: err instanceof Error ? err.message : "حاول مرة أخرى",
+        title: t("transfer.declineFailTitle"),
+        description: err instanceof Error ? err.message : t("common.tryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -94,40 +98,40 @@ function PendingRequests({
   }
 
   async function confirmReq(pin: string): Promise<string | null> {
-    if (!token || !confirming) return "خطأ غير متوقع";
+    if (!token || !confirming) return t("common.unexpectedError");
     try {
       const res = await urpay.transferConfirm(token, confirming.id, pin);
       onReceipt(res.receipt);
       const me = await urpay.me(token);
       setUser(me);
-      toast({ title: "وصلت الحوالة ✅", description: res.message });
+      toast({ title: t("transfer.sentToastTitle"), description: res.message });
       await load();
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "فشل التحويل";
+      return err instanceof Error ? err.message : t("transfer.failed");
     }
   }
 
   if (reqs === null || reqs.length === 0) return null;
 
   return (
-    <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6 space-y-4" dir="rtl">
+    <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg flex items-center gap-2">
           <Clock3 className="h-4.5 w-4.5 h-[18px] w-[18px] text-primary" />
-          طلبات معلّقة
+          {t("transfer.pendingTitle")}
           <Badge className="rounded-full bg-gold/15 text-gold-deep hover:bg-gold/15 num px-2">
             {reqs.length}
           </Badge>
         </h2>
         <p className="text-[0.68rem] text-muted-foreground">
-          تنتهي تلقائيًا بعد 24 ساعة من إنشائها
+          {t("transfer.pendingHint")}
         </p>
       </div>
 
       <div className="space-y-2.5">
         {reqs.map((r) => {
-          const ttl = ttlLeft(r.created_at);
+          const ttl = ttlLeft(r.created_at, lang);
           const isSender = r.role === "sender";
           return (
             <div
@@ -161,10 +165,10 @@ function PendingRequests({
                           : "border-gold/40 text-gold-deep"
                       }`}
                     >
-                      {isSender ? "صادرة — بانتظار تأكيدك" : "واردة — بانتظار المرسل"}
+                      {isSender ? t("transfer.badgeOutgoing") : t("transfer.badgeIncoming")}
                     </Badge>
                   </div>
-                  <p className="text-[0.7rem] text-muted-foreground mt-0.5 num" dir="rtl">
+                  <p className="text-[0.7rem] text-muted-foreground mt-0.5 num">
                     {r.counterparty_card} ·{" "}
                     <span className={`font-semibold ${ttl.danger ? "text-destructive" : ""}`}>
                       {ttl.label}
@@ -174,10 +178,10 @@ function PendingRequests({
                     )}
                   </p>
                 </div>
-                <p className="num font-bold text-base shrink-0" dir="rtl">
-                  {fmtIQD(r.amount, false)}
+                <p className="num font-bold text-base shrink-0">
+                  {fmtIQD(r.amount, false, lang)}
                   <span className="text-[0.6rem] font-medium text-muted-foreground block text-center mt-0.5">
-                    د.ع
+                    {t("common.iqd")}
                   </span>
                 </p>
               </div>
@@ -194,7 +198,7 @@ function PendingRequests({
                       className="rounded-xl h-9 px-4 text-xs font-bold flex-1 sm:flex-none"
                     >
                       <CheckCheck className="h-3.5 w-3.5" />
-                      أكّد بالـ PIN
+                      {t("transfer.confirmPinBtn")}
                     </Button>
                     <Button
                       size="sm"
@@ -208,7 +212,7 @@ function PendingRequests({
                       ) : (
                         <XCircle className="h-3.5 w-3.5" />
                       )}
-                      إلغاء
+                      {t("common.cancel")}
                     </Button>
                   </>
                 ) : (
@@ -224,7 +228,7 @@ function PendingRequests({
                     ) : (
                       <XCircle className="h-3.5 w-3.5" />
                     )}
-                    ارفض الحوالة
+                    {t("transfer.declineBtn")}
                   </Button>
                 )}
               </div>
@@ -239,14 +243,14 @@ function PendingRequests({
           setPinOpen(v);
           if (!v) setConfirming(null);
         }}
-        title="تأكيد الحوالة المعلّقة"
+        title={t("transfer.pendingPinTitle")}
         description={
           confirming
-            ? `إلى ${confirming.counterparty} — لا تنعكس العملية بعد التنفيذ`
-            : "أدخل رمزك السري"
+            ? t("transfer.toReceiverDesc", { name: confirming.counterparty })
+            : t("transfer.enterPinDesc")
         }
         amount={confirming?.amount}
-        confirmText="نفّذ الحوالة"
+        confirmText={t("transfer.executeBtn")}
         onConfirm={confirmReq}
       />
     </section>
@@ -258,6 +262,7 @@ function PendingRequests({
 export function TransferView() {
   const { user, token, setUser } = useSession();
   const { toast } = useToast();
+  const { t, lang } = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserSummary[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -302,7 +307,7 @@ export function TransferView() {
     !!targetCard && amountNum > 0 && amountNum <= (user?.balance ?? 0);
 
   async function confirmTransfer(pin: string): Promise<string | null> {
-    if (!token || !targetCard || !pendingReq) return "خطأ غير متوقع";
+    if (!token || !targetCard || !pendingReq) return t("common.unexpectedError");
     try {
       const res = await urpay.transferConfirm(token, pendingReq.id, pin);
       setReceipt(res.receipt);
@@ -313,10 +318,10 @@ export function TransferView() {
       setCardInput("");
       setAmount("");
       setReqSignal((s) => s + 1);
-      toast({ title: "وصلت الحوالة ✅", description: res.message });
+      toast({ title: t("transfer.sentToastTitle"), description: res.message });
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "فشل التحويل";
+      return err instanceof Error ? err.message : t("transfer.failed");
     }
   }
 
@@ -332,19 +337,19 @@ export function TransferView() {
       setPinOpen(true);
     } catch (err) {
       toast({
-        title: "تعذر إنشاء التحويل",
-        description: err instanceof Error ? err.message : "حاول مرة أخرى",
+        title: t("transfer.createFailTitle"),
+        description: err instanceof Error ? err.message : t("common.tryAgain"),
         variant: "destructive",
       });
     }
   }
 
   return (
-    <div className="space-y-5 max-w-2xl" dir="rtl">
+    <div className="space-y-5 max-w-2xl">
       <div>
-        <h1 className="font-display text-2xl">حوّل لأي مستخدم</h1>
+        <h1 className="font-display text-2xl">{t("transfer.title")}</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          دوّر على المستلم بالاسم أو رقم بطاقته — التحويل يتطلب تأكيد الـ PIN.
+          {t("transfer.subtitle")}
         </p>
       </div>
 
@@ -352,7 +357,7 @@ export function TransferView() {
         <div className="space-y-4">
           <ReceiptCard receipt={receipt} />
           <Button variant="outline" onClick={() => setReceipt(null)} className="rounded-xl font-bold">
-            حوّل مرة ثانية
+            {t("transfer.againBtn")}
           </Button>
         </div>
       ) : (
@@ -361,23 +366,23 @@ export function TransferView() {
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
               <Search className="h-3.5 w-3.5" />
-              ابحث بالاسم
+              {t("transfer.searchLabel")}
             </Label>
             <Input
-              placeholder="مثال: أحمد علي — أو زينب…"
+              placeholder={t("transfer.searchPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
             {searching && (
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin" /> جاري البحث…
+                <Loader2 className="h-3 w-3 animate-spin" /> {t("transfer.searching")}
               </p>
             )}
             {results && !searching && (
               <div className="rounded-2xl border border-border/60 divide-y divide-border/50 max-h-64 overflow-y-auto scrollbar-slim bg-background">
                 {results.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground text-center">
-                    ما لقينا أحد بهذا الاسم — جرب الاسم الثلاثي أو رقم البطاقة.
+                    {t("transfer.noResults")}
                   </p>
                 ) : (
                   results.map((u) => (
@@ -409,7 +414,7 @@ export function TransferView() {
 
           {/* receiver */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground">المستلم</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">{t("transfer.recipientLabel")}</Label>
             {receiver ? (
               <div className="flex items-center gap-3 rounded-2xl border border-primary/35 bg-primary/[.05] p-3.5">
                 <UserAvatar name={receiver.full_name} hue={receiver.avatar_hue} size={44} />
@@ -426,14 +431,14 @@ export function TransferView() {
                   onClick={() => setReceiver(null)}
                   className="rounded-xl text-muted-foreground"
                 >
-                  تغيير
+                  {t("transfer.changeBtn")}
                 </Button>
               </div>
             ) : (
               <Input
                 dir="ltr"
                 inputMode="numeric"
-                placeholder="أو أدخل رقم البطاقة — 4539 .... .... ...."
+                placeholder={t("transfer.cardPlaceholder")}
                 value={cardInput}
                 onChange={(e) =>
                   setCardInput(
@@ -450,7 +455,7 @@ export function TransferView() {
 
           {/* amount */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground">المبلغ</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">{t("transfer.amountLabel")}</Label>
             <div className="relative">
               <Input
                 dir="ltr"
@@ -461,7 +466,7 @@ export function TransferView() {
                 className="num text-left text-lg font-bold pe-12"
               />
               <span className="absolute inset-y-0 end-4 flex items-center text-xs font-semibold text-muted-foreground">
-                د.ع
+                {t("common.iqd")}
               </span>
             </div>
             <div className="flex gap-1.5">
@@ -471,7 +476,6 @@ export function TransferView() {
                   type="button"
                   onClick={() => setAmount(String(v))}
                   className="rounded-full border border-border/70 bg-secondary px-3 py-1 text-[0.68rem] font-bold text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors num"
-                  dir="rtl"
                 >
                   {v.toLocaleString("en-US")}
                 </button>
@@ -479,14 +483,14 @@ export function TransferView() {
             </div>
             {amountNum > 0 && user && amountNum > user.balance && (
               <p className="text-xs font-semibold text-destructive">
-                المبلغ أكبر من رصيدك ({fmtIQD(user.balance)})
+                {t("transfer.exceedsBalance", { balance: fmtIQD(user.balance, true, lang) })}
               </p>
             )}
           </div>
 
           <Button type="submit" disabled={!valid} className="w-full h-12 rounded-2xl font-bold text-base shadow-lift">
             <Send className="h-4 w-4" />
-            متابعة التحويل
+            {t("transfer.continueBtn")}
           </Button>
         </form>
       )}
@@ -501,13 +505,13 @@ export function TransferView() {
       <div className="rounded-3xl border border-dashed border-border bg-secondary/30 p-5">
         <p className="font-bold text-sm flex items-center gap-2">
           <Users className="h-4 w-4 text-primary" />
-          شلون تشتغلة التحويلات؟
+          {t("transfer.howTitle")}
         </p>
         <ol className="mt-2.5 text-xs text-muted-foreground leading-relaxed space-y-1 list-decimal list-inside">
-          <li>تدور على المستلم (من 100 مستخدم مسجل بالمنصة) أو تكتب بطاقته مباشرة.</li>
-          <li>تنشئ طلب تحويل مؤكد — ما ينفذ إلا بعد رمز الـ PIN.</li>
-          <li>تستلم إيصالًا برقم مرجعي، ويوصل المبلغ فوري للطرف الثاني.</li>
-          <li>إذا ما أكّدت الطلب خلال 24 ساعة — ينتهي تلقائيًا ويرجع رصيدك محفوظ.</li>
+          <li>{t("transfer.how1")}</li>
+          <li>{t("transfer.how2")}</li>
+          <li>{t("transfer.how3")}</li>
+          <li>{t("transfer.how4")}</li>
         </ol>
       </div>
 
@@ -517,14 +521,14 @@ export function TransferView() {
           setPinOpen(v);
           if (!v) setPendingReq(null);
         }}
-        title="تأكيد الحوالة"
+        title={t("transfer.pinTitle")}
         description={
           pendingReq
-            ? `إلى ${pendingReq.receiver} — لا تنعكس العملية بعد التنفيذ`
-            : "أدخل رمزك السري"
+            ? t("transfer.toReceiverDesc", { name: pendingReq.receiver })
+            : t("transfer.enterPinDesc")
         }
         amount={pendingReq?.amount}
-        confirmText="نفّذ الحوالة"
+        confirmText={t("transfer.executeBtn")}
         onConfirm={confirmTransfer}
       />
     </div>

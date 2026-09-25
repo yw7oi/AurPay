@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/input-otp";
 import { CategoryIcon, DirectionIcon } from "./icons";
 import { copyToClipboard } from "@/lib/clipboard";
+import { useT } from "@/lib/i18n";
 import { fmtDateTime, fmtIQD, type Bill, type Receipt, type Txn } from "@/lib/urpay";
 import { dueLabel } from "@/lib/urpay";
 
@@ -24,7 +25,7 @@ export function PinDialog({
   title,
   description,
   amount,
-  confirmText = "تأكيد العملية",
+  confirmText,
   onConfirm,
 }: {
   open: boolean;
@@ -36,9 +37,12 @@ export function PinDialog({
   onConfirm: (pin: string) => Promise<string | null>;
   /* returns error message or null on success */
 }) {
+  const { t, lang } = useT();
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* bumped on each wrong attempt — re-triggers the shake animation */
+  const [shakeKey, setShakeKey] = useState(0);
   /* synchronous in-flight guard — prevents the onComplete + button-click
      double-submit race (both would otherwise read a stale `loading`) */
   const inFlight = useRef(false);
@@ -51,6 +55,7 @@ export function PinDialog({
       setPin("");
       setError(null);
       setLoading(false);
+      setShakeKey(0);
       inFlight.current = false;
     }
   }
@@ -65,13 +70,15 @@ export function PinDialog({
       if (err) {
         setError(err);
         setPin("");
+        setShakeKey((k) => k + 1);
         inFlight.current = false;
       } else {
         onOpenChange(false); // parent closes; reset happens on next open
       }
     } catch {
-      setError("صار خطأ غير متوقع — حاول مرة ثانية");
+      setError(t("parts.unexpectedError"));
       setPin("");
+      setShakeKey((k) => k + 1);
       inFlight.current = false;
     } finally {
       setLoading(false);
@@ -80,7 +87,7 @@ export function PinDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm rounded-3xl" dir="rtl">
+      <DialogContent className="max-w-sm rounded-3xl">
         <DialogHeader className="text-center items-center space-y-0">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
             <ShieldCheck className="h-7 w-7" />
@@ -92,34 +99,36 @@ export function PinDialog({
         </DialogHeader>
 
         {amount !== undefined && (
-          <p className="num text-center text-2xl text-primary" dir="rtl">
-            {fmtIQD(amount)}
+          <p className="num text-center text-2xl text-primary">
+            {fmtIQD(amount, true, lang)}
           </p>
         )}
 
         <div className="flex flex-col items-center gap-2 py-2">
-          <InputOTP
-            dir="ltr"
-            maxLength={6}
-            value={pin}
-            onChange={setPin}
-            onComplete={submit}
-            disabled={loading}
-          >
-            <InputOTPGroup>
-              {[0, 1, 2].map((i) => (
-                <InputOTPSlot key={i} index={i} className="h-12 w-11 text-lg num" />
-              ))}
-            </InputOTPGroup>
-            <InputOTPSeparator />
-            <InputOTPGroup>
-              {[3, 4, 5].map((i) => (
-                <InputOTPSlot key={i} index={i} className="h-12 w-11 text-lg num" />
-              ))}
-            </InputOTPGroup>
-          </InputOTP>
+          <div key={shakeKey} className={shakeKey > 0 ? "animate-shake" : ""}>
+            <InputOTP
+              dir="ltr"
+              maxLength={6}
+              value={pin}
+              onChange={setPin}
+              onComplete={submit}
+              disabled={loading}
+            >
+              <InputOTPGroup>
+                {[0, 1, 2].map((i) => (
+                  <InputOTPSlot key={i} index={i} className="h-12 w-11 text-lg num" />
+                ))}
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup>
+                {[3, 4, 5].map((i) => (
+                  <InputOTPSlot key={i} index={i} className="h-12 w-11 text-lg num" />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
           <p className="text-[0.7rem] text-muted-foreground">
-            أدخل رمزك السري (4–6 أرقام) — نفس PIN التسجيل
+            {t("parts.pinHint")}
           </p>
           {error && (
             <p className="text-sm font-semibold text-destructive flex items-center gap-1.5">
@@ -135,7 +144,7 @@ export function PinDialog({
           className="w-full h-12 rounded-2xl font-bold text-base shadow-lift"
         >
           {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <BadgeCheck className="h-5 w-5" />}
-          {confirmText}
+          {confirmText ?? t("parts.confirm")}
         </Button>
       </DialogContent>
     </Dialog>
@@ -151,6 +160,7 @@ export function ReceiptCard({
   receipt: Receipt;
   floating?: boolean;
 }) {
+  const { t, lang } = useT();
   const [copied, setCopied] = useState(false);
 
   async function copyRef() {
@@ -166,34 +176,33 @@ export function ReceiptCard({
       initial={floating ? { opacity: 0, y: 8, scale: 0.98 } : false}
       animate={floating ? { opacity: 1, y: 0, scale: 1 } : undefined}
       className="rounded-2xl border border-primary/30 bg-card p-4 shadow-lift"
-      dir="rtl"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/25">
             <BadgeCheck className="h-4 w-4" />
           </span>
-          <p className="text-sm font-bold text-primary">عملية ناجحة</p>
+          <p className="text-sm font-bold text-primary">{t("parts.receiptSuccess")}</p>
         </div>
         <Badge className="rounded-lg bg-primary/10 text-primary hover:bg-primary/10">
-          إيصال
+          {t("parts.receipt")}
         </Badge>
       </div>
       <p className="mt-2.5 font-semibold leading-snug">{receipt.title}</p>
       {receipt.subtitle && (
         <p className="text-xs text-muted-foreground mt-0.5">{receipt.subtitle}</p>
       )}
-      <p className="num mt-2 text-2xl text-primary" dir="rtl">
-        {fmtIQD(receipt.amount)}
+      <p className="num mt-2 text-2xl text-primary">
+        {fmtIQD(receipt.amount, true, lang)}
       </p>
       <div className="mt-3 border-t border-dashed border-border pt-2.5 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
         <div className="flex flex-col">
-          <span>الرقم المرجعي</span>
+          <span>{t("parts.reference")}</span>
           <button
             onClick={copyRef}
             className="num font-semibold text-foreground inline-flex items-center gap-1.5 hover:text-primary transition-colors text-start"
             dir="ltr"
-            title="انسخ الرقم المرجعي"
+            title={t("parts.copyReference")}
           >
             {receipt.reference}
             {copied ? (
@@ -204,14 +213,14 @@ export function ReceiptCard({
           </button>
         </div>
         <div className="flex flex-col">
-          <span>الرصيد بعد العملية</span>
-          <span className="num font-semibold text-foreground" dir="rtl">
-            {fmtIQD(receipt.balance_after)}
+          <span>{t("parts.balanceAfter")}</span>
+          <span className="num font-semibold text-foreground">
+            {fmtIQD(receipt.balance_after, true, lang)}
           </span>
         </div>
       </div>
       <p className="mt-2 text-[0.68rem] text-muted-foreground/80">
-        {fmtDateTime(receipt.created_at)}
+        {fmtDateTime(receipt.created_at, lang)}
       </p>
     </motion.div>
   );
@@ -264,6 +273,7 @@ function urgency(bill: Bill): { pct: number; tone: string; bar: string } {
 }
 
 export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void }) {
+  const { t, lang } = useT();
   const u = urgency(bill);
   return (
     <div
@@ -272,7 +282,6 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
           ? "border-border/70 hover:border-primary/40 hover:shadow-lift"
           : "border-border/40 bg-secondary/30"
       }`}
-      dir="rtl"
     >
       {/* urgency bar (right edge in RTL) */}
       {bill.status === "unpaid" && (
@@ -290,21 +299,21 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
           </p>
           {bill.overdue && (
             <Badge variant="destructive" className="rounded-md text-[0.62rem] px-1.5 h-5">
-              متأخرة
+              {t("parts.overdue")}
             </Badge>
           )}
           {bill.status === "paid" && (
             <Badge className="rounded-md bg-primary/10 text-primary hover:bg-primary/10 text-[0.62rem] px-1.5 h-5">
-              مدفوعة
+              {t("parts.paid")}
             </Badge>
           )}
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">
-          #{bill.id} · {bill.period || "بلا فترة"} · اشتراك {bill.subscriber_no}
+          #{bill.id} · {bill.period || t("parts.noPeriod")} · {t("parts.subscription")} {bill.subscriber_no}
         </p>
         {bill.status === "unpaid" && (
           <p className={`text-[0.7rem] mt-1 font-semibold ${u.tone}`}>
-            الاستحقاق: {dueLabel(bill.due_date)}
+            {t("parts.due")} {dueLabel(bill.due_date, lang)}
           </p>
         )}
         {bill.status === "paid" && bill.receipt_ref && (
@@ -314,9 +323,9 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
         )}
       </div>
       <div className="text-end shrink-0">
-        <p className={`num font-bold ${bill.status === "paid" ? "text-muted-foreground/60" : ""}`} dir="rtl">
-          {fmtIQD(bill.amount, false)}
-          <span className="text-[0.6rem] font-medium text-muted-foreground block mt-0.5">د.ع</span>
+        <p className={`num font-bold ${bill.status === "paid" ? "text-muted-foreground/60" : ""}`}>
+          {fmtIQD(bill.amount, false, lang)}
+          <span className="text-[0.6rem] font-medium text-muted-foreground block mt-0.5">{t("parts.iqd")}</span>
         </p>
         {bill.status === "unpaid" && onPay && (
           <Button
@@ -324,7 +333,7 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
             onClick={() => onPay(bill)}
             className="mt-2 rounded-xl h-8 px-3.5 text-xs font-bold"
           >
-            ادفع الآن
+            {t("parts.payNow")}
           </Button>
         )}
       </div>
@@ -335,16 +344,16 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
 /* ------------------------------- txn row ----------------------------- */
 
 export function TxnRow({ txn }: { txn: Txn }) {
+  const { t, lang } = useT();
   return (
     <div
       className="flex items-center gap-3.5 rounded-2xl border border-border/60 bg-card p-3.5 transition-all hover:border-primary/35 hover:shadow-lift"
-      dir="rtl"
     >
       <CategoryIcon category={txn.category === "transfer" ? "transfer" : txn.category} />
       <div className="flex-1 min-w-0">
         <p className="font-bold text-sm truncate">{txn.title}</p>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">
-          {txn.subtitle || txn.reference} · {fmtDateTime(txn.created_at)}
+          {txn.subtitle || txn.reference} · {fmtDateTime(txn.created_at, lang)}
         </p>
       </div>
       <div className="text-end shrink-0">
@@ -354,14 +363,13 @@ export function TxnRow({ txn }: { txn: Txn }) {
               ? "text-primary bg-primary/10"
               : "text-foreground bg-secondary"
           }`}
-          dir="rtl"
         >
           <DirectionIcon direction={txn.direction} />
           {txn.direction === "out" ? "−" : "+"}
-          {fmtIQD(txn.amount, false)}
+          {fmtIQD(txn.amount, false, lang)}
         </p>
-        <p className="text-[0.62rem] text-muted-foreground num mt-1" dir="rtl">
-          رصيد: {fmtIQD(txn.balance_after)}
+        <p className="text-[0.62rem] text-muted-foreground num mt-1">
+          {t("parts.balance", { n: fmtIQD(txn.balance_after, true, lang) })}
         </p>
       </div>
     </div>
@@ -384,7 +392,6 @@ export function EmptyState({
   return (
     <div
       className="relative flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-secondary/25 p-10 text-center overflow-hidden"
-      dir="rtl"
     >
       {/* soft decorative glow */}
       <span

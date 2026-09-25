@@ -3,6 +3,8 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
+import { useT } from "@/lib/i18n";
+
 /* ------------------------------------------------------------------ */
 /* useTheme — class-based light/dark with localStorage persistence.    */
 /* Source of truth: the .dark class on <html> (applied pre-paint by    */
@@ -61,6 +63,7 @@ export function ThemeToggle({
   compact?: boolean;
 }) {
   const { theme, toggle } = useTheme();
+  const { t } = useT();
   const dark = theme === "dark";
 
   /* compact — icon-only button for tight mobile headers */
@@ -68,8 +71,8 @@ export function ThemeToggle({
     return (
       <button
         onClick={toggle}
-        aria-label={dark ? "الوضع النهاري" : "الوضع الليلي"}
-        title={dark ? "الوضع النهاري" : "الوضع الليلي"}
+        aria-label={dark ? t("theme.toLight") : t("theme.toDark")}
+        title={dark ? t("theme.toLight") : t("theme.toDark")}
         className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-secondary/70 text-foreground transition-colors hover:border-primary/40 hover:text-primary ${className ?? ""}`}
       >
         {dark ? (
@@ -77,7 +80,9 @@ export function ThemeToggle({
         ) : (
           <Moon className="h-4 w-4" />
         )}
-        <span className="sr-only">{dark ? "الوضع الليلي مفعّل" : "الوضع النهاري مفعّل"}</span>
+        <span className="sr-only">
+          {dark ? t("theme.darkOn") : t("theme.lightOn")}
+        </span>
       </button>
     );
   }
@@ -85,8 +90,8 @@ export function ThemeToggle({
   return (
     <button
       onClick={toggle}
-      aria-label={dark ? "الوضع النهاري" : "الوضع الليلي"}
-      title={dark ? "الوضع النهاري" : "الوضع الليلي"}
+      aria-label={dark ? t("theme.toLight") : t("theme.toDark")}
+      title={dark ? t("theme.toLight") : t("theme.toDark")}
       className={`group relative inline-flex h-9 w-16 items-center rounded-full border border-border/70 bg-secondary/70 transition-colors hover:border-primary/40 ${className ?? ""}`}
     >
       {/* track icons */}
@@ -107,7 +112,9 @@ export function ThemeToggle({
         }`}
         aria-hidden="true"
       />
-      <span className="sr-only">{dark ? "الوضع الليلي مفعّل" : "الوضع النهاري مفعّل"}</span>
+      <span className="sr-only">
+        {dark ? t("theme.darkOn") : t("theme.lightOn")}
+      </span>
     </button>
   );
 }

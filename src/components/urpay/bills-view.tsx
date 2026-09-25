@@ -14,7 +14,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useSession } from "@/lib/store";
-import { fmtIQD, urpay, type Bill, type Receipt } from "@/lib/urpay";
+import { useT } from "@/lib/i18n";
+import { fmtIQD, categoryName, urpay, type Bill, type Receipt } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
 import { BillRow, EmptyState, PinDialog, ReceiptCard } from "./parts";
 import { CategoryIcon } from "./icons";
@@ -24,6 +25,7 @@ type BillerOption = { category: string; code: string; name: string; ar: string }
 export function BillsView({ refreshKey }: { refreshKey: number }) {
   const { token, setUser } = useSession();
   const { toast } = useToast();
+  const { t, lang } = useT();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [tab, setTab] = useState<"unpaid" | "paid" | "all">("unpaid");
   const [paying, setPaying] = useState<Bill | null>(null);
@@ -47,7 +49,7 @@ export function BillsView({ refreshKey }: { refreshKey: number }) {
   const unpaidTotal = bills?.filter((b) => b.status === "unpaid").reduce((s, b) => s + b.amount, 0) ?? 0;
 
   async function confirmPay(pin: string): Promise<string | null> {
-    if (!token || !paying) return "خطأ غير متوقع";
+    if (!token || !paying) return t("common.unexpectedError");
     try {
       const r = await urpay.payBill(token, paying.id, pin);
       setReceipt(r);
@@ -61,40 +63,40 @@ export function BillsView({ refreshKey }: { refreshKey: number }) {
       const me = await urpay.me(token);
       setUser(me);
       toast({
-        title: "تم الدفع بنجاح ✅",
-        description: `${paying.biller_name} — ${fmtIQD(paying.amount)}`,
+        title: t("bills.paidToastTitle"),
+        description: `${paying.biller_name} — ${fmtIQD(paying.amount, true, lang)}`,
       });
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "فشلت العملية";
+      return err instanceof Error ? err.message : t("common.opFailed");
     }
   }
 
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl">الفواتير</h1>
+          <h1 className="font-display text-2xl">{t("bills.title")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {bills === null
-              ? "جاري التحميل…"
+              ? t("common.loading")
               : tab === "unpaid"
                 ? unpaidTotal > 0
-                  ? `مجموع غير المدفوع: ${fmtIQD(unpaidTotal)}`
-                  : "كل فواتيرك مدفوعة 🎉"
-                : `${filtered?.length ?? 0} فاتورة`}
+                  ? t("bills.unpaidTotal", { total: fmtIQD(unpaidTotal, true, lang) })
+                  : t("bills.allPaid")
+                : t("bills.count", { n: filtered?.length ?? 0 })}
           </p>
         </div>
         <Button onClick={() => setSimOpen(true)} variant="outline" className="rounded-xl font-bold">
           <Plus className="h-4 w-4" />
-          ولّد فاتورة تجريبية
+          {t("bills.simulateBtn")}
         </Button>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
         <TabsList className="rounded-2xl bg-secondary p-1 h-auto">
           <TabsTrigger value="unpaid" className="rounded-xl px-4 py-2 font-bold data-[state=active]:bg-card">
-            غير مدفوعة
+            {t("bills.tabUnpaid")}
             {bills && (
               <Badge className="ms-1.5 rounded-md h-5 px-1.5 text-[0.6rem] bg-primary text-primary-foreground hover:bg-primary">
                 {bills.filter((b) => b.status === "unpaid").length}
@@ -102,10 +104,10 @@ export function BillsView({ refreshKey }: { refreshKey: number }) {
             )}
           </TabsTrigger>
           <TabsTrigger value="paid" className="rounded-xl px-4 py-2 font-bold data-[state=active]:bg-card">
-            مدفوعة
+            {t("bills.tabPaid")}
           </TabsTrigger>
           <TabsTrigger value="all" className="rounded-xl px-4 py-2 font-bold data-[state=active]:bg-card">
-            الكل
+            {t("bills.tabAll")}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -119,12 +121,12 @@ export function BillsView({ refreshKey }: { refreshKey: number }) {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={tab === "unpaid" ? Sparkles : ReceiptText}
-          title={tab === "unpaid" ? "ما عندك فواتير غير مدفوعة" : "ما هني فواتير بهذا التصنيف"}
-          desc="ولّد فاتورة تجريبية وجرّب عملية الدفع كاملة مع PIN وإيصال مرجعي."
+          title={tab === "unpaid" ? t("bills.noUnpaidTitle") : t("bills.noneInFilterTitle")}
+          desc={t("bills.emptyDesc")}
           action={
             <Button onClick={() => setSimOpen(true)} className="rounded-xl font-bold">
               <Wand2 className="h-4 w-4" />
-              ولّد فاتورة
+              {t("bills.simulateShortBtn")}
             </Button>
           }
         />
@@ -140,10 +142,10 @@ export function BillsView({ refreshKey }: { refreshKey: number }) {
       <PinDialog
         open={!!paying}
         onOpenChange={(v) => !v && setPaying(null)}
-        title="تأكيد دفع الفاتورة"
-        description={paying ? `${paying.biller_name} · ${paying.period || "بدون فترة"}` : ""}
+        title={t("bills.payConfirmTitle")}
+        description={paying ? `${paying.biller_name} · ${paying.period || t("bills.noPeriod")}` : ""}
         amount={paying?.amount}
-        confirmText="ادفع الآن"
+        confirmText={t("bills.payNowBtn")}
         onConfirm={confirmPay}
       />
 
@@ -151,8 +153,8 @@ export function BillsView({ refreshKey }: { refreshKey: number }) {
       <Dialog open={!!receipt} onOpenChange={(v) => !v && setReceipt(null)}>
         <DialogContent className="max-w-sm rounded-3xl">
           <DialogHeader className="sr-only">
-            <DialogTitle>إيصال الدفع</DialogTitle>
-            <DialogDescription>تفاصيل العملية الناجحة</DialogDescription>
+            <DialogTitle>{t("bills.receiptTitle")}</DialogTitle>
+            <DialogDescription>{t("bills.receiptDesc")}</DialogDescription>
           </DialogHeader>
           {receipt && <ReceiptCard receipt={receipt} />}
         </DialogContent>
@@ -172,14 +174,7 @@ export function BillsView({ refreshKey }: { refreshKey: number }) {
 
 /* ------------------------------------------------------------------ */
 
-const CATEGORY_OPTIONS: { key: string; ar: string }[] = [
-  { key: "electricity", ar: "كهرباء" },
-  { key: "water", ar: "ماء" },
-  { key: "internet", ar: "إنترنت" },
-  { key: "mobile", ar: "اتصالات" },
-  { key: "education", ar: "تعليم" },
-  { key: "traffic", ar: "مرور" },
-];
+const CATEGORY_OPTIONS = ["electricity", "water", "internet", "mobile", "education", "traffic"];
 
 function SimulateBillDialog({
   open,
@@ -192,6 +187,7 @@ function SimulateBillDialog({
 }) {
   const { token } = useSession();
   const { toast } = useToast();
+  const { t, lang } = useT();
   const [billers, setBillers] = useState<BillerOption[] | null>(null);
   const [category, setCategory] = useState("electricity");
   const [billerCode, setBillerCode] = useState("");
@@ -234,16 +230,16 @@ function SimulateBillDialog({
       onCreated(nb);
       onOpenChange(false);
       toast({
-        title: "تم توليد الفاتورة ✨",
-        description: "صارت جاهزة بالقائمة — ادفعها أو خلّي أور يدفعها",
+        title: t("bills.generatedToastTitle"),
+        description: t("bills.generatedToastDesc"),
       });
       setBillerCode("");
       setSubscriber("");
       setAmount("");
     } catch (err) {
       toast({
-        title: "فشل التوليد",
-        description: err instanceof Error ? err.message : "حاول مرة أخرى",
+        title: t("bills.generateFailTitle"),
+        description: err instanceof Error ? err.message : t("common.tryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -253,37 +249,37 @@ function SimulateBillDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-3xl" dir="rtl">
+      <DialogContent className="max-w-md rounded-3xl">
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-2">
             <Wand2 className="h-5 w-5 text-gold-deep" />
-            ولّد فاتورة تجريبية
+            {t("bills.simulateBtn")}
           </DialogTitle>
           <DialogDescription>
-            فاتورة جديدة تضاف لقائمتك — مثالية لتجربة المساعد أور أو الدفع المباشر.
+            {t("bills.simulateDesc")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <Label className="text-xs font-semibold text-muted-foreground">الصنف</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">{t("bills.categoryLabel")}</Label>
             <div className="mt-2 grid grid-cols-6 gap-2">
               {CATEGORY_OPTIONS.map((c) => (
                 <button
-                  key={c.key}
+                  key={c}
                   type="button"
                   onClick={() => {
-                    setCategory(c.key);
+                    setCategory(c);
                     setBillerCode("");
                   }}
                   className={`flex flex-col items-center gap-1 rounded-xl border p-2 transition-all ${
-                    category === c.key
+                    category === c
                       ? "border-primary bg-primary/[.07]"
                       : "border-border/60 hover:border-primary/40"
                   }`}
-                  aria-pressed={category === c.key}
+                  aria-pressed={category === c}
                 >
-                  <CategoryIcon category={c.key} boxed={false} className={category === c.key ? "text-primary" : "text-muted-foreground"} />
-                  <span className="text-[0.62rem] font-bold">{c.ar}</span>
+                  <CategoryIcon category={c} boxed={false} className={category === c ? "text-primary" : "text-muted-foreground"} />
+                  <span className="text-[0.62rem] font-bold">{categoryName(c, lang)}</span>
                 </button>
               ))}
             </div>
@@ -291,10 +287,10 @@ function SimulateBillDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">الجهة</Label>
-              <Select dir="rtl" value={billerCode} onValueChange={setBillerCode}>
+              <Label className="text-xs font-semibold text-muted-foreground">{t("bills.billerLabel")}</Label>
+              <Select value={billerCode} onValueChange={setBillerCode}>
                 <SelectTrigger className="w-full bg-background">
-                  <SelectValue placeholder={billers ? "اختر الجهة" : "جاري التحميل…"} />
+                  <SelectValue placeholder={billers ? t("bills.selectBiller") : t("common.loading")} />
                 </SelectTrigger>
                 <SelectContent>
                   {catBillers.map((b) => (
@@ -306,7 +302,7 @@ function SimulateBillDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">رقم الاشتراك</Label>
+              <Label className="text-xs font-semibold text-muted-foreground">{t("bills.subscriberLabel")}</Label>
               <Input
                 dir="ltr"
                 inputMode="numeric"
@@ -319,7 +315,7 @@ function SimulateBillDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">المبلغ (د.ع)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">{t("bills.amountLabel")}</Label>
             <Input
               dir="ltr"
               inputMode="numeric"
@@ -335,7 +331,6 @@ function SimulateBillDialog({
                   type="button"
                   onClick={() => setAmount(String(v))}
                   className="rounded-full border border-border/70 bg-secondary px-2.5 py-1 text-[0.65rem] font-bold text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors num"
-                  dir="rtl"
                 >
                   {v.toLocaleString("en-US")}
                 </button>
@@ -345,11 +340,11 @@ function SimulateBillDialog({
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl font-bold">
-              إلغاء
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={!valid || loading} className="rounded-xl font-bold flex-1">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              ولّد الفاتورة
+              {t("bills.generateBtn")}
             </Button>
           </DialogFooter>
         </form>

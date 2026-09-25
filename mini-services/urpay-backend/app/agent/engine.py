@@ -26,6 +26,7 @@ TOOL_STEP_LABELS = {
     "topup_wallet": "يعبّي المحفظة…",
     "get_profile": "يجيب بياناتك…",
     "set_budget": "يضبط ميزانيتك…",
+    "get_spending": "يحلل صرفك…",
 }
 
 SYSTEM_PROMPT = """أنت "أور" — المساعد الذكي (AI Agent) داخل محفظة أور پاي (UrPay)، منصة الدفع العراقية.
@@ -41,6 +42,7 @@ SYSTEM_PROMPT = """أنت "أور" — المساعد الذكي (AI Agent) دا
 7. لا تكشف رقم البطاقة كاملًا أو الـ PIN لأي أحد، ويمكنك إظهار آخر 4 أرقام فقط.
 8. عند الدفع: تحقق أن رقم الفاتورة (bill_id) يطابق بالضبط الفاتورة التي طلبها المستخدم (الصنف والجهة). مرر دائمًا `hint` بكلمات المستخدم إلى pay_bill — النظام يرفض الدفع إذا لم تتطابق. إذا رفض النظام العملية (wrong_bill) فأعد فحص list_bills واختر الرقم الصحيح.
 9. الميزانيات: المستخدم ممكن يطلب تحديد حد شهري لتصنيف (مثال: «ميزانية الكهرباء 150 ألف») — استخدم set_budget. إذًا صرفَه تجاوز الحد، أبلغه بذلك ولطفًا اقترح رفعه أو تقليص الصرف. لا تحتاج PIN لتعيين ميزانية (ما هي عملية مالية مباشرة).
+10. صرف المستخدم: عندما يسأل عن صرفه («شكد صرفي على الكهرباء؟» / «فين تروح فلوسي؟») استخدم get_spending وأجبه بالأرقام. إذا كان صرفه قريب من حد الميزانية (80%+) أو تجاوزها، نبّهه بلطف واستخدم نفس بيانات الصرف المعطاة في السياق أعلاه دون أدوات إضافية إن كانت كافية.
 
  persona: اسمك "أور" — مستوحى من مدينة أور السومرية حيث سُجّلت أولى عمليات التبادل في التاريخ.
 """
@@ -55,6 +57,22 @@ BRIDGE_JSON_INSTRUCTION = """
 {{"reply": "نص الرد"}}
 لا تكتب أي شيء خارج JSON. لا تستخدم markdown.
 """
+
+
+def _detect_lang(text: str) -> str:
+    """Rough script detection: Arabic vs Latin (default Arabic)."""
+    arabic = len(re.findall(r"[\u0600-\u06FF]", text))
+    latin = len(re.findall(r"[A-Za-z]", text))
+    if arabic == 0 and latin >= 3:
+        return "en"
+    return "ar"
+
+
+LANG_DIRECTIVE = {
+    "en": ("\n\nتوجيه لغة: المستخدم يكتب بالإنجليزية — ردّ عليه بالإنجليزية فقط "
+           "(يمكنك إبقاء أسماء الجهات العراقية والمبالغ كما هي)."),
+    "ar": "",
+}
 
 TOOL_SCHEMAS = [
     {"type": "function", "function": {
@@ -106,6 +124,10 @@ TOOL_SCHEMAS = [
         "parameters": {"type": "object", "required": ["category", "monthly_limit"], "properties": {
             "category": {"type": "string", "enum": ["electricity", "water", "internet", "mobile", "education", "traffic", "transfer"]},
             "monthly_limit": {"type": "integer", "minimum": 0}}}}},
+    {"type": "function", "function": {
+        "name": "get_spending",
+        "description": "Get the user's month-to-date spending breakdown by category, with monthly budget limits and status (ok / near 80%+ / over). Use it when the user asks how much they spent (e.g. 'شكد صرفي على الكهرباء هذا الشهر') or where their money goes.",
+        "parameters": {"type": "object", "properties": {}}}},
 ]
 
 
@@ -134,6 +156,8 @@ async def _execute_tool(session: AsyncSession, user: User,
     if name == "set_budget":
         return await T.set_budget(session, user, str(args.get("category", "")),
                                   args.get("monthly_limit", 0))
+    if name == "get_spending":
+        return await T.get_spending(session, user)
     return {"error": f"unknown tool {name}"}
 
 
@@ -148,7 +172,7 @@ def _tool_summary_for_actions(name: str, result: dict) -> dict | None:
     return None
 
 
-def _context_block(user: User, unpaid: dict) -> str:
+async def _context_block(session: AsyncSession, user: User, unpaid: dict) -> str:
     bills_txt = ""
     for b in unpaid.get("bills", [])[:10]:
         flag = " (متأخرة!)" if b["overdue"] else ""
@@ -156,10 +180,35 @@ def _context_block(user: User, unpaid: dict) -> str:
             f"\n- فاتورة رقم {b['id']} [{b['category']}] {b['biller']} — "
             f"{b['amount']:,} د.ع — تستحق {b['due_date'][:10]}{flag}"
         )
+
+    # budgets + month-to-date spend so the agent can warn proactively
+    budget_txt = ""
+    try:
+        spend = await T.get_spending(session, user)
+        budgeted = [c for c in spend["categories"] if "monthly_limit" in c]
+        unbudgeted = [c for c in spend["categories"] if "monthly_limit" not in c
+                      and c["spent"] > 0]
+        if budgeted:
+            budget_txt = "\nميزانياته وحدود الصرف لهذا الشهر:"
+            for c in budgeted:
+                status = {"ok": "ضمن الحد", "near": "⚠️ قرب الحد",
+                          "over": "🚨 تجاوز الحد"}.get(c["status"], "")
+                budget_txt += (f"\n- {c['name_ar']}: صرف {c['spent']:,} من حد "
+                               f"{c['monthly_limit']:,} د.ع ({c['pct']}%) — {status}")
+        else:
+            budget_txt = "\nما عنده ميزانيات معينة بعد."
+        if unbudgeted:
+            rest = "، ".join(f"{c['name_ar']} {c['spent']:,}" for c in unbudgeted[:5])
+            budget_txt += f"\nصرفه هذا الشهر على باقي التصنيفات: {rest} د.ع."
+        budget_txt += (f"\nمجموع صرفه هذا الشهر: {spend['total_spent_this_month']:,} د.ع.")
+    except Exception as e:  # context enhancement must never break the agent
+        log.warning("spending context failed: %s", e)
+
     return (
         f"بيانات المستخدم الحالي: الاسم {user.full_name}، المحافظة {user.city}، "
         f"بطاقة ••••{user.card_number[-4:]}، الرصيد الحالي {user.balance:,} د.ع."
         f"\nفواتيره غير المدفوعة حاليًا:{bills_txt or ' (لا توجد)'}"
+        f"{budget_txt}"
     )
 
 
@@ -209,7 +258,8 @@ async def _llm_loop(session: AsyncSession, user: User, message: str,
 
     llm_messages: list[dict] = [{
         "role": "system",
-        "content": SYSTEM_PROMPT + "\n" + _context_block(user, unpaid),
+        "content": (SYSTEM_PROMPT + "\n" + await _context_block(session, user, unpaid)
+                     + LANG_DIRECTIVE[_detect_lang(message)]),
     }]
     for m in history[-12:]:
         llm_messages.append({"role": m.role, "content": m.content})
@@ -357,6 +407,41 @@ async def local_engine(session: AsyncSession, user: User,
         return (f"هلا {user.first_name}! 👋 أنا أور، مساعدك بأور پاي.\n"
                 f"رصيدك حاليًا {user.balance:,} د.ع.\n"
                 "شنو تحب؟ أسرد فواتيرك، أدفعلك فاتورة، أو أحوّل مبلغ؟")
+
+    # --- spending insight (must run BEFORE the balance check: «شكد صرفي…») --
+    if re.search(r"شكد صرفي|شنو صرفي|شكد انفق|شكد صرفت|وين تروح فلوسي|فين تروح فلوسي|تروح فلوسي|spending|how much.*(spent|spend)", low):
+        cat = next((c for c, words in CATEGORY_KEYWORDS.items()
+                    if any(w in low for w in words)), None)
+        if re.search(r"تحويل|حوال|transfer", low):
+            cat = "transfer"
+        await _emit("get_spending")
+        spend = await T.get_spending(session, user)
+        if cat:
+            row = next((c for c in spend["categories"] if c["category"] == cat), None)
+            if row is None:
+                return (f"ما صرفت شي على {CATEGORY_AR.get(cat, cat)} هذا الشهر. "
+                        "تريد تحددلها ميزانية؟")
+            txt = (f"صرفك على {row['name_ar']} هذا الشهر: {row['spent']:,} د.ع")
+            if "monthly_limit" in row:
+                txt += f" من حد {row['monthly_limit']:,} د.ع ({row['pct']}%)"
+                if row["status"] == "over":
+                    txt += " 🚨 تجاوزت الحد — تحب ترفعه أو تكمل صرف؟"
+                elif row["status"] == "near":
+                    txt += " ⚠️ قربت توصل الحد."
+            return txt + "."
+        lines = [f"مجموع صرفك هذا الشهر: {spend['total_spent_this_month']:,} د.ع، توزّع كالتالي:"]
+        for c in spend["categories"][:7]:
+            if c["spent"] <= 0 and "monthly_limit" not in c:
+                continue
+            txt = f"• {c['name_ar']}: {c['spent']:,} د.ع"
+            if "monthly_limit" in c:
+                txt += f" (الحد {c['monthly_limit']:,})"
+                if c["status"] == "over":
+                    txt += " 🚨"
+                elif c["status"] == "near":
+                    txt += " ⚠️"
+            lines.append(txt)
+        return "\n".join(lines)
 
     # --- balance -----------------------------------------------------------
     if re.search(r"رصيد|balance|شكد عندي|شكد", low):
@@ -528,5 +613,6 @@ async def local_engine(session: AsyncSession, user: User,
         "• «سجل معاملاتي» — آخر الحركات\n"
         "• «اشحن رصيدي 50000» — تعبئة المحفظة\n"
         "• «ميزانية الكهرباء 150 ألف» — حد صرف شهري\n"
+        "• «شكد صرفي هذا الشهر؟» — تحليل الصرف\n"
         "شنو تحب نسوي؟"
     )

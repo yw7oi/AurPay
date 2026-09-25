@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic, Inter_Tight } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { LangBoot } from "@/lib/i18n";
 
 const interTight = Inter_Tight({
   variable: "--font-display-tight",
@@ -46,16 +47,17 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
-        {/* apply stored theme before first paint — no flash of light mode */}
+        {/* apply stored theme + language before first paint — no flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("urpay-theme");if(t==="dark"){document.documentElement.classList.add("dark");document.documentElement.style.colorScheme="dark";}}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("urpay-theme");if(t==="dark"){document.documentElement.classList.add("dark");document.documentElement.style.colorScheme="dark";}}catch(e){}try{var l=localStorage.getItem("urpay-lang");if(l){var v=JSON.parse(l);if(v&&v.state&&v.state.lang){var g=v.state.lang;document.documentElement.lang=g;if(g==="en"){document.documentElement.dir="ltr";}else{document.documentElement.dir="rtl";}}}}catch(e){}})();`,
           }}
         />
       </head>
       <body
         className={`${interTight.variable} ${plexArabic.variable} antialiased bg-background text-foreground font-sans`}
       >
+        <LangBoot />
         {children}
         <Toaster />
       </body>

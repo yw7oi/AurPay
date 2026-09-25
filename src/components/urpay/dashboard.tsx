@@ -9,6 +9,7 @@ import { UrPayLogo } from "./logo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 import { fmtIQD, urpay } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
 import { OverviewView } from "./overview";
@@ -19,17 +20,18 @@ import { TransactionsView } from "./transactions-view";
 import { ProfileView } from "./profile-view";
 import { UserAvatar } from "./parts";
 import { ThemeToggle } from "./theme-toggle";
+import { LangToggle } from "./lang-toggle";
 import { NotificationsBell } from "./notifications-bell";
 
 export type DashTab = "overview" | "bills" | "transfer" | "agent" | "transactions" | "profile";
 
-const NAV: { key: DashTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { key: "overview", label: "نظرة عامة", icon: Home },
-  { key: "bills", label: "الفواتير", icon: LayoutGrid },
-  { key: "transfer", label: "تحويل", icon: Send },
-  { key: "agent", label: "المساعد أور", icon: MessageSquareHeart },
-  { key: "transactions", label: "السجل", icon: History },
-  { key: "profile", label: "حسابي", icon: UserRound },
+const NAV: { key: DashTab; labelKey: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "overview", labelKey: "shell.nav.overview", icon: Home },
+  { key: "bills", labelKey: "shell.nav.bills", icon: LayoutGrid },
+  { key: "transfer", labelKey: "shell.nav.transfer", icon: Send },
+  { key: "agent", labelKey: "shell.nav.agent", icon: MessageSquareHeart },
+  { key: "transactions", labelKey: "shell.nav.transactions", icon: History },
+  { key: "profile", labelKey: "shell.nav.profile", icon: UserRound },
 ];
 
 export function Dashboard({
@@ -43,6 +45,7 @@ export function Dashboard({
 }) {
   const { user, token, setUser, logout } = useSession();
   const { toast } = useToast();
+  const { t, lang } = useT();
 
   const refreshUser = useCallback(async () => {
     if (!token) return;
@@ -61,7 +64,7 @@ export function Dashboard({
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background overflow-x-clip" dir="rtl">
+    <div className="min-h-screen flex flex-col bg-background overflow-x-clip">
       {/* top header */}
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
@@ -69,18 +72,20 @@ export function Dashboard({
             <UrPayLogo compact className="lg:hidden" />
             <UrPayLogo className="hidden lg:inline-flex" />
             <div className="hidden sm:flex items-center gap-2 ms-2 rounded-full border border-primary/25 bg-primary/[.06] px-3.5 py-1.5">
-              <span className="text-[0.68rem] font-medium text-muted-foreground">الرصيد</span>
-              <span className="num text-sm font-bold text-primary" dir="rtl">
-                {fmtIQD(user.balance)}
+              <span className="text-[0.68rem] font-medium text-muted-foreground">{t("shell.balance")}</span>
+              <span className="num text-sm font-bold text-primary">
+                {fmtIQD(user.balance, true, lang)}
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <div className="sm:hidden">
+              <LangToggle compact className="me-1" />
               <ThemeToggle compact />
             </div>
-            <div className="hidden sm:block">
+            <div className="hidden sm:flex items-center">
+              <LangToggle className="me-1" />
               <ThemeToggle />
             </div>
             <Button
@@ -88,7 +93,7 @@ export function Dashboard({
               size="icon"
               onClick={refreshUser}
               className="rounded-full"
-              aria-label="تحديث"
+              aria-label={t("shell.refresh")}
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -107,10 +112,10 @@ export function Dashboard({
               size="icon"
               onClick={() => {
                 logout();
-                toast({ title: "تم تسجيل الخروج", description: "نشتاقلك! ترجع بأي وقت." });
+                toast({ title: t("shell.logoutDone"), description: t("shell.logoutBye") });
               }}
               className="rounded-full text-muted-foreground hover:text-destructive"
-              aria-label="تسجيل الخروج"
+              aria-label={t("shell.logout")}
             >
               <LogOut className="h-4 w-4 rtl:-scale-x-100" />
             </Button>
@@ -121,7 +126,7 @@ export function Dashboard({
       <div className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 flex gap-6 py-6 pb-24 lg:pb-8">
         {/* sidebar — desktop */}
         <aside className="hidden lg:flex flex-col w-60 shrink-0 sticky top-24 self-start">
-          <nav className="rounded-3xl border border-border/70 bg-card p-2.5 space-y-1" aria-label="قائمة اللوحة">
+          <nav className="rounded-3xl border border-border/70 bg-card p-2.5 space-y-1" aria-label={t("shell.sidebarNav")}>
             {NAV.map((n) => (
               <button
                 key={n.key}
@@ -133,7 +138,7 @@ export function Dashboard({
                 }`}
               >
                 <n.icon className="h-4.5 w-4.5 h-[18px] w-[18px]" />
-                {n.label}
+                {t(n.labelKey)}
                 {n.key === "agent" && tab !== "agent" && (
                   <span className="ms-auto h-2 w-2 rounded-full bg-gold animate-pulse-dot" />
                 )}
@@ -147,17 +152,17 @@ export function Dashboard({
                 Groq · gpt-oss-120b
               </Badge>
               <p className="mt-3 font-bold text-sm leading-snug">
-                خلّي أور يدفع فواتيرك
+                {t("shell.promo.title")}
               </p>
               <p className="mt-1 text-[0.7rem] text-white/60 leading-relaxed">
-                محادثة وحدة تكفي — يفهم، يتحقق، يطلب PIN، وينفّذ.
+                {t("shell.promo.desc")}
               </p>
               <Button
                 size="sm"
                 onClick={() => setTab("agent")}
                 className="mt-3.5 rounded-xl bg-[#3ED9A3] text-[#0C2A21] hover:bg-[#5ce0b0] font-bold"
               >
-                افتح المحادثة
+                {t("shell.promo.cta")}
               </Button>
             </div>
           </div>
@@ -170,14 +175,14 @@ export function Dashboard({
           {tab === "transfer" && <TransferView />}
           {tab === "agent" && <AgentView />}
           {tab === "transactions" && <TransactionsView />}
-          {tab === "profile" && <ProfileView />}
+          {tab === "profile" && <ProfileView setTab={setTab} />}
         </main>
       </div>
 
       {/* bottom bar — mobile */}
       <nav
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/70 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]"
-        aria-label="التنقل السفلي"
+        aria-label={t("shell.bottomNav")}
       >
         <div className="grid grid-cols-6 h-16">
           {NAV.map((n) => (
@@ -192,7 +197,7 @@ export function Dashboard({
                 <span className="absolute top-0 h-0.5 w-10 rounded-full bg-primary" />
               )}
               <n.icon className="h-5 w-5" />
-              <span className="text-[0.6rem] font-bold">{n.label}</span>
+              <span className="text-[0.6rem] font-bold">{t(n.labelKey)}</span>
               {n.key === "agent" && tab !== "agent" && (
                 <span className="absolute top-2 end-3 h-1.5 w-1.5 rounded-full bg-gold" />
               )}

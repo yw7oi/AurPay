@@ -10,20 +10,23 @@ import {
 import { UrPayLogo, UrPayMark, UrSeal } from "./logo";
 import { CategoryIcon } from "./icons";
 import { ThemeToggle } from "./theme-toggle";
+import { LangToggle } from "./lang-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { fmtIQD, type PlatformStats } from "@/lib/urpay";
+import { categoryName, fmtIQD, type PlatformStats } from "@/lib/urpay";
+import { useT } from "@/lib/i18n";
 
 /* ------------------------------------------------------------------ */
 
 const NAV = [
-  { href: "#features", label: "المزايا" },
-  { href: "#categories", label: "الفواتير" },
-  { href: "#agent", label: "المساعد أور" },
-  { href: "#security", label: "الأمان" },
+  { href: "#features", labelKey: "landing.nav.features" },
+  { href: "#categories", labelKey: "landing.nav.categories" },
+  { href: "#agent", labelKey: "landing.nav.agent" },
+  { href: "#security", labelKey: "landing.nav.security" },
 ];
 
 export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () => void }) {
+  const { t, lang } = useT();
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -49,22 +52,24 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 h-16 sm:h-[4.5rem] flex items-center justify-between gap-4">
           <UrPayLogo />
-          <nav className="hidden md:flex items-center gap-1" aria-label="القائمة الرئيسية">
+          <nav className="hidden md:flex items-center gap-1" aria-label={t("landing.nav.aria")}>
             {NAV.map((n) => (
               <a
                 key={n.href}
                 href={n.href}
                 className="px-3.5 py-2 rounded-full text-[0.9rem] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
-                {n.label}
+                {t(n.labelKey)}
               </a>
             ))}
           </nav>
           <div className="flex items-center gap-2">
             <div className="flex items-center sm:hidden">
+              <LangToggle compact className="me-1" />
               <ThemeToggle compact className="me-1" />
             </div>
             <div className="hidden sm:flex items-center">
+              <LangToggle compact className="me-1" />
               <ThemeToggle className="me-1" />
             </div>
             <Button
@@ -72,13 +77,13 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
               variant="outline"
               className="hidden sm:inline-flex rounded-full border-border/80 font-semibold"
             >
-              تسجيل الدخول
+              {t("landing.nav.login")}
             </Button>
             <Button
               onClick={onEnter}
               className="rounded-full font-semibold shadow-lift"
             >
-              افتح محفظتك
+              {t("landing.nav.openWallet")}
               <ArrowLeft className="ms-1 h-4 w-4 rtl:-scale-x-100" />
             </Button>
           </div>
@@ -106,19 +111,19 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
               className="mb-5 rounded-full border-gold/60 bg-gold/10 text-gold-deep px-3.5 py-1.5 gap-1.5 font-medium"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              أول محفظة عراقية بمساعد ذكي — Bill Pay Agent
+              {t("landing.hero.badge")}
             </Badge>
 
             <h1 className="font-display text-[2.6rem] leading-[1.08] sm:text-6xl text-ink">
-              كل فواتيرك…
+              {t("landing.hero.title1")}
               <br />
-              <span className="text-primary">بمحادثة وحدة.</span>
+              <span className="text-primary">{t("landing.hero.title2")}</span>
             </h1>
 
             <p className="mt-5 text-[1.05rem] sm:text-lg leading-relaxed text-muted-foreground max-w-lg">
-              أور پاي محفظة دفع عراقية بمساعد ذكي اسمه <b className="text-foreground">أور</b> —
-              مستوحى من مدينة أور السومرية، أول مكان سُجّل فيه تبادل في التاريخ. قلله
-              «ادفع فاتورة الكهرباء» وبيسألك PIN وبيخلصها.
+              {t("landing.hero.desc1")}{" "}
+              <b className="text-foreground">{t("landing.hero.descBold")}</b>{" "}
+              {t("landing.hero.desc2")}
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -128,7 +133,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                 className="rounded-full h-12 px-7 text-base font-bold shadow-lift-lg"
               >
                 <CreditCard className="me-2 h-5 w-5" />
-                افتح محفظتك مجانًا
+                {t("landing.hero.ctaOpen")}
               </Button>
               <Button
                 size="lg"
@@ -136,17 +141,16 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                 onClick={onDemo}
                 className="rounded-full h-12 px-6 text-base font-semibold border-border"
               >
-                جرّب الحساب التجريبي
+                {t("landing.hero.ctaDemo")}
               </Button>
             </div>
 
             {stats?.demo && (
               <div
                 className="mt-6 inline-flex items-center gap-2.5 rounded-2xl border border-dashed border-primary/35 bg-primary/[.06] px-4 py-2.5 text-sm"
-                dir="rtl"
               >
                 <Fingerprint className="h-4 w-4 text-primary" />
-                <span className="text-muted-foreground">بطاقة التجربة:</span>
+                <span className="text-muted-foreground">{t("landing.hero.demoCard")}</span>
                 <span className="num tracking-wide" dir="ltr">
                   {stats.demo.card_number.replace(/(\d{4})(?=\d)/g, "$1 ")}
                 </span>
@@ -156,9 +160,13 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
             )}
 
             <dl className="mt-9 grid grid-cols-3 gap-4 border-t border-border/70 pt-6">
-              <Stat label="مستخدم بالمنصة" value={stats ? `${stats.users}+` : "100+"} />
-              <Stat label="فاتورة اندفعت" value={stats ? `${stats.bills_paid}` : "300+"} />
-              <Stat label="حجم التحويلات" value={stats ? fmtIQD(stats.volume_iqd) : "33 مليون د.ع"} compact />
+              <Stat label={t("landing.stats.users")} value={stats ? `${stats.users}+` : "100+"} />
+              <Stat label={t("landing.stats.bills")} value={stats ? `${stats.bills_paid}` : "300+"} />
+              <Stat
+                label={t("landing.stats.volume")}
+                value={stats ? fmtIQD(stats.volume_iqd, true, lang) : t("landing.stats.volumeFallback")}
+                compact
+              />
             </dl>
           </div>
 
@@ -168,7 +176,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
       </section>
 
       {/* ============================ BILLERS ============================ */}
-      <section className="border-y border-border/70 bg-secondary/40 py-5 overflow-hidden">
+      <section className="border-y border-border/70 bg-secondary/40 py-5 overflow-hidden marquee-hover">
         <div className="relative flex" dir="ltr">
           <div className="animate-marquee flex shrink-0 items-center gap-3 pl-3">
             {[...BILLERS_ROW, ...BILLERS_ROW].map((b, i) => (
@@ -187,13 +195,13 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
       {/* ============================ FEATURES =========================== */}
       <section id="features" className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24 w-full">
         <SectionHead
-          kicker="ليش أور پاي؟"
-          title="مصممة للعراق… مو قالب جاهز"
-          sub="كل تفصيلة مبنية على واقع الدفع اليومي: أسماء ثلاثية، محافظة، بطاقة، PIN — ووكيل ذكي يفهم لهجتك."
+          kicker={t("landing.features.kicker")}
+          title={t("landing.features.title")}
+          sub={t("landing.features.sub")}
         />
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {FEATURES.map((f) => (
-            <FeatureCard key={f.title} {...f} />
+            <FeatureCard key={f.titleKey} icon={f.icon} title={t(f.titleKey)} desc={t(f.descKey)} />
           ))}
         </div>
       </section>
@@ -202,9 +210,9 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
       <section id="categories" className="bg-card border-y border-border/70 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHead
-            kicker="الفواتير"
-            title="٦ أصناف… تغطي يومك"
-            sub="من وزارة الكهرباء إلى باقات تارين — كل الفواتير بمكان واحد، وكل دفعة برقم مرجعي وإيصال."
+            kicker={t("landing.categories.kicker")}
+            title={t("landing.categories.title")}
+            sub={t("landing.categories.sub")}
           />
           <div className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {CATEGORIES.map((c) => (
@@ -215,8 +223,8 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                 <div className="mx-auto w-fit transition-transform group-hover:scale-110">
                   <CategoryIcon category={c.key} />
                 </div>
-                <p className="mt-3 font-bold text-[0.95rem]">{c.ar}</p>
-                <p className="mt-1 text-[0.72rem] leading-snug text-muted-foreground">{c.desc}</p>
+                <p className="mt-3 font-bold text-[0.95rem]">{categoryName(c.key, lang)}</p>
+                <p className="mt-1 text-[0.72rem] leading-snug text-muted-foreground">{t(c.descKey)}</p>
               </div>
             ))}
           </div>
@@ -238,22 +246,24 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
               Groq · gpt-oss-120b
             </Badge>
             <h2 className="font-display mt-4 text-4xl sm:text-5xl leading-[1.12]">
-              قابل <span className="text-[#E8C867]">أور</span> — وكيلك المالي الذكي
+              {t("landing.agent.title1")}{" "}
+              <span className="text-[#E8C867]">{t("landing.agent.titleBold")}</span>{" "}
+              {t("landing.agent.title2")}
             </h2>
             <p className="mt-4 text-white/70 leading-relaxed text-[1.02rem] max-w-md">
-              الوكيل مبني على Groq بنسخة <b dir="ltr" className="text-white/90">gpt-oss-120b</b> مع
-              Function Calling حقيقي: يقرأ فواتيرك، يتحقق من رصيدك، يطلب الـ PIN، وينفّذ الدفع —
-              وكل خطوة موثقة برقم مرجعي.
+              {t("landing.agent.desc1")}{" "}
+              <b dir="ltr" className="text-white/90">gpt-oss-120b</b>{" "}
+              {t("landing.agent.desc2")}
             </p>
             <ol className="mt-8 space-y-4">
               {AGENT_STEPS.map((s, i) => (
-                <li key={s.title} className="flex gap-4">
+                <li key={s.titleKey} className="flex gap-4">
                   <span className="font-display flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#3ED9A3]/15 text-[#3ED9A3] ring-1 ring-[#3ED9A3]/25 num">
                     {i + 1}
                   </span>
                   <div>
-                    <p className="font-bold">{s.title}</p>
-                    <p className="text-sm text-white/60 leading-relaxed">{s.desc}</p>
+                    <p className="font-bold">{t(s.titleKey)}</p>
+                    <p className="text-sm text-white/60 leading-relaxed">{t(s.descKey)}</p>
                   </div>
                 </li>
               ))}
@@ -262,22 +272,22 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
             {/* live platform stats */}
             <div className="mt-8 grid grid-cols-2 gap-3">
               {[
-                { label: "مستخدم مسجّل", value: stats ? stats.users.toLocaleString("en-US") : "—" },
-                { label: "معاملة منفّذة", value: stats ? stats.transactions.toLocaleString("en-US") : "—" },
-                { label: "فاتورة مدفوعة", value: stats ? stats.bills_paid.toLocaleString("en-US") : "—" },
-                { label: "حجم التداول", value: stats ? fmtIQD(stats.volume_iqd, false) : "—" },
+                { labelKey: "landing.agent.statUsers", value: stats ? stats.users.toLocaleString("en-US") : "—" },
+                { labelKey: "landing.agent.statTxns", value: stats ? stats.transactions.toLocaleString("en-US") : "—" },
+                { labelKey: "landing.agent.statBills", value: stats ? stats.bills_paid.toLocaleString("en-US") : "—" },
+                { labelKey: "landing.agent.statVolume", value: stats ? fmtIQD(stats.volume_iqd, false, lang) : "—", iqd: true },
               ].map((s) => (
                 <div
-                  key={s.label}
+                  key={s.labelKey}
                   className="rounded-2xl border border-white/10 bg-white/[.04] backdrop-blur px-4 py-3"
                 >
-                  <p className="num text-lg sm:text-xl font-bold text-[#3ED9A3]" dir="rtl">
+                  <p className="num text-lg sm:text-xl font-bold text-[#3ED9A3]">
                     {s.value}
-                    {s.label === "حجم التداول" && stats && (
-                      <span className="text-[0.62rem] font-medium text-white/50 ms-1">د.ع</span>
+                    {s.iqd && stats && (
+                      <span className="text-[0.62rem] font-medium text-white/50 ms-1">{t("landing.agent.iqdUnit")}</span>
                     )}
                   </p>
-                  <p className="text-[0.68rem] font-medium text-white/55 mt-0.5">{s.label}</p>
+                  <p className="text-[0.68rem] font-medium text-white/55 mt-0.5">{t(s.labelKey)}</p>
                 </div>
               ))}
             </div>
@@ -289,19 +299,19 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
       {/* ========================== HOW IT WORKS ========================= */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24 w-full">
         <SectionHead
-          kicker="٣ خطوات"
-          title="من التسجيل… للدفعة الأولى"
-          sub="تسجيلك ياخذ دقيقة: اسم ثلاثي، عمر، محافظة، رقم بطاقة، وPIN — وبس."
+          kicker={t("landing.how.kicker")}
+          title={t("landing.how.title")}
+          sub={t("landing.how.sub")}
         />
         <div className="mt-10 grid md:grid-cols-3 gap-5">
           {STEPS.map((s, i) => (
-            <div key={s.title} className="relative rounded-2xl border border-border/70 bg-card p-6">
+            <div key={s.titleKey} className="relative rounded-2xl border border-border/70 bg-card p-6">
               <span className="font-display absolute -top-4 start-5 rounded-full bg-primary text-primary-foreground h-9 min-w-9 px-3 inline-flex items-center justify-center num shadow-lift">
                 {i + 1}
               </span>
               <s.icon className="h-6 w-6 text-primary" />
-              <p className="mt-3 font-bold text-lg">{s.title}</p>
-              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+              <p className="mt-3 font-bold text-lg">{t(s.titleKey)}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{t(s.descKey)}</p>
             </div>
           ))}
         </div>
@@ -311,16 +321,16 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
       <section id="security" className="bg-secondary/40 border-t border-border/70 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHead
-            kicker="الأمان"
-            title="فلوسك… محروسة بـ PIN"
-            sub="ما تكمل أي دفعة بدون رمز PIN — نفس الرمز اللي تختاره وقت التسجيل، مشفّر بـ PBKDF2."
+            kicker={t("landing.security.kicker")}
+            title={t("landing.security.title")}
+            sub={t("landing.security.sub")}
           />
           <div className="mt-10 grid sm:grid-cols-3 gap-5">
             {SECURITY.map((s) => (
-              <div key={s.title} className="rounded-2xl bg-card border border-border/70 p-6">
+              <div key={s.titleKey} className="rounded-2xl bg-card border border-border/70 p-6">
                 <s.icon className="h-6 w-6 text-gold-deep" />
-                <p className="mt-3 font-bold">{s.title}</p>
-                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                <p className="mt-3 font-bold">{t(s.titleKey)}</p>
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{t(s.descKey)}</p>
               </div>
             ))}
           </div>
@@ -339,11 +349,11 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
           <div className="relative max-w-2xl">
             <UrSeal className="h-3 w-40 text-[#E8C867]" />
             <h2 className="font-display mt-4 text-3xl sm:text-5xl leading-[1.15]">
-              من أور السومرية… <span className="text-gold-gradient">إلى جيبك.</span>
+              {t("landing.cta.title1")}{" "}
+              <span className="text-gold-gradient">{t("landing.cta.title2")}</span>
             </h2>
             <p className="mt-4 text-white/70 leading-relaxed">
-              جاهز تجرب؟ افتح محفظتك بدقيقة، أو ادخل بالحساب التجريبي وشوف كيف أور يدفع فاتورة
-              كهرباء من محادثة وحدة.
+              {t("landing.cta.desc")}
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Button
@@ -352,7 +362,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                 className="rounded-full h-12 px-7 text-base font-bold bg-[#3ED9A3] text-[#0C2A21] hover:bg-[#5ce0b0] shadow-gold"
               >
                 <CreditCard className="me-2 h-5 w-5" />
-                افتح محفظتك
+                {t("landing.cta.openWallet")}
               </Button>
               <Button
                 size="lg"
@@ -360,7 +370,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                 onClick={onDemo}
                 className="rounded-full h-12 px-6 text-base font-semibold border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
               >
-                جرّب الحساب التجريبي
+                {t("landing.cta.demo")}
               </Button>
             </div>
           </div>
@@ -374,8 +384,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
             <div>
               <UrPayLogo />
               <p className="mt-3 text-sm text-muted-foreground max-w-sm leading-relaxed">
-                أور پاي — منصة دفع عراقية بمساعد ذكي. مشاركة مسابقة (Zain Hackathon · Section 4 —
-                Bill Pay Agent).
+                {t("landing.footer.about")}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
@@ -391,7 +400,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
             </div>
           </div>
           <div className="mt-8 border-t border-border/60 pt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground/80">
-            <span>© 2026 UrPay — نسخة عرض للهاكاثون، البيانات تجريبية.</span>
+            <span>{t("landing.footer.copyright")}</span>
             <div className="flex items-center gap-4">
               <a
                 href="/UrPay-Slides.pptx"
@@ -399,7 +408,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                 className="inline-flex items-center gap-1.5 font-semibold text-gold-deep hover:text-gold-deep/80 transition-colors"
               >
                 <FileDown className="h-3.5 w-3.5" />
-                سلايدات العرض (EN)
+                {t("landing.footer.slides")}
               </a>
               <UrSeal className="h-2.5 w-28 text-primary/50" />
             </div>
@@ -415,7 +424,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
 function Stat({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
   return (
     <div>
-      <dt className={`num text-primary ${compact ? "text-lg sm:text-xl" : "text-2xl sm:text-3xl"}`} dir="rtl">
+      <dt className={`num text-primary ${compact ? "text-lg sm:text-xl" : "text-2xl sm:text-3xl"}`}>
         {value}
       </dt>
       <dd className="mt-1 text-[0.78rem] font-medium text-muted-foreground">{label}</dd>
@@ -455,39 +464,40 @@ function FeatureCard({
 
 /* ------------------------- hero phone demo -------------------------- */
 
-const CHAT_SCRIPT: { role: "user" | "assistant"; text: string; receipt?: boolean }[] = [
-  { role: "user", text: "شكد رصيدي؟" },
-  { role: "assistant", text: "رصيدك الحالي: 1,750,000 د.ع 💰" },
-  { role: "user", text: "ادفع فاتورة الكهرباء" },
+const CHAT_SCRIPT: { role: "user" | "assistant"; textKey: string; receipt?: boolean }[] = [
+  { role: "user", textKey: "landing.hero.chat.q1" },
+  { role: "assistant", textKey: "landing.hero.chat.a1" },
+  { role: "user", textKey: "landing.hero.chat.q2" },
   {
     role: "assistant",
-    text: "فاتورة وزارة الكهرباء — بغداد بمبلغ 45,000 د.ع.\nأرسل PIN لإتمام الدفع.",
+    textKey: "landing.hero.chat.a2",
   },
-  { role: "user", text: "PIN: 1234" },
+  { role: "user", textKey: "landing.hero.chat.q3" },
   {
     role: "assistant",
-    text: "✅ تم الدفع! الرصيد الآن: 1,705,000 د.ع",
+    textKey: "landing.hero.chat.a3",
     receipt: true,
   },
 ];
 
 function AgentPhoneDemo() {
+  const { t } = useT();
   const [step, setStep] = useState(0);
   const [typing, setTyping] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const next = (step + 1) % (CHAT_SCRIPT.length + 2);
       setTyping(next <= CHAT_SCRIPT.length && CHAT_SCRIPT[next - 1]?.role === "assistant");
       setStep(next);
     }, step === 0 ? 1400 : 2600);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [step]);
 
   const visible = CHAT_SCRIPT.slice(0, Math.min(step, CHAT_SCRIPT.length));
 
   return (
-    <div className="relative mx-auto w-full max-w-[340px]" dir="rtl">
+    <div className="relative mx-auto w-full max-w-[340px]">
       {/* floating cards */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -501,8 +511,8 @@ function AgentPhoneDemo() {
               <Check className="h-4 w-4" />
             </span>
             <div>
-              <p className="text-xs font-bold">تم دفع فاتورة كهرباء</p>
-              <p className="num text-[0.7rem] text-muted-foreground" dir="rtl">45,000 د.ع · UR-8XK2F3</p>
+              <p className="text-xs font-bold">{t("landing.hero.card1Title")}</p>
+              <p className="num text-[0.7rem] text-muted-foreground">{t("landing.hero.card1Amount")}</p>
             </div>
           </div>
         </div>
@@ -516,8 +526,8 @@ function AgentPhoneDemo() {
         style={{ animationDelay: "1.2s" }}
       >
         <div className="rounded-2xl border border-gold/40 bg-card/95 backdrop-blur px-4 py-3 shadow-lift-lg">
-          <p className="text-[0.68rem] font-medium text-muted-foreground">رصيدك الحالي</p>
-          <p className="num text-lg text-primary" dir="rtl">1,750,000 د.ع</p>
+          <p className="text-[0.68rem] font-medium text-muted-foreground">{t("landing.hero.card2Label")}</p>
+          <p className="num text-lg text-primary">{t("landing.hero.card2Value")}</p>
         </div>
       </motion.div>
 
@@ -538,10 +548,10 @@ function AgentPhoneDemo() {
           <div className="bg-night px-4 pb-3.5 flex items-center gap-3">
             <UrPayMark className="h-9 w-9" />
             <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-sm truncate">أور · المساعد الذكي</p>
+              <p className="text-white font-bold text-sm truncate">{t("landing.hero.chatHeader")}</p>
               <p className="text-white/50 text-[0.68rem] flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#3ED9A3] animate-pulse-dot" />
-                متصل — Groq gpt-oss-120b
+                {t("landing.hero.chatStatus")}
               </p>
             </div>
             <MessageCircleHeart className="h-4 w-4 text-white/40" />
@@ -560,18 +570,18 @@ function AgentPhoneDemo() {
                   {m.receipt ? (
                     <div className="w-[85%] rounded-2xl border border-emerald-200 bg-card p-3 shadow-lift">
                       <div className="flex items-center justify-between">
-                        <p className="text-[0.7rem] font-bold text-emerald-700">إيصال دفع</p>
+                        <p className="text-[0.7rem] font-bold text-emerald-700">{t("landing.hero.receipt")}</p>
                         <Badge className="rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[0.6rem] px-1.5">
-                          مدفوعة
+                          {t("landing.hero.paid")}
                         </Badge>
                       </div>
                       <p className="mt-1.5 text-[0.72rem] font-semibold leading-snug">
-                        وزارة الكهرباء — بغداد
+                        {t("landing.hero.receiptBiller")}
                       </p>
-                      <p className="num mt-1 text-primary text-base" dir="rtl">45,000 د.ع</p>
+                      <p className="num mt-1 text-primary text-base">{t("landing.hero.receiptAmount")}</p>
                       <div className="mt-2 border-t border-dashed border-border pt-1.5 flex justify-between text-[0.62rem] text-muted-foreground">
                         <span dir="ltr">UR-8XK2F3</span>
-                        <span>شباط ٢٠٢٦</span>
+                        <span>{t("landing.hero.receiptDate")}</span>
                       </div>
                     </div>
                   ) : (
@@ -582,7 +592,7 @@ function AgentPhoneDemo() {
                           : "bg-card border border-border/60 shadow-sm rounded-br-md"
                       }`}
                     >
-                      {m.text}
+                      {t(m.textKey)}
                     </div>
                   )}
                 </motion.div>
@@ -606,7 +616,7 @@ function AgentPhoneDemo() {
           <div className="px-3.5 pb-4">
             <div className="rounded-full border border-border/60 bg-card px-4 py-2.5 flex items-center gap-2">
               <span className="flex-1 text-[0.75rem] text-muted-foreground/70">
-                اكتب لأور…
+                {t("landing.hero.placeholder")}
               </span>
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <ArrowLeft className="h-3.5 w-3.5 rtl:-scale-x-100" />
@@ -622,18 +632,19 @@ function AgentPhoneDemo() {
 /* ------------------------- agent flow card -------------------------- */
 
 function AgentFlowCard() {
+  const { t } = useT();
   return (
-    <div className="rounded-[1.75rem] border border-white/10 bg-white/[.04] backdrop-blur p-5 sm:p-6" dir="rtl">
+    <div className="rounded-[1.75rem] border border-white/10 bg-white/[.04] backdrop-blur p-5 sm:p-6">
       <p className="text-xs font-bold text-white/50 tracking-wide mb-4" dir="ltr">
         POST /api/agent/chat → tools
       </p>
       <div className="space-y-2.5 font-mono text-[0.72rem] leading-relaxed" dir="ltr">
         {[
-          { c: "user", t: '"ادفع فاتورة الكهرباء"' },
-          { c: "tool", t: "list_bills() → 1 unpaid (45,000 IQD)" },
-          { c: "tool", t: "pay_bill(bill_id=4, pin=••••)" },
-          { c: "ok", t: "✓ receipt UR-YQ9KY3RK · balance 1,705,000" },
-          { c: "agent", t: '"تم الدفع! الرصيد الآن 1,705,000 د.ع"' },
+          { c: "user", text: t("landing.agent.flow.user") },
+          { c: "tool", text: "list_bills() → 1 unpaid (45,000 IQD)" },
+          { c: "tool", text: "pay_bill(bill_id=4, pin=••••)" },
+          { c: "ok", text: "✓ receipt UR-YQ9KY3RK · balance 1,705,000" },
+          { c: "agent", text: t("landing.agent.flow.agent") },
         ].map((l, i) => (
           <motion.div
             key={i}
@@ -651,13 +662,12 @@ function AgentFlowCard() {
                     : "bg-white/[.08] border-white/15 text-white"
             }`}
           >
-            {l.t}
+            {l.text}
           </motion.div>
         ))}
       </div>
       <p className="mt-4 text-[0.7rem] text-white/45 leading-relaxed">
-        نفس الأدوات متاحة للوكيل عبر Function Calling على Groq، مع طبقات بديلة تضمن استمرار
-        الخدمة.
+        {t("landing.agent.flow.hint")}
       </p>
     </div>
   );
@@ -685,86 +695,86 @@ const BILLERS_ROW = [
 ];
 
 const CATEGORIES = [
-  { key: "electricity", ar: "كهرباء", desc: "وزارة الكهرباء — كل المحافظات" },
-  { key: "water", ar: "ماء", desc: "أجور الماء والصحيّة" },
-  { key: "internet", ar: "إنترنت", desc: "تارين، هلال نت، إيرثلينك…" },
-  { key: "mobile", ar: "اتصالات", desc: "زين، آسياسيل، كورك" },
-  { key: "education", ar: "تعليم", desc: "رسوم جامعية ومدارس" },
-  { key: "traffic", ar: "مرور", desc: "مخالفات وضروع المرور" },
+  { key: "electricity", descKey: "landing.categories.electricity.desc" },
+  { key: "water", descKey: "landing.categories.water.desc" },
+  { key: "internet", descKey: "landing.categories.internet.desc" },
+  { key: "mobile", descKey: "landing.categories.mobile.desc" },
+  { key: "education", descKey: "landing.categories.education.desc" },
+  { key: "traffic", descKey: "landing.categories.traffic.desc" },
 ];
 
 const FEATURES = [
   {
     icon: MessageCircleHeart,
-    title: "مساعد يفهم لهجتك",
-    desc: "«شكد رصيدي؟»، «ادفع الكهرباء»، «حوّل ٢٥ الف على بطاقة صديقي» — أور يفهم وينفّذ.",
+    titleKey: "landing.features.f1.title",
+    descKey: "landing.features.f1.desc",
   },
   {
     icon: ShieldCheck,
-    title: "كل دفعة بـ PIN",
-    desc: "لا تكتمل أي عملية دفع أو تحويل بدون رمزك السري — حتى لو طلبها الوكيل الذكي.",
+    titleKey: "landing.features.f2.title",
+    descKey: "landing.features.f2.desc",
   },
   {
     icon: Banknote,
-    title: "إيصالات مرجعية",
-    desc: "كل عملية لها رقم مرجعي UR-XXXXXXXX وتاريخ ورصيد ما بعد العملية — موثقة بالسجل.",
+    titleKey: "landing.features.f3.title",
+    descKey: "landing.features.f3.desc",
   },
   {
     icon: Landmark,
-    title: "بيانات عراقية",
-    desc: "محافظات، أسماء ثلاثية، بطاقات بصيغة Luhn صحيحة، وشركات حقيقية — مو بيانات وهمية.",
+    titleKey: "landing.features.f4.title",
+    descKey: "landing.features.f4.desc",
   },
   {
     icon: BadgeCheck,
-    title: "تحويلات فورية",
-    desc: "حوّل لأي مستخدم برقم بطاقته، والتأكيد بخطوتين مع طلب PIN — بأسلوب الحوالات المحلية.",
+    titleKey: "landing.features.f5.title",
+    descKey: "landing.features.f5.desc",
   },
   {
     icon: Zap,
-    title: "سرعة Groq",
-    desc: "الوكيل يعمل على Groq gpt-oss-120b بوصول أقل من ثانية — محادثة مالية حقيقية.",
+    titleKey: "landing.features.f6.title",
+    descKey: "landing.features.f6.desc",
   },
 ];
 
 const AGENT_STEPS = [
-  { title: "يفهم الطلب", desc: "يحلل رسالتك بالعربي أو الإنجليزي ويستخرج القصد والمبلغ والجهة." },
-  { title: "يتحقق", desc: "يجلب فواتيرك غير المدفوعة ورصيدك من قاعدة البيانات قبل أي تنفيذ." },
-  { title: "يطلب PIN", desc: "الوكيل لا يملك رمزك — يطلبه منك ويقننه بحقل مشفّر قبل التنفيذ." },
-  { title: "ينفّذ ويوثّق", desc: "ينفّذ الدفع عبر أدوات حقيقية ويرجّع لك إيصالًا برقم مرجعي." },
+  { titleKey: "landing.agent.s1.title", descKey: "landing.agent.s1.desc" },
+  { titleKey: "landing.agent.s2.title", descKey: "landing.agent.s2.desc" },
+  { titleKey: "landing.agent.s3.title", descKey: "landing.agent.s3.desc" },
+  { titleKey: "landing.agent.s4.title", descKey: "landing.agent.s4.desc" },
 ];
 
 const STEPS = [
   {
     icon: Fingerprint,
-    title: "سجّل بمعلوماتك",
-    desc: "الاسم الثلاثي، العمر، المحافظة، رقم البطاقة، وPIN — بدون أيميل أو تعقيد.",
+    titleKey: "landing.how.s1.title",
+    descKey: "landing.how.s1.desc",
   },
   {
     icon: CreditCard,
-    title: "استلم رصيدك الترحيبي",
-    desc: "250,000 د.ع رصيد تجريبي + ٣ فواتير جاهزة لتجربة المساعد أور مباشرة.",
+    titleKey: "landing.how.s2.title",
+    descKey: "landing.how.s2.desc",
   },
   {
     icon: Check,
-    title: "خلّي أور يدفع",
-    desc: "افتح المحادثة واكتب «ادفع فاتورة الإنترنت» — وشوف الوكيل يشتغل.",
+    titleKey: "landing.how.s3.title",
+    descKey: "landing.how.s3.desc",
   },
 ];
 
 const SECURITY = [
   {
     icon: Lock,
-    title: "PIN مشفّر",
-    desc: "رمزك يُخزّن كـ PBKDF2-SHA256 مع ملح فردي — لا يُخزّن نصًا صريحًا أبدًا.",
+    titleKey: "landing.security.s1.title",
+    descKey: "landing.security.s1.desc",
   },
   {
     icon: ShieldCheck,
-    title: "تفويض JWT",
-    desc: "كل طلب API محمي برمز جلسة موقّع، وينتهي تلقائيًا بعد ٧ أيام.",
+    titleKey: "landing.security.s2.title",
+    descKey: "landing.security.s2.desc",
   },
   {
     icon: Fingerprint,
-    title: "تقنين الوكيل",
-    desc: "الوكيل لا ينفّذ شيئًا بدون PIN، وتُقنَّن الأرقام في سجل المحادثة قبل التخزين.",
+    titleKey: "landing.security.s3.title",
+    descKey: "landing.security.s3.desc",
   },
 ];

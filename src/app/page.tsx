@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession, useUi } from "@/lib/store";
 import { urpay } from "@/lib/urpay";
 import { Landing } from "@/components/urpay/landing";
@@ -13,8 +13,15 @@ export default function Page() {
   const { token, user } = useSession();
   const { setAuthTab } = useUi();
   const [view, setView] = useState<View>("landing");
-  const [tab, setTab] = useState<DashTab>("overview");
+  const [tab, setTabState] = useState<DashTab>("overview");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [demo, setDemo] = useState<{ card_number: string; pin: string } | null>(null);
+
+  /* tab switch also bumps the dashboard refresh signal */
+  const setTab = useCallback((t: DashTab) => {
+    setTabState(t);
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   /* load the demo credentials once for the login screen */
   useEffect(() => {
@@ -47,7 +54,7 @@ export default function Page() {
   };
 
   if (effectiveView === "app" && token && user) {
-    return <Dashboard tab={tab} setTab={setTab} refreshKey={tab} />;
+    return <Dashboard tab={tab} setTab={setTab} refreshKey={refreshKey} />;
   }
 
   if (effectiveView === "auth") {

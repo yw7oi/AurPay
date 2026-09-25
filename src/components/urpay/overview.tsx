@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useSession } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 import {
   Bill, Txn, dueLabel, fmtIQD, urpay, type Receipt,
 } from "@/lib/urpay";
@@ -33,6 +34,7 @@ export function OverviewView({
 }) {
   const { user, token, setUser } = useSession();
   const { toast } = useToast();
+  const { t, lang } = useT();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [txns, setTxns] = useState<Txn[] | null>(null);
   const [paying, setPaying] = useState<Bill | null>(null);
@@ -56,15 +58,15 @@ export function OverviewView({
   const h = new Date().getHours();
   const greeting =
     h >= 4 && h < 12
-      ? { text: "صباح الخير", emoji: "☀️" }
+      ? { text: t("overview.greetingMorning"), emoji: "☀️" }
       : h >= 12 && h < 17
-        ? { text: "نهارك سعيد", emoji: "🌤️" }
+        ? { text: t("overview.greetingAfternoon"), emoji: "🌤️" }
         : h >= 17 && h < 20
-          ? { text: "مساء الخير", emoji: "🌇" }
-          : { text: "مساء الخير", emoji: "🌙" };
+          ? { text: t("overview.greetingEvening"), emoji: "🌇" }
+          : { text: t("overview.greetingEvening"), emoji: "🌙" };
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       {/* balance hero */}
       <section className="relative overflow-hidden rounded-3xl bg-night text-[#F4F1E8] p-6 sm:p-8 grain shadow-lift-lg">
         <div className="absolute inset-0 pattern-ur-dark opacity-80" aria-hidden="true" />
@@ -76,22 +78,30 @@ export function OverviewView({
         <div className="relative flex flex-wrap items-start justify-between gap-6">
           <div>
             <p className="text-white/55 text-sm font-medium">
-              {greeting.text} يا {user.first_name} {greeting.emoji} — رصيدك المتاح
+              {t("overview.greetingLine", { greeting: greeting.text, name: user.first_name, emoji: greeting.emoji })}
             </p>
-            <p className="font-display mt-2 text-4xl sm:text-5xl num tracking-tight" dir="rtl">
-              {fmtIQD(user.balance)}
+            <p className="text-white/40 text-[0.7rem] mt-1 num">
+              {new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "ar-IQ-u-nu-latn", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              }).format(new Date())}
+            </p>
+            <p className="font-display mt-2 text-4xl sm:text-5xl num tracking-tight">
+              {fmtIQD(user.balance, true, lang)}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Badge className="rounded-full bg-white/10 text-white/80 border-white/15 hover:bg-white/10 text-[0.68rem]">
                 <Wallet className="h-3 w-3 me-1" />
-                محفظة أور پاي
+                {t("overview.walletBadge")}
               </Badge>
               <Badge className="rounded-full bg-white/10 text-white/80 border-white/15 hover:bg-white/10 text-[0.68rem] num" dir="ltr">
                 •••• {user.card_number.slice(-4)}
               </Badge>
               {user.is_demo && (
                 <Badge className="rounded-full bg-[#E8C867]/15 text-[#E8C867] border-[#E8C867]/30 hover:bg-[#E8C867]/15 text-[0.68rem]">
-                  حساب تجريبي
+                  {t("overview.demoBadge")}
                 </Badge>
               )}
             </div>
@@ -103,7 +113,7 @@ export function OverviewView({
               className="rounded-2xl bg-[#3ED9A3] text-[#0C2A21] hover:bg-[#5ce0b0] font-bold h-11 px-5 shadow-gold"
             >
               <Zap className="h-4 w-4" />
-              ادفع فاتورة
+              {t("overview.payBillBtn")}
             </Button>
             <div className="grid grid-cols-2 gap-2.5">
               <Button
@@ -111,14 +121,14 @@ export function OverviewView({
                 className="rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:text-white font-bold h-11 px-4"
               >
                 <Send className="h-4 w-4" />
-                حوّل
+                {t("overview.transferBtn")}
               </Button>
               <Button
                 onClick={() => setTopupOpen(true)}
                 className="rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:text-white font-bold h-11 px-4"
               >
                 <Wallet className="h-4 w-4" />
-                عبّي المحفظة
+                {t("overview.topUpBtn")}
               </Button>
             </div>
             <Button
@@ -126,7 +136,7 @@ export function OverviewView({
               className="rounded-2xl bg-transparent border border-[#E8C867]/40 text-[#E8C867] hover:bg-[#E8C867]/10 hover:text-[#E8C867] font-bold h-11 px-5"
             >
               <MessageSquareHeart className="h-4 w-4" />
-              اسأل أور
+              {t("overview.askUrBtn")}
             </Button>
           </div>
         </div>
@@ -139,10 +149,10 @@ export function OverviewView({
             <LayoutGrid className="h-4 w-4" />
           </span>
           <p className="text-sm font-semibold flex-1">
-            عندك <b className="num">{overdue}</b> فاتورة متأخرة — خلّي أور يخلصها قبل لا تتراكم.
+            {t("overview.overdueAlertStart")} <b className="num">{overdue}</b> {t("overview.overdueAlertEnd")}
           </p>
           <Button size="sm" variant="destructive" onClick={() => setTab("bills")} className="rounded-xl font-bold">
-            اعرضها
+            {t("overview.showBillsBtn")}
           </Button>
         </div>
       )}
@@ -174,20 +184,20 @@ export function OverviewView({
         <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="font-display text-lg">فواتير بتستنى</h2>
+              <h2 className="font-display text-lg">{t("overview.upcomingBillsTitle")}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {unpaid.length > 0 ? (
                   <>
-                    <b className="num text-foreground">{unpaid.length}</b> فواتير بمجموع{" "}
-                    <b className="num text-primary">{fmtIQD(unpaidTotal)}</b>
+                    <b className="num text-foreground">{unpaid.length}</b> {t("overview.billsCountSuffix")}{" "}
+                    <b className="num text-primary">{fmtIQD(unpaidTotal, true, lang)}</b>
                   </>
                 ) : (
-                  "كل فواتيرك مدفوعة 🎉"
+                  t("bills.allPaid")
                 )}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => setTab("bills")} className="rounded-xl font-semibold">
-              الكل
+              {t("overview.viewAllBtn")}
               <ArrowUpRight className="ms-1 h-3.5 w-3.5" />
             </Button>
           </div>
@@ -196,12 +206,12 @@ export function OverviewView({
           ) : unpaid.length === 0 ? (
             <EmptyState
               icon={Sparkles}
-              title="ما عندك فواتير غير مدفوعة"
-              desc="عاش! جرّب توليد فاتورة تجريبية من صفحة الفواتير أو اسأل أور."
+              title={t("bills.noUnpaidTitle")}
+              desc={t("overview.noUnpaidDesc")}
               action={
                 <Button size="sm" onClick={() => setTab("bills")} className="rounded-xl font-bold">
                   <Plus className="h-4 w-4" />
-                  ولّد فاتورة تجريبية
+                  {t("bills.simulateBtn")}
                 </Button>
               }
             />
@@ -218,16 +228,16 @@ export function OverviewView({
         <div className="space-y-6">
           <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-display text-lg">آخر الحركات</h2>
+              <h2 className="font-display text-lg">{t("overview.recentTitle")}</h2>
               <Button variant="outline" size="sm" onClick={() => setTab("transactions")} className="rounded-xl font-semibold">
-                السجل الكامل
+                {t("overview.fullHistoryBtn")}
               </Button>
             </div>
             {txns === null ? (
               <SkeletonRows rows={4} />
             ) : txns.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">
-                ما عندك معاملات بعد — ابدأ بدفع فاتورة!
+                {t("overview.noTxns")}
               </p>
             ) : (
               <div className="space-y-2.5">
@@ -243,12 +253,12 @@ export function OverviewView({
             <div className="flex items-start gap-4">
               <UrPayMark className="h-12 w-12 shrink-0" />
               <div className="min-w-0">
-                <p className="font-display text-base">جرّب أور الآن</p>
+                <p className="font-display text-base">{t("overview.tryUrTitle")}</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  اكتبله: «ادفع فاتورة الكهرباء» أو «شكد رصيدي» — وبيتم كل شي بمحادثة.
+                  {t("overview.tryUrDesc")}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {["شكد رصيدي؟", "فواتيري", "ادفع فاتورة الكهرباء"].map((s) => (
+                  {[t("overview.chipBalance"), t("overview.chipBills"), t("overview.chipPayBill")].map((s) => (
                     <span
                       key={s}
                       className="rounded-full border border-gold/40 bg-card px-3 py-1 text-[0.68rem] font-semibold text-gold-deep"
@@ -263,7 +273,7 @@ export function OverviewView({
                   className="mt-4 rounded-xl font-bold h-9"
                 >
                   <MessageSquareHeart className="h-4 w-4" />
-                  افتح المحادثة
+                  {t("overview.openChatBtn")}
                 </Button>
               </div>
             </div>
@@ -275,12 +285,12 @@ export function OverviewView({
       <PinDialog
         open={!!paying}
         onOpenChange={(v) => !v && setPaying(null)}
-        title="تأكيد دفع الفاتورة"
-        description={paying ? `${paying.biller_name} · ${paying.period || "بدون فترة"}` : ""}
+        title={t("bills.payConfirmTitle")}
+        description={paying ? `${paying.biller_name} · ${paying.period || t("bills.noPeriod")}` : ""}
         amount={paying?.amount}
-        confirmText="ادفع الآن"
+        confirmText={t("bills.payNowBtn")}
         onConfirm={async (pin) => {
-          if (!token || !paying) return "خطأ غير متوقع";
+          if (!token || !paying) return t("common.unexpectedError");
           try {
             const r = await urpay.payBill(token, paying.id, pin);
             setReceipt(r);
@@ -294,12 +304,12 @@ export function OverviewView({
             const me = await urpay.me(token);
             setUser(me);
             toast({
-              title: "تم الدفع بنجاح ✅",
-              description: `${paying.biller_name} — ${fmtIQD(paying.amount)}`,
+              title: t("bills.paidToastTitle"),
+              description: `${paying.biller_name} — ${fmtIQD(paying.amount, true, lang)}`,
             });
             return null;
           } catch (err) {
-            return err instanceof Error ? err.message : "فشلت العملية";
+            return err instanceof Error ? err.message : t("common.opFailed");
           }
         }}
       />
@@ -314,21 +324,23 @@ export function OverviewView({
         setAmountStr={setTopupAmount}
         onDone={(r) => {
           setReceipt(r);
-          const me = urpay.me(token);
-          me.then(setUser).catch(() => null);
+          if (token) urpay.me(token).then(setUser).catch(() => null);
           toast({
-            title: "تمت التعبئة ✅",
-            description: `أضفنا ${fmtIQD(r.amount)} — رصيدك الآن ${fmtIQD(r.balance_after)}`,
+            title: t("overview.topupToastTitle"),
+            description: t("overview.topupToastDesc", {
+              amount: fmtIQD(r.amount, true, lang),
+              balance: fmtIQD(r.balance_after, true, lang),
+            }),
           });
         }}
       />
 
       {/* receipt — same Radix pattern as bills view (Escape + a11y) */}
       <Dialog open={!!receipt} onOpenChange={(v) => !v && setReceipt(null)}>
-        <DialogContent className="max-w-sm rounded-3xl" dir="rtl">
+        <DialogContent className="max-w-sm rounded-3xl">
           <DialogHeader className="sr-only">
-            <DialogTitle>إيصال الدفع</DialogTitle>
-            <DialogDescription>تفاصيل العملية الناجحة</DialogDescription>
+            <DialogTitle>{t("bills.receiptTitle")}</DialogTitle>
+            <DialogDescription>{t("bills.receiptDesc")}</DialogDescription>
           </DialogHeader>
           {receipt && (
             <>
@@ -338,7 +350,7 @@ export function OverviewView({
                 onClick={() => setReceipt(null)}
                 className="mt-3 w-full rounded-2xl font-bold"
               >
-                تم، إغلاق
+                {t("overview.doneCloseBtn")}
               </Button>
             </>
           )}
@@ -384,6 +396,7 @@ function TopUpDialog({
   onDone: (r: Receipt) => void;
 }) {
   const { token } = useSession();
+  const { t } = useT();
   const [pinOpen, setPinOpen] = useState(false);
   const amount = Number(amountStr);
   const valid = amount >= 1000 && amount <= 5_000_000;
@@ -391,16 +404,16 @@ function TopUpDialog({
   return (
     <>
       <Dialog open={open && !pinOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm rounded-3xl" dir="rtl">
+        <DialogContent className="max-w-sm rounded-3xl">
           <DialogHeader>
             <DialogTitle className="font-display text-xl flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Wallet className="h-4.5 w-4.5 h-[18px] w-[18px]" />
               </span>
-              عبّي محفظتك
+              {t("overview.topupDialogTitle")}
             </DialogTitle>
             <DialogDescription>
-              إيداع نقدي محاكى عند وكيل أور پاي — يتطلب تأكيد الـ PIN.
+              {t("overview.topupDialogDesc")}
             </DialogDescription>
           </DialogHeader>
 
@@ -415,7 +428,7 @@ function TopUpDialog({
                 className="num text-left text-lg font-bold pe-12 h-12"
               />
               <span className="absolute inset-y-0 end-4 flex items-center text-xs font-semibold text-muted-foreground">
-                د.ع
+                {t("common.iqd")}
               </span>
             </div>
             <div className="flex gap-1.5">
@@ -429,7 +442,6 @@ function TopUpDialog({
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border/70 bg-secondary text-muted-foreground hover:border-primary/40"
                   }`}
-                  dir="rtl"
                 >
                   {v.toLocaleString("en-US")}
                 </button>
@@ -441,7 +453,7 @@ function TopUpDialog({
               className="w-full h-12 rounded-2xl font-bold text-base shadow-lift"
             >
               <Wallet className="h-4 w-4" />
-              متابعة التعبئة
+              {t("overview.topupContinueBtn")}
             </Button>
           </div>
         </DialogContent>
@@ -453,12 +465,12 @@ function TopUpDialog({
           setPinOpen(v);
           if (!v) onOpenChange(false);
         }}
-        title="تأكيد تعبئة المحفظة"
-        description="إيداع نقدي — وكيل أور پاي (محاكاة)"
+        title={t("overview.topupPinTitle")}
+        description={t("overview.topupPinDesc")}
         amount={valid ? amount : undefined}
-        confirmText="نفّذ التعبئة"
+        confirmText={t("overview.topupPinConfirm")}
         onConfirm={async (pin) => {
-          if (!token || !valid) return "خطأ غير متوقع";
+          if (!token || !valid) return t("common.unexpectedError");
           try {
             const r = await urpay.topup(token, amount, pin);
             onDone(r);
@@ -466,7 +478,7 @@ function TopUpDialog({
             onOpenChange(false);
             return null;
           } catch (err) {
-            return err instanceof Error ? err.message : "فشلت العملية";
+            return err instanceof Error ? err.message : t("common.opFailed");
           }
         }}
       />
