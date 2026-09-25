@@ -684,3 +684,33 @@ Unresolved / next-phase priorities:
 3. Arabic TTS voices still unavailable in sandbox (Chinese/English only) — voice replies remain skipped.
 4. QR camera scanning needs a real device (paste fallback verified in earlier rounds).
 5. Optional ideas: goal "auto-save weekly" mandate (ties scheduler+goals), budget quick-adjust from digest notification, receipt share image (rendered PNG instead of text), spend forecast in analytics.
+
+---
+Task ID: manual-round-11 (2026-09-26 ~08:10 Asia/Baghdad)
+Agent: Z.ai Code (user-triggered — Windows local-run failure + port generality)
+Task: Fix «فشل تسجيل الدخول / Unable to connect» on the user's local Windows run (backend greenlet crash, `tee` dev-script crash) and make the backend address fully general (not locked to one port).
+
+Work Log:
+- DIAGNOSED user's Windows logs: (1) backend crashed at import — `ModuleNotFoundError: greenlet` (SQLAlchemy asyncio needs greenlet; NOT auto-installed on Python 3.13 Windows); (2) frontend never started — `bun: command not found: tee` (dev script piped to Unix `tee`); (3) login 502 was purely the dead backend. Sandbox itself was ALSO down (container rebooted 21:34 wiped pip packages AND next/font/google lost gstatic access → global 500 on every route).
+- FIXED requirements.txt: + `greenlet>=3.1.0` (explicit, first release supporting Python 3.13), `sqlalchemy[asyncio]` install target, + `python-multipart>=0.0.9` (REQUIRED at import time by the agent voice-upload UploadFile route — was installed only in the old sandbox env, would have been the user's NEXT crash on Windows; verified by real spawn failure).
+- FIXED package.json dev script: `next dev -p 3000 2>&1 | tee dev.log` → `node scripts/dev.mjs` — cross-platform launcher (spawns next, taps stdout/stderr to console AND dev.log; PORT env override; Windows .cmd shim handled). Verified: spawns next correctly (lock-file error on parallel run proves execution) while the main server stayed up.
+- FONTS SELF-HOSTED (root cause of the sandbox 500s): new scripts/fetch-fonts.mjs downloaded all 23 woff2 files (Inter Tight 400–700 latin/latin-ext + IBM Plex Sans Arabic 300–700 arabic/latin/latin-ext, ~800 kB) into public/fonts/, generated src/app/fonts.css with unicode-range @font-face rules; layout.tsx drops next/font/google entirely; --font-display-tight/--font-body now defined on :root in globals.css. Zero network dependency at dev/build — works offline on any OS. VLM-verified: Arabic renders in the proper IBM Plex Sans Arabic geometric style (8/10 dashboard, concerns disproven: login toast is transient; "clipped chart" was viewport crop — full-page shot confirms complete rendering).
+- GENERALIZED BACKEND ADDRESS (user: «ليش محدود على بورت واحد»): /api/[...path] proxy now resolves candidates URPAY_BACKEND_URL → http://127.0.0.1:8000 → http://localhost:8000, caches the winner, invalidates on failure and re-tries the list; per-candidate 4s header-timeout that never aborts a live SSE stream; 502 message is now actionable («شغّل الخدمة عبر start.bat / run.sh، أو اضبط URPAY_BACKEND_URL») + `tried` array for debugging.
+- SANDBOX BACKEND OPS: created dedicated venv at mini-services/urpay-backend/venv (uvicorn+sqlalchemy+greenlet+multipart installed); spawn-backend route + run.sh now PREFER the venv python (the Next-server env resolves python3 to /usr/bin/python3 which lacks the packages — root cause of repeated "spawned-but-slow").
+- HARDENED start.bat: removed the fragile redundant seeding one-liner (backend lifespan does init_db + seed_if_empty + demo fixtures on startup — verified in main.py); `python -m pip install`; npm branch `npm run dev` (no duplicate -p flag); PowerShell health-wait loop (up to 90s for BOTH :3000 and :8000/api/health, falls back to fixed sleep) before opening the browser; documented URPAY_BACKEND_URL port override in the banner.
+- README: new «التشغيل على لينكس / ماك، أو منفذ مخصص» section (venv + run.sh + npm/bun run dev, proxy explanation, URPAY_BACKEND_URL, self-hosted fonts note).
+- QA (agent-browser, full pass): landing → login (4539…1234/1234) → dashboard all sections → agent SSE chat «شكد رصيدي وشكد صرفي هذا الشهر؟» answered via Z-AI Bridge with balance 1,236,480 د.ع → all 6 tabs → dark → EN → mobile 390 AR/RTL → ZERO console/page errors across the whole round. RESILIENCE TEST: killed uvicorn → proxy tried both candidates and returned the new actionable 502 with tried[] → POST /api/internal/spawn-backend → login recovered instantly (cache invalidation + re-resolution proven). bun run lint CLEAN; tsc --noEmit clean for src/ (examples/skills errors pre-exist).
+
+Stage Summary:
+- Current status: STABLE — user's Windows blockers all removed (greenlet, python-multipart, tee), fonts fully self-hosted (no gstatic dependency), backend address general + env-overridable, one-command start.bat hardened with health-wait.
+- New files: scripts/fetch-fonts.mjs, scripts/dev.mjs, src/app/fonts.css, public/fonts/*.woff2 (23), mini-services/urpay-backend/venv/.
+- Changed: requirements.txt, package.json (dev/start), start.bat, run.sh, src/app/layout.tsx, src/app/globals.css, src/app/api/[...path]/route.ts, src/app/api/internal/spawn-backend/route.ts, README.md.
+- Ops notes: backend runs from venv python via spawn route (pid child of next-server, survives tool calls); restart with `curl -X POST http://localhost:3000/api/internal/spawn-backend -H "x-bridge-secret: urpay-bridge-secret"`. Frontend still the system-started process (old tee script in-memory; future boots use scripts/dev.mjs).
+- User-facing answer: the app was NEVER single-port-locked in the browser (same-origin proxy); the 8000 default is server-side only, now overridable via URPAY_BACKEND_URL and auto-probed across 127.0.0.1/localhost.
+- QA screenshots: download/qa12-01…13 (landing, dashboard, agent reply, bills/transfer/history/account, dark, EN, mobile AR/RTL, full-page overview).
+
+Unresolved / next-phase priorities:
+1. User should re-run start.bat on Windows — venv gets greenlet+multipart via requirements.txt automatically now.
+2. Sandbox OOM/reaping risk remains (documented rounds 9–10); both restart procedures verified this round.
+3. Arabic TTS voices still unavailable (skipped — documented round 9/10).
+4. Optional ideas: goal auto-save weekly mandate, budget quick-adjust from digest, receipt PNG image share, spend forecast.

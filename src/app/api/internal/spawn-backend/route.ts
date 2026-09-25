@@ -54,8 +54,18 @@ export async function POST(req: NextRequest) {
   };
 
   try {
+    // Prefer the backend's dedicated venv (created by start.bat on Windows or
+    // `python3 -m venv venv` on Linux) — PATH python3 inside the Next.js
+    // server env may differ from the shell's (e.g. /usr/bin/python3 without
+    // uvicorn while the user's venv has it).
+    const venvPython = process.platform === "win32"
+      ? path.join(backendDir, "venv", "Scripts", "python.exe")
+      : path.join(backendDir, "venv", "bin", "python");
+    const pythonCmd = existsSync(venvPython)
+      ? venvPython
+      : process.platform === "win32" ? "python" : "python3";
     const child = spawn(
-      process.platform === "win32" ? "python" : "python3",
+      pythonCmd,
       ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"],
       {
         cwd: backendDir,

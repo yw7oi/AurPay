@@ -1,7 +1,16 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
-sqlalchemy>=2.0.30
+sqlalchemy[asyncio]>=2.0.30
+# SQLAlchemy's asyncio engine needs greenlet on every platform — on Python
+# 3.13/Windows it is NOT pulled in automatically and uvicorn crashes at import
+# ("The SQLAlchemy asyncio module requires that the Python 'greenlet' library
+# is installed"). Pin explicitly so `pip install -r requirements.txt` always
+# has it (greenlet>=3.1 is the first release supporting Python 3.13).
+greenlet>=3.1.0
 aiosqlite>=0.20.0
 httpx>=0.27.0
+# Required at import time by FastAPI whenever a route declares UploadFile/Form
+# (the agent voice-upload endpoint) — crashes uvicorn if missing.
+python-multipart>=0.0.9
 pyjwt>=2.8.0
 pydantic>=2.7.0

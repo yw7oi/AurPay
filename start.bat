@@ -14,6 +14,10 @@ REM ---------------------------------------------------------------
 REM  Requirements: Python 3.10+ AND Node.js 18+ (or Bun) installed
 REM  Optional    : set GROQ_API_KEY to enable the real Groq agent
 REM                (model: openai/gpt-oss-120b)
+REM  Backend port: 8000 by default. To use another port, set
+REM                URPAY_BACKEND_URL before running, e.g.:
+REM                  set URPAY_BACKEND_URL=http://localhost:9000
+REM                (uvicorn below must be started on the same port)
 REM ---------------------------------------------------------------
 
 cd /d "%~dp0"
@@ -26,12 +30,14 @@ if not exist "mini-services\urpay-backend\venv" (
 )
 
 call mini-services\urpay-backend\venv\Scripts\activate.bat
-pip install -q -r mini-services\urpay-backend\requirements.txt
+
+echo        Installing backend dependencies (greenlet, multipart, ...)...
+python -m pip install -q -r mini-services\urpay-backend\requirements.txt
 
 if not exist "db" mkdir "db"
 
-echo        Seeding database (100 Iraqi users) if empty...
-python -c "import sys; sys.path.insert(0, 'mini-services/urpay-backend'); from app.seed import seed_if_empty; import asyncio; from app.db import init_db, session_factory; asyncio.run(init_db()); asyncio.run(seed_if_empty(session_factory().__enter__()()))" 2>nul
+REM NOTE: no manual seeding needed — the backend creates and seeds the
+REM database (100 Iraqi users + demo fixtures) automatically on startup.
 
 echo        Starting uvicorn (backend)...
 start "UrPay Backend :8000" cmd /k "cd /d %~dp0mini-services\urpay-backend && call venv\Scripts\activate.bat && set URPAY_DB=%~dp0db\urpay.db && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
@@ -42,14 +48,20 @@ echo  [2/3] Preparing the Next.js frontend (port 3000)...
 where bun >nul 2>nul
 if %errorlevel%==0 (
     echo        Using Bun...
-    if not exist "node_modules" bun install
+    if not exist "node_modules" (
+        echo        Installing frontend packages - first run may take a few minutes...
+        bun install
+    )
     start "UrPay Frontend :3000" cmd /k "cd /d %~dp0 && set URPAY_BACKEND_URL=http://127.0.0.1:8000 && bun run dev"
 ) else (
     where npm >nul 2>nul
     if %errorlevel%==0 (
         echo        Using npm...
-        if not exist "node_modules" npm install
-        start "UrPay Frontend :3000" cmd /k "cd /d %~dp0 && set URPAY_BACKEND_URL=http://127.0.0.1:8000 && npm run dev -- -p 3000"
+        if not exist "node_modules" (
+            echo        Installing frontend packages - first run may take a few minutes...
+            npm install
+        )
+        start "UrPay Frontend :3000" cmd /k "cd /d %~dp0 && set URPAY_BACKEND_URL=http://127.0.0.1:8000 && npm run dev"
     ) else (
         echo  [ERROR] Neither Bun nor Node.js was found!
         echo          Install Node.js 18+ from https://nodejs.org then re-run.
@@ -58,9 +70,14 @@ if %errorlevel%==0 (
     )
 )
 
-REM ---------- 3) Open the browser --------------------------------
-echo  [3/3] Waiting for services to boot...
-timeout /t 8 /nobreak >nul
+REM ---------- 3) Wait for both services, then open browser -------
+echo  [3/3] Waiting for both services to come up...
+
+powershell -NoProfile -Command "$deadline=(Get-Date).AddSeconds(90); $ok=$false; while((Get-Date) -lt $deadline -and -not $ok){ $f=$false; $b=$false; try{ (Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000' -TimeoutSec 2).StatusCode | Out-Null; $f=$true }catch{}; try{ (Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:8000/api/health' -TimeoutSec 2).StatusCode | Out-Null; $b=$true }catch{}; if($f -and $b){ $ok=$true } else { Start-Sleep -Seconds 1 } }; if($ok){ exit 0 } else { exit 1 }" >nul 2>nul
+if errorlevel 1 (
+    echo        Still warming up - giving it a few more seconds...
+    timeout /t 10 /nobreak >nul
+)
 
 echo.
 echo  ============================================================
@@ -78,6 +95,9 @@ echo.
 echo    To enable the real Groq agent, stop the backend and
 echo    re-run this file after:
 echo       set GROQ_API_KEY=your_key_here
+echo.
+echo    Custom backend port? set URPAY_BACKEND_URL first
+echo    (and start uvicorn on that port).
 echo  ============================================================
 echo.
 

@@ -51,6 +51,12 @@
 :root {
   --radius: 0.875rem;
 
+  /* Self-hosted font stacks (files in public/fonts/, rules in fonts.css —
+     no next/font/google network dependency at dev/build time). */
+  --font-display-tight: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans Arabic", "Inter Tight", ui-sans-serif, system-ui,
+    sans-serif;
+
   /* UrPay — Mesopotamian fintech: warm paper, deep emerald, gold sun */
   --background: oklch(0.984 0.004 95);
   --foreground: oklch(0.235 0.018 168);

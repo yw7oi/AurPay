@@ -1,22 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_Arabic, Inter_Tight } from "next/font/google";
+import "./fonts.css";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { LangBoot } from "@/lib/i18n";
-
-const interTight = Inter_Tight({
-  variable: "--font-display-tight",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const plexArabic = IBM_Plex_Sans_Arabic({
-  variable: "--font-body",
-  subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "أور پاي UrPay — محفظة العراق الذكية",
@@ -54,9 +40,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body
-        className={`${interTight.variable} ${plexArabic.variable} antialiased bg-background text-foreground font-sans`}
-      >
+      <body className="antialiased bg-background text-foreground font-sans">
         <LangBoot />
         {children}
         <Toaster />
