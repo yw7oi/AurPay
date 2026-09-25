@@ -86,6 +86,7 @@ export const ar: Record<string, string> = {
   "profile.field.memberSince": "عضو منذ",
   "profile.yearsOld": "{n} سنة",
   "profile.cardShort": "بطاقة",
+  "profile.myQr": "رمز الاستلام QR",
   "profile.demoAccount": "حساب تجريبي",
   "profile.changePinCardDesc": "رمز جديد لكل عمليات الدفع والتحويل — يتطلب الرمز الحالي.",
   "profile.appearance": "مظهر المحفظة",
@@ -127,6 +128,22 @@ export const ar: Record<string, string> = {
   "parts.iqd": "د.ع",
   "parts.payNow": "ادفع الآن",
   "parts.balance": "رصيد: {n}",
+
+  /* txn detail dialog */
+  "parts.txnDetail": "تفاصيل العملية",
+  "parts.txnAmount": "المبلغ",
+  "parts.txnType": "النوع",
+  "parts.txnDirection": "الاتجاه",
+  "parts.txnDirectionIn": "واردة ↓",
+  "parts.txnDirectionOut": "صادرة ↑",
+  "parts.txnCategory": "التصنيف",
+  "parts.txnWhen": "التاريخ والوقت",
+  "parts.txnBalanceAfter": "رصيدك بعدها",
+  "parts.txnNotes": "ملاحظات",
+  "txns.typeBillPayment": "دفع فاتورة",
+  "txns.typeTransferOut": "تحويل صادر",
+  "txns.typeTransferIn": "تحويل وارد",
+  "txns.typeTopup": "تعبئة محفظة",
 
   /* theme toggle */
   "theme.dark": "الوضع الليلي",
@@ -228,6 +245,7 @@ export const en: Record<string, string> = {
   "profile.field.memberSince": "Member since",
   "profile.yearsOld": "{n} years",
   "profile.cardShort": "card",
+  "profile.myQr": "My receive QR",
   "profile.demoAccount": "Demo account",
   "profile.changePinCardDesc": "A new PIN for all payments and transfers — requires your current one.",
   "profile.appearance": "Wallet appearance",
@@ -269,6 +287,22 @@ export const en: Record<string, string> = {
   "parts.iqd": "IQD",
   "parts.payNow": "Pay Now",
   "parts.balance": "Balance: {n}",
+
+  /* txn detail dialog */
+  "parts.txnDetail": "Transaction details",
+  "parts.txnAmount": "Amount",
+  "parts.txnType": "Type",
+  "parts.txnDirection": "Direction",
+  "parts.txnDirectionIn": "Incoming ↓",
+  "parts.txnDirectionOut": "Outgoing ↑",
+  "parts.txnCategory": "Category",
+  "parts.txnWhen": "Date & time",
+  "parts.txnBalanceAfter": "Balance after",
+  "parts.txnNotes": "Notes",
+  "txns.typeBillPayment": "Bill payment",
+  "txns.typeTransferOut": "Transfer out",
+  "txns.typeTransferIn": "Transfer in",
+  "txns.typeTopup": "Wallet top-up",
 
   /* theme toggle */
   "theme.dark": "Dark mode",

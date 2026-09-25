@@ -96,7 +96,7 @@ GET  /api/scheduled         pending + history (runs due mandates on read)
 POST /api/scheduled         {kind: bill|transfer, biller_code|receiver_card, amount, execute_at, frequency, pin}
 POST /api/scheduled/{id}/cancel
 GET  /api/favorites · POST /api/favorites {card_number} · DELETE /api/favorites/{user_id}
-GET  /api/notifications     + /read-all, /{id}/read
+GET  /api/notifications     + /read-all, /{id}/read — يشمل ملخص الصرف الأسبوعي التلقائي
 POST /api/agent/chat        {message}
 POST /api/agent/chat/stream SSE (tool steps + token streaming)
 GET  /api/stats · /api/billers · /api/cities
@@ -108,6 +108,14 @@ get_spending (تحليل الصرف الشهري + حالة الميزانيات
 cancel_scheduled (دفع مجدول بفهم عربي للتوقيت: «غدًا»، «بعد يومين»، «أول الشهر الجاي»، «كل شهر»)
 
 **إضافات حديثة:**
+- 📱 **استلام الحوالة بالـ QR** — بطاقة «استلم حوالة بالـ QR» في التحويل تعرض رمزك الخاص
+  (URPAY:رقم البطاقة:الاسم) بإطار مُمَوّه بالهوية؛ المسح من كاميرا (BarcodeDetector) أو لصق
+  الرمز/رقم البطاقة يعبّي المستلم تلقائيًا — تم التحقق أن الرمز قابل للفك آليًا (zbar).
+- 📊 **ملخص الصرف الأسبوعي (إشعار استباقي)** — مرة كل أسبوع ISO يولّد إشعارًا ذكيًا:
+  إجمالي صرفك للأسبوع، أكثر تصنيف، تحذيرات تجاوز الميزانية، والجدولات/الفواتير القادمة.
+- 🔍 **نافذة تفاصيل المعاملة** — اضغط أي عملية في السجل/النظرة العامة لفتح إيصال تفصيلي
+  (الاتجاه، التصنيف، الرصيد بعدها، رقم مرجعي قابل للنسخ).
+- 💫 **رصيد متحرك** — عدّ تصاعدي سلس للرصيد في بطاقة النظرة العامة عند كل تحديث.
 - ⏰ **المدفوعات المجدولة (autopay)** — جدولة فاتورة أو حوالة بتخويل PIN لمرة واحدة، ومنفّذ
   خلفي ينفذها تلقائيًا بوقتها (كل 20 ثانية فحص) مع إشعار فوري وتحديث الميزانيات — حتى لو
   نسيتها أو كنت نائمًا. بطاقة حية في النظرة العامة مع عدّاد تنازلي وتاريخ التنفيذات.

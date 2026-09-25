@@ -502,3 +502,51 @@ Unresolved / next-phase priorities:
 3. True LLM token streaming through the z-ai bridge (currently chunked server-side).
 4. Groq key verification on a local Windows run via start.bat.
 5. Optional ideas: QR receive-money code, spending insights digest notification (weekly), agent proactive morning brief, scheduled-payment edit (currently cancel + recreate).
+
+---
+Task ID: cron-round-7 (2026-09-26 ~02:20→03:15 Asia/Baghdad)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + new features (QR receive-money, weekly spend digest, txn detail dialog) + styling polish
+
+Work Log:
+- QA PASS (start of round): both servers healthy; session persisted (أحمد, demo card); all 6 tabs clicked via refs — zero console errors; agent SSE chat «شكد رصيدي وشكد صرفي هذا الشهر؟» answered with balance + per-category spend + budget overshoot warning via Z-AI Bridge; no horizontal overflow (1440=1440).
+- VLM claimed "RTL layout broken / icons left of text" on overview — DISPROVEN programmatically: html dir=rtl, nav icon bounding box is right-of-text (RTL-correct). Same false-positive family as previous rounds.
+- NEW FEATURE — QR Receive-Money (استلم حوالة بالـ QR):
+  - New file src/components/urpay/qr-card.tsx: payload builder/parser (`URPAY:1:{card16}:{full name}`), MyQrCard section (mini QR preview with UrPayMark center overlay + QrCode badge, opens dialog), QrDialog (216px QR on white tile with 4 brand corner brackets + center logo, avatar/name/city, copy card number w/ feedback, navigator.share→copy fallback, SVG→canvas PNG download), ScanDialog (progressive camera via BarcodeDetector + getUserMedia with live detection loop + animated scan beam + corner brackets; "decode from image" when supported; ALWAYS-available manual paste for QR payload or bare 16-digit card; parse → searchUsers exact-match resolve → fallback to raw card input).
+  - transfer-view.tsx: MyQrCard above the form + ScanDialog wired (onResolved prefills receiver/card + focuses amount).
+  - profile-view.tsx: «رمز الاستلام QR» quick-action button (opens the same QrDialog).
+  - globals.css: .qr-corner brackets (::before/::after logical-position L-shapes, .scan variant with emerald glow) + .scan-beam keyframe laser.
+  - react-qr-code@2.2.0 installed (pure React SVG, zero deps).
+  - E2E VERIFIED: QR dialog renders (VLM 9/10 — "authentic and functional"); zbar DECODED the screenshot QR → `URPAY:1:4539123412341234:أحمد علي حسين` (machine-scannable incl. Arabic name); scan dialog paste `URPAY:1:4539670867863112:زينب حمزة عبد الرحمن` → receiver resolved + 5,000 IQD transfer executed end-to-end (UR-R80U0SVH, toast «وصلت الحوالة»); profile button opens the dialog; EN mode fully translated (dir=ltr, no overflow); dark 8/10; mobile 390px exact (transfer, overview, QR dialog).
+- NEW FEATURE — Weekly Spend Digest (proactive notification):
+  - notifications.py: _lazy_weekly_digest — one per ISO week (dedup ref `digest-{isoyear}-W{week}`), body = last-7-day out spend + top category + budget overshoot warnings (month-to-date) + upcoming scheduled payments/bills due ≤7d; skipped entirely when nothing to report; " · " separators (matches line-clamp-2 body rendering); fixed in-review bug: week_total now sums ALL category rows (first draft only summed the top row).
+  - notifications-bell.tsx: spend_digest kind → PieChart icon, primary tint, routes to overview.
+  - VERIFIED: first fetch creates «ملخص أسبوعك مع أور 📊 — 2,032,020 د.ع · صرفك هذا الأسبوع … ⚠️ تجاوزت ميزانية كهرباء … 📅 حوالة إلى زينب…»; second fetch dedups (count stays 1); renders in bell feed; row click lands on overview.
+- NEW FEATURE — Transaction Detail Dialog:
+  - parts.tsx: TxnRow accepts optional onOpen (row becomes role=button, keyboard Enter/Space, hover lift + chevron affordance, focus-visible ring); new TxnDetailDialog (category icon, big signed amount, type badge, dashed receipt-style detail rows: direction/category/notes/date/balance-after/reference-with-copy).
+  - Wired in transactions-view (all 120 rows) + overview (recent 5).
+  - VERIFIED: click row → dialog with full details (UR-R80U0SVH shown), Escape closes.
+- STYLING POLISH (mandatory detail pass):
+  - Overview hero balance: useCountUp rAF easeOutCubic count-up (re-runs from previous value on every balance change) — CountUpBalance component.
+  - TxnRow: hover -translate-y-0.5 + shadow-lift + ChevronLeft that colors on row hover; keyboard focus ring.
+  - QR visual system: brand corner brackets, scanning laser beam, center logo medallion, white quiet-zone tiles.
+  - i18n: 24 qr keys + 14 txn-detail keys (ar+en, verified no dupes).
+- BUG FIXED (pre-existing, found in QA): PendingRequests section didn't refresh after a transfer REQUEST was created (only after confirm/cancel) — closing the PIN dialog without confirming left the pending row invisible until reload. startTransfer now bumps reqSignal immediately.
+- Backend restarted with the setsid pattern; agent smoke test after restart OK («جدولاتي شنو عندي؟» lists 3 mandates via Z-AI Bridge).
+- README updated (QR + digest + txn detail + count-up bullets; notifications endpoint note).
+- Final: bun run lint CLEAN; tsc --noEmit clean for src/; dev.log + backend log all 200s; zero console errors across the whole session; mobile 390=390 on transfer/overview/QR dialog/profile.
+
+Stage Summary:
+- Current status: STABLE — all prior flows green plus 3 new features verified end-to-end (QR receive+scan with a REAL machine-decoded code and a full QR-originated transfer; weekly digest with dedup+click-through; txn detail dialogs everywhere).
+- New files: src/components/urpay/qr-card.tsx (QR display/scan), globals.css qr-corner/scan-beam utilities.
+- Changed: transfer-view (QR section+scan+refresh fix), profile-view (QR quick action), parts.tsx (TxnRow onOpen + TxnDetailDialog), transactions-view + overview (detail wiring + count-up), notifications router (weekly digest), notifications-bell (spend_digest kind), dict/dashboard + dict/misc (38 new keys), README.
+- New dep: react-qr-code@2.2.0.
+- Demo state: balance 1,587,980 IQD (after 5k QR test transfer UR-R80U0SVH); digest notification live in the bell for judges.
+- QA screenshots: download/qa8-*.png (overview-start/full, qr-section, qr-dialog, scan-resolved, txn-detail, digest-bell, qr-en, scan-en, qr-dark, mobile-{transfer,overview,qr}, profile-qr, final-overview).
+
+Unresolved / next-phase priorities:
+1. Local-engine (offline) replies remain Arabic-only (fine for demo).
+2. QR camera scanning needs a real device (headless has no camera) — BarcodeDetector path is progressive enhancement; paste path is the always-works fallback (verified).
+3. True LLM token streaming through the z-ai bridge (providers don't expose raw tokens).
+4. Groq key verification on a local Windows run via start.bat (sandbox uses z-ai bridge).
+5. Optional ideas: agent tool to answer "who owes me"/request-money via QR, receipt PDF export, scheduled-payment edit, budget quick-adjust from digest notification, voice input for the agent (ASR).

@@ -14,6 +14,7 @@ import { fmtIQD, urpay, type FavoriteItem, type Receipt, type TransferReq, type 
 import { useToast } from "@/hooks/use-toast";
 import { tr, useT, type Lang } from "@/lib/i18n";
 import { EmptyState, PinDialog, ReceiptCard, UserAvatar } from "./parts";
+import { MyQrCard, ScanDialog } from "./qr-card";
 
 /* ------------------------------------------------------------------ */
 /* Pending transfer requests — sender confirms/cancels, receiver      */
@@ -274,6 +275,7 @@ export function TransferView() {
   const [pendingReq, setPendingReq] = useState<{ id: number; receiver: string; amount: number } | null>(null);
   const [reqSignal, setReqSignal] = useState(0);
   const [favs, setFavs] = useState<FavoriteItem[] | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const amountRef = useRef<HTMLInputElement | null>(null);
 
@@ -353,6 +355,7 @@ export function TransferView() {
       });
       setPendingReq(res.request);
       setPinOpen(true);
+      setReqSignal((s) => s + 1); /* pending list refreshes immediately */
     } catch (err) {
       toast({
         title: t("transfer.createFailTitle"),
@@ -408,6 +411,29 @@ export function TransferView() {
     }
   }
 
+  /* ------------------------- QR scan resolution ------------------------ */
+
+  async function handleQrResolved(card: string) {
+    if (!token) return;
+    try {
+      const users = await urpay.searchUsers(token, card);
+      const exact = users.find((u) => u.card_number === card);
+      if (exact) {
+        setReceiver(exact);
+        setCardInput("");
+      } else {
+        setReceiver(null);
+        setCardInput(card);
+      }
+      setQuery("");
+      setResults(null);
+    } catch {
+      setReceiver(null);
+      setCardInput(card);
+    }
+    amountRef.current?.focus();
+  }
+
   return (
     <div className="space-y-5 max-w-2xl">
       <div>
@@ -416,6 +442,9 @@ export function TransferView() {
           {t("transfer.subtitle")}
         </p>
       </div>
+
+      {/* receive via QR + scan */}
+      <MyQrCard onScan={() => setScanOpen(true)} />
 
       {receipt ? (
         <div className="space-y-4">
@@ -674,6 +703,13 @@ export function TransferView() {
         amount={pendingReq?.amount}
         confirmText={t("transfer.executeBtn")}
         onConfirm={confirmTransfer}
+      />
+
+      {/* QR scan (camera / paste) */}
+      <ScanDialog
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        onResolved={handleQrResolved}
       />
     </div>
   );

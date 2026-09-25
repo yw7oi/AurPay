@@ -8,7 +8,7 @@ import { useSession } from "@/lib/store";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { fmtIQD, urpay, type Txn } from "@/lib/urpay";
-import { EmptyState, TxnRow } from "./parts";
+import { EmptyState, TxnDetailDialog, TxnRow } from "./parts";
 
 const FILTERS = [
   { key: "all", labelKey: "txns.filter.all" },
@@ -26,6 +26,7 @@ export function TransactionsView() {
   const [filter, setFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
+  const [detail, setDetail] = useState<Txn | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -147,7 +148,7 @@ export function TransactionsView() {
       ) : (
         <div className="space-y-2.5 max-h-[calc(100vh-22rem)] overflow-y-auto scrollbar-slim pe-1">
           {filtered.map((t) => (
-            <TxnRow key={t.id} txn={t} />
+            <TxnRow key={t.id} txn={t} onOpen={setDetail} />
           ))}
           {filtered.length >= 120 && (
             <p className="text-center text-xs text-muted-foreground py-2">
@@ -156,6 +157,8 @@ export function TransactionsView() {
           )}
         </div>
       )}
+
+      <TxnDetailDialog txn={detail} onOpenChange={(v) => !v && setDetail(null)} />
     </div>
   );
 }

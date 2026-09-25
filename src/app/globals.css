@@ -254,6 +254,76 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* ---- QR scan corner brackets (branded, both display + camera) ---- */
+  .qr-corner {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-start-start-radius: 8px;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .qr-corner::before,
+  .qr-corner::after {
+    content: "";
+    position: absolute;
+    background: var(--primary);
+    border-radius: 99px;
+  }
+  .qr-corner::before {
+    width: 100%;
+    height: 3.5px;
+    top: 0;
+    inset-inline-start: 0;
+  }
+  .qr-corner::after {
+    width: 3.5px;
+    height: 100%;
+    top: 0;
+    inset-inline-start: 0;
+  }
+  .qr-corner.scan {
+    width: 28px;
+    height: 28px;
+  }
+  .qr-corner.scan::before,
+  .qr-corner.scan::after {
+    background: #3ed9a3;
+    box-shadow: 0 0 12px rgb(62 217 163 / 0.65);
+  }
+
+  /* scanning laser beam inside the camera viewport */
+  .scan-beam {
+    position: absolute;
+    inset-inline: 14%;
+    height: 2.5px;
+    top: 12%;
+    z-index: 6;
+    border-radius: 99px;
+    background: linear-gradient(90deg, transparent, #3ed9a3, transparent);
+    box-shadow: 0 0 16px 2px rgb(62 217 163 / 0.55);
+    animation: qr-scan-beam 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes qr-scan-beam {
+  0%,
+  100% {
+    top: 12%;
+    opacity: 0.15;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    top: 86%;
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
 }
 
 @keyframes marquee-rtl {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight, LayoutGrid, Loader2, MessageSquareHeart, Plus, Send, Sparkles,
@@ -17,7 +17,7 @@ import { useT } from "@/lib/i18n";
 import {
   Bill, Txn, dueLabel, fmtIQD, urpay, type Receipt,
 } from "@/lib/urpay";
-import { BillRow, EmptyState, PinDialog, ReceiptCard, TxnRow } from "./parts";
+import { BillRow, EmptyState, PinDialog, ReceiptCard, TxnDetailDialog, TxnRow } from "./parts";
 import { useToast } from "@/hooks/use-toast";
 import { CategoryIcon } from "./icons";
 import type { DashTab } from "./dashboard";
@@ -25,6 +25,38 @@ import { UrPayMark } from "./logo";
 import { AnalyticsCard } from "./analytics";
 import { BudgetCard } from "./budget-card";
 import { ScheduledCard } from "./scheduled-card";
+
+/* Animated count-up balance — rAF + easeOutCubic, re-runs when value changes */
+function useCountUp(target: number, duration = 850): number {
+  const [value, setValue] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    const from = fromRef.current;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const v = Math.round(from + (target - from) * eased);
+      setValue(v);
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
+
+/* hero balance with count-up + tabular figures so digits don't jitter */
+function CountUpBalance({ target, lang }: { target: number; lang: "ar" | "en" }) {
+  const v = useCountUp(target);
+  return (
+    <p className="font-display mt-2 text-4xl sm:text-5xl num tracking-tight">
+      {fmtIQD(v, true, lang)}
+    </p>
+  );
+}
 
 export function OverviewView({
   setTab,
@@ -40,6 +72,7 @@ export function OverviewView({
   const [txns, setTxns] = useState<Txn[] | null>(null);
   const [paying, setPaying] = useState<Bill | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [txnDetail, setTxnDetail] = useState<Txn | null>(null);
   const [topupOpen, setTopupOpen] = useState(false);
   const [topupAmount, setTopupAmount] = useState("");
 
@@ -89,9 +122,7 @@ export function OverviewView({
                 year: "numeric",
               }).format(new Date())}
             </p>
-            <p className="font-display mt-2 text-4xl sm:text-5xl num tracking-tight">
-              {fmtIQD(user.balance, true, lang)}
-            </p>
+            <CountUpBalance target={user.balance} lang={lang} />
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Badge className="rounded-full bg-white/10 text-white/80 border-white/15 hover:bg-white/10 text-[0.68rem]">
                 <Wallet className="h-3 w-3 me-1" />
@@ -252,7 +283,7 @@ export function OverviewView({
             ) : (
               <div className="space-y-2.5">
                 {txns.slice(0, 5).map((t) => (
-                  <TxnRow key={t.id} txn={t} />
+                  <TxnRow key={t.id} txn={t} onOpen={setTxnDetail} />
                 ))}
               </div>
             )}
@@ -323,6 +354,9 @@ export function OverviewView({
           }
         }}
       />
+      {/* txn detail (click a recent row) */}
+      <TxnDetailDialog txn={txnDetail} onOpenChange={(v) => !v && setTxnDetail(null)} />
+
       {/* wallet top-up */}
       <TopUpDialog
         open={topupOpen}

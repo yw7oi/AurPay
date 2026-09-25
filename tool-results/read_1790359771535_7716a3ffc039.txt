@@ -1,0 +1,681 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useRef, useState } from "react";
+     4→import {
+     5→  ArrowDownLeft, ArrowUpRight, CheckCheck, Clock3, Loader2,
+     6→  Search, Send, Star, TimerOff, Users, X, XCircle,
+     7→} from "lucide-react";
+     8→import { Button } from "@/components/ui/button";
+     9→import { Badge } from "@/components/ui/badge";
+    10→import { Input } from "@/components/ui/input";
+    11→import { Label } from "@/components/ui/label";
+    12→import { useSession } from "@/lib/store";
+    13→import { fmtIQD, urpay, type FavoriteItem, type Receipt, type TransferReq, type UserSummary } from "@/lib/urpay";
+    14→import { useToast } from "@/hooks/use-toast";
+    15→import { tr, useT, type Lang } from "@/lib/i18n";
+    16→import { EmptyState, PinDialog, ReceiptCard, UserAvatar } from "./parts";
+    17→
+    18→/* ------------------------------------------------------------------ */
+    19→/* Pending transfer requests — sender confirms/cancels, receiver      */
+    20→/* declines. 24h TTL auto-expiry runs server-side on every list call.  */
+    21→/* ------------------------------------------------------------------ */
+    22→
+    23→function ttlLeft(createdAtIso: string, lang: Lang): { hours: number; label: string; danger: boolean } {
+    24→  const created = new Date(createdAtIso).getTime();
+    25→  const expires = created + 24 * 3600_000;
+    26→  const ms = expires - Date.now();
+    27→  if (ms <= 0) return { hours: 0, label: tr(lang, "transfer.ttlExpiring"), danger: true };
+    28→  const hours = Math.floor(ms / 3600_000);
+    29→  const mins = Math.floor((ms % 3600_000) / 60_000);
+    30→  const label = hours >= 1
+    31→    ? tr(lang, "transfer.ttlHm", { h: hours, m: mins })
+    32→    : tr(lang, "transfer.ttlMins", { m: mins });
+    33→  return { hours, label: tr(lang, "transfer.ttlExpiresIn", { label }), danger: hours < 2 };
+    34→}
+    35→
+    36→function PendingRequests({
+    37→  refreshSignal,
+    38→  onReceipt,
+    39→}: {
+    40→  refreshSignal: number;
+    41→  onReceipt: (r: Receipt) => void;
+    42→}) {
+    43→  const { token, setUser } = useSession();
+    44→  const { toast } = useToast();
+    45→  const { t, lang } = useT();
+    46→  const [reqs, setReqs] = useState<TransferReq[] | null>(null);
+    47→  const [busy, setBusy] = useState<number | null>(null);
+    48→  const [confirming, setConfirming] = useState<TransferReq | null>(null);
+    49→  const [pinOpen, setPinOpen] = useState(false);
+    50→
+    51→  const load = useCallback(async () => {
+    52→    if (!token) return;
+    53→    try {
+    54→      setReqs(await urpay.transferRequests(token));
+    55→    } catch {
+    56→      /* silent — keeps last known list */
+    57→    }
+    58→  }, [token]);
+    59→
+    60→  useEffect(() => {
+    61→    load();
+    62→  }, [load, refreshSignal]);
+    63→
+    64→  async function cancelReq(id: number) {
+    65→    if (!token) return;
+    66→    setBusy(id);
+    67→    try {
+    68→      const res = await urpay.transferCancel(token, id);
+    69→      toast({ title: t("transfer.cancelToastTitle"), description: res.message });
+    70→      await load();
+    71→    } catch (err) {
+    72→      toast({
+    73→        title: t("transfer.cancelFailTitle"),
+    74→        description: err instanceof Error ? err.message : t("common.tryAgain"),
+    75→        variant: "destructive",
+    76→      });
+    77→    } finally {
+    78→      setBusy(null);
+    79→    }
+    80→  }
+    81→
+    82→  async function declineReq(id: number) {
+    83→    if (!token) return;
+    84→    setBusy(id);
+    85→    try {
+    86→      const res = await urpay.transferDecline(token, id);
+    87→      toast({ title: t("transfer.declineToastTitle"), description: res.message });
+    88→      await load();
+    89→    } catch (err) {
+    90→      toast({
+    91→        title: t("transfer.declineFailTitle"),
+    92→        description: err instanceof Error ? err.message : t("common.tryAgain"),
+    93→        variant: "destructive",
+    94→      });
+    95→    } finally {
+    96→      setBusy(null);
+    97→    }
+    98→  }
+    99→
+   100→  async function confirmReq(pin: string): Promise<string | null> {
+   101→    if (!token || !confirming) return t("common.unexpectedError");
+   102→    try {
+   103→      const res = await urpay.transferConfirm(token, confirming.id, pin);
+   104→      onReceipt(res.receipt);
+   105→      const me = await urpay.me(token);
+   106→      setUser(me);
+   107→      toast({ title: t("transfer.sentToastTitle"), description: res.message });
+   108→      await load();
+   109→      return null;
+   110→    } catch (err) {
+   111→      return err instanceof Error ? err.message : t("transfer.failed");
+   112→    }
+   113→  }
+   114→
+   115→  if (reqs === null || reqs.length === 0) return null;
+   116→
+   117→  return (
+   118→    <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6 space-y-4">
+   119→      <div className="flex items-center justify-between">
+   120→        <h2 className="font-display text-lg flex items-center gap-2">
+   121→          <Clock3 className="h-4.5 w-4.5 h-[18px] w-[18px] text-primary" />
+   122→          {t("transfer.pendingTitle")}
+   123→          <Badge className="rounded-full bg-gold/15 text-gold-deep hover:bg-gold/15 num px-2">
+   124→            {reqs.length}
+   125→          </Badge>
+   126→        </h2>
+   127→        <p className="text-[0.68rem] text-muted-foreground">
+   128→          {t("transfer.pendingHint")}
+   129→        </p>
+   130→      </div>
+   131→
+   132→      <div className="space-y-2.5">
+   133→        {reqs.map((r) => {
+   134→          const ttl = ttlLeft(r.created_at, lang);
+   135→          const isSender = r.role === "sender";
+   136→          return (
+   137→            <div
+   138→              key={r.id}
+   139→              className="rounded-2xl border border-border/60 bg-background p-3.5 sm:p-4 transition-all hover:border-primary/35"
+   140→            >
+   141→              <div className="flex items-center gap-3">
+   142→                <span
+   143→                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ${
+   144→                    isSender
+   145→                      ? "bg-primary/10 text-primary ring-primary/20"
+   146→                      : "bg-gold/15 text-gold-deep ring-gold/30"
+   147→                  }`}
+   148→                >
+   149→                  {isSender ? (
+   150→                    <ArrowUpRight className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+   151→                  ) : (
+   152→                    <ArrowDownLeft className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+   153→                  )}
+   154→                </span>
+   155→                <div className="flex-1 min-w-0">
+   156→                  <div className="flex items-center gap-2 flex-wrap">
+   157→                    <p className="font-bold text-sm truncate">
+   158→                      {r.counterparty}
+   159→                    </p>
+   160→                    <Badge
+   161→                      variant="outline"
+   162→                      className={`rounded-md text-[0.6rem] px-1.5 h-5 ${
+   163→                        isSender
+   164→                          ? "border-primary/30 text-primary"
+   165→                          : "border-gold/40 text-gold-deep"
+   166→                      }`}
+   167→                    >
+   168→                      {isSender ? t("transfer.badgeOutgoing") : t("transfer.badgeIncoming")}
+   169→                    </Badge>
+   170→                  </div>
+   171→                  <p className="text-[0.7rem] text-muted-foreground mt-0.5 num">
+   172→                    {r.counterparty_card} ·{" "}
+   173→                    <span className={`font-semibold ${ttl.danger ? "text-destructive" : ""}`}>
+   174→                      {ttl.label}
+   175→                    </span>
+   176→                    {ttl.danger && (
+   177→                      <TimerOff className="inline h-3 w-3 ms-1 -mt-0.5 text-destructive" />
+   178→                    )}
+   179→                  </p>
+   180→                </div>
+   181→                <p className="num font-bold text-base shrink-0">
+   182→                  {fmtIQD(r.amount, false, lang)}
+   183→                  <span className="text-[0.6rem] font-medium text-muted-foreground block text-center mt-0.5">
+   184→                    {t("common.iqd")}
+   185→                  </span>
+   186→                </p>
+   187→              </div>
+   188→
+   189→              <div className="flex gap-2 mt-3">
+   190→                {isSender ? (
+   191→                  <>
+   192→                    <Button
+   193→                      size="sm"
+   194→                      onClick={() => {
+   195→                        setConfirming(r);
+   196→                        setPinOpen(true);
+   197→                      }}
+   198→                      className="rounded-xl h-9 px-4 text-xs font-bold flex-1 sm:flex-none"
+   199→                    >
+   200→                      <CheckCheck className="h-3.5 w-3.5" />
+   201→                      {t("transfer.confirmPinBtn")}
+   202→                    </Button>
+   203→                    <Button
+   204→                      size="sm"
+   205→                      variant="outline"
+   206→                      disabled={busy === r.id}
+   207→                      onClick={() => cancelReq(r.id)}
+   208→                      className="rounded-xl h-9 px-4 text-xs font-bold text-muted-foreground hover:text-destructive hover:border-destructive/40"
+   209→                    >
+   210→                      {busy === r.id ? (
+   211→                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+   212→                      ) : (
+   213→                        <XCircle className="h-3.5 w-3.5" />
+   214→                      )}
+   215→                      {t("common.cancel")}
+   216→                    </Button>
+   217→                  </>
+   218→                ) : (
+   219→                  <Button
+   220→                    size="sm"
+   221→                    variant="outline"
+   222→                    disabled={busy === r.id}
+   223→                    onClick={() => declineReq(r.id)}
+   224→                    className="rounded-xl h-9 px-4 text-xs font-bold text-muted-foreground hover:text-destructive hover:border-destructive/40"
+   225→                  >
+   226→                    {busy === r.id ? (
+   227→                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+   228→                    ) : (
+   229→                      <XCircle className="h-3.5 w-3.5" />
+   230→                    )}
+   231→                    {t("transfer.declineBtn")}
+   232→                  </Button>
+   233→                )}
+   234→              </div>
+   235→            </div>
+   236→          );
+   237→        })}
+   238→      </div>
+   239→
+   240→      <PinDialog
+   241→        open={pinOpen}
+   242→        onOpenChange={(v) => {
+   243→          setPinOpen(v);
+   244→          if (!v) setConfirming(null);
+   245→        }}
+   246→        title={t("transfer.pendingPinTitle")}
+   247→        description={
+   248→          confirming
+   249→            ? t("transfer.toReceiverDesc", { name: confirming.counterparty })
+   250→            : t("transfer.enterPinDesc")
+   251→        }
+   252→        amount={confirming?.amount}
+   253→        confirmText={t("transfer.executeBtn")}
+   254→        onConfirm={confirmReq}
+   255→      />
+   256→    </section>
+   257→  );
+   258→}
+   259→
+   260→/* ------------------------------------------------------------------ */
+   261→
+   262→export function TransferView() {
+   263→  const { user, token, setUser } = useSession();
+   264→  const { toast } = useToast();
+   265→  const { t, lang } = useT();
+   266→  const [query, setQuery] = useState("");
+   267→  const [results, setResults] = useState<UserSummary[] | null>(null);
+   268→  const [searching, setSearching] = useState(false);
+   269→  const [receiver, setReceiver] = useState<UserSummary | null>(null);
+   270→  const [cardInput, setCardInput] = useState("");
+   271→  const [amount, setAmount] = useState("");
+   272→  const [pinOpen, setPinOpen] = useState(false);
+   273→  const [receipt, setReceipt] = useState<Receipt | null>(null);
+   274→  const [pendingReq, setPendingReq] = useState<{ id: number; receiver: string; amount: number } | null>(null);
+   275→  const [reqSignal, setReqSignal] = useState(0);
+   276→  const [favs, setFavs] = useState<FavoriteItem[] | null>(null);
+   277→  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+   278→  const amountRef = useRef<HTMLInputElement | null>(null);
+   279→
+   280→  /* live user search */
+   281→  useEffect(() => {
+   282→    if (debounce.current) clearTimeout(debounce.current);
+   283→    if (query.trim().length < 2) {
+   284→      setResults(null);
+   285→      setSearching(false);
+   286→      return;
+   287→    }
+   288→    setSearching(true);
+   289→    debounce.current = setTimeout(async () => {
+   290→      if (!token) return;
+   291→      try {
+   292→        const r = await urpay.searchUsers(token, query.trim());
+   293→        setResults(r);
+   294→      } catch {
+   295→        setResults([]);
+   296→      } finally {
+   297→        setSearching(false);
+   298→      }
+   299→    }, 350);
+   300→    return () => {
+   301→      if (debounce.current) clearTimeout(debounce.current);
+   302→    };
+   303→  }, [query, token]);
+   304→
+   305→  /* favorites quick-pick — reloaded after transfers (reqSignal) and add/remove */
+   306→  const loadFavs = useCallback(async () => {
+   307→    if (!token) return;
+   308→    try {
+   309→      setFavs(await urpay.favorites(token));
+   310→    } catch {
+   311→      setFavs([]); /* silent */
+   312→    }
+   313→  }, [token]);
+   314→
+   315→  useEffect(() => {
+   316→    loadFavs();
+   317→  }, [loadFavs, reqSignal]);
+   318→
+   319→  const amountNum = Number(amount);
+   320→  const cardClean = cardInput.replace(/\D/g, "");
+   321→  const targetCard = receiver?.card_number ?? (cardClean.length === 16 ? cardClean : null);
+   322→  const valid =
+   323→    !!targetCard && amountNum > 0 && amountNum <= (user?.balance ?? 0);
+   324→  const isFav =
+   325→    !!receiver && !!favs?.some((f) => f.card_number === receiver.card_number);
+   326→
+   327→  async function confirmTransfer(pin: string): Promise<string | null> {
+   328→    if (!token || !targetCard || !pendingReq) return t("common.unexpectedError");
+   329→    try {
+   330→      const res = await urpay.transferConfirm(token, pendingReq.id, pin);
+   331→      setReceipt(res.receipt);
+   332→      const me = await urpay.me(token);
+   333→      setUser(me);
+   334→      setPendingReq(null);
+   335→      setReceiver(null);
+   336→      setCardInput("");
+   337→      setAmount("");
+   338→      setReqSignal((s) => s + 1);
+   339→      toast({ title: t("transfer.sentToastTitle"), description: res.message });
+   340→      return null;
+   341→    } catch (err) {
+   342→      return err instanceof Error ? err.message : t("transfer.failed");
+   343→    }
+   344→  }
+   345→
+   346→  async function startTransfer(e: React.FormEvent) {
+   347→    e.preventDefault();
+   348→    if (!valid || !token) return;
+   349→    try {
+   350→      const res = await urpay.transferRequest(token, {
+   351→        receiver_card: targetCard!,
+   352→        amount: amountNum,
+   353→      });
+   354→      setPendingReq(res.request);
+   355→      setPinOpen(true);
+   356→    } catch (err) {
+   357→      toast({
+   358→        title: t("transfer.createFailTitle"),
+   359→        description: err instanceof Error ? err.message : t("common.tryAgain"),
+   360→        variant: "destructive",
+   361→      });
+   362→    }
+   363→  }
+   364→
+   365→  /* ----------------------------- favorites ---------------------------- */
+   366→
+   367→  function pickFavorite(f: FavoriteItem) {
+   368→    setReceiver({
+   369→      id: f.user_id,
+   370→      full_name: f.full_name,
+   371→      city: f.city,
+   372→      card_number: f.card_number,
+   373→      avatar_hue: f.avatar_hue,
+   374→    });
+   375→    setQuery("");
+   376→    setResults(null);
+   377→    setCardInput("");
+   378→    amountRef.current?.focus();
+   379→  }
+   380→
+   381→  async function removeFav(userId: number) {
+   382→    if (!token) return;
+   383→    try {
+   384→      await urpay.favoriteRemove(token, userId);
+   385→      toast({ title: t("transfer.favRemoveToastTitle") });
+   386→      await loadFavs();
+   387→    } catch {
+   388→      /* silent */
+   389→    }
+   390→  }
+   391→
+   392→  async function toggleFav() {
+   393→    if (!token || !receiver) return;
+   394→    if (isFav) {
+   395→      await removeFav(receiver.id);
+   396→      return;
+   397→    }
+   398→    try {
+   399→      await urpay.favoriteAdd(token, receiver.card_number);
+   400→      toast({ title: t("transfer.favAddedToastTitle") });
+   401→      await loadFavs();
+   402→    } catch (err) {
+   403→      toast({
+   404→        title: t("transfer.favFailToastTitle"),
+   405→        description: err instanceof Error ? err.message : t("common.tryAgain"),
+   406→        variant: "destructive",
+   407→      });
+   408→    }
+   409→  }
+   410→
+   411→  return (
+   412→    <div className="space-y-5 max-w-2xl">
+   413→      <div>
+   414→        <h1 className="font-display text-2xl">{t("transfer.title")}</h1>
+   415→        <p className="text-sm text-muted-foreground mt-0.5">
+   416→          {t("transfer.subtitle")}
+   417→        </p>
+   418→      </div>
+   419→
+   420→      {receipt ? (
+   421→        <div className="space-y-4">
+   422→          <ReceiptCard receipt={receipt} />
+   423→          <Button variant="outline" onClick={() => setReceipt(null)} className="rounded-xl font-bold">
+   424→            {t("transfer.againBtn")}
+   425→          </Button>
+   426→        </div>
+   427→      ) : (
+   428→        <form onSubmit={startTransfer} className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6 space-y-5">
+   429→          {/* favorites quick-pick */}
+   430→          {favs !== null && favs.length > 0 && (
+   431→            <div className="space-y-2">
+   432→              <div className="flex items-center justify-between gap-2">
+   433→                <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+   434→                  <Star className="h-3.5 w-3.5 text-gold-deep fill-gold-deep/20" />
+   435→                  {t("transfer.favTitle")}
+   436→                </Label>
+   437→                <p className="text-[0.68rem] text-muted-foreground">{t("transfer.favHint")}</p>
+   438→              </div>
+   439→              <div className="flex gap-2 overflow-x-auto scrollbar-slim pt-1.5 pb-1">
+   440→                {favs.map((f) => {
+   441→                  const selected = receiver?.card_number === f.card_number;
+   442→                  return (
+   443→                    <div key={f.id} className="relative group shrink-0">
+   444→                      <button
+   445→                        type="button"
+   446→                        aria-pressed={selected}
+   447→                        onClick={() => pickFavorite(f)}
+   448→                        className={`flex items-center gap-2.5 rounded-2xl border ps-2.5 pe-3 py-2 transition-colors ${
+   449→                          selected
+   450→                            ? "border-gold/60 bg-gold/10"
+   451→                            : "border-border/70 bg-secondary/60 hover:border-gold/50 hover:bg-gold/[.06]"
+   452→                        }`}
+   453→                      >
+   454→                        <UserAvatar name={f.full_name} hue={f.avatar_hue} size={32} />
+   455→                        <span className="text-start">
+   456→                          <span className="block text-xs font-bold leading-tight max-w-28 truncate">{f.full_name}</span>
+   457→                          <span className="block text-[0.62rem] text-muted-foreground num" dir="ltr">
+   458→                            •••• {f.card_number.slice(-4)}
+   459→                          </span>
+   460→                        </span>
+   461→                      </button>
+   462→                      {selected && (
+   463→                        <span
+   464→                          className="absolute -top-1 -start-1 flex h-4 w-4 items-center justify-center rounded-full border border-gold/40 bg-gold/15"
+   465→                          aria-hidden="true"
+   466→                        >
+   467→                          <Star className="h-2.5 w-2.5 fill-gold-deep text-gold-deep" />
+   468→                        </span>
+   469→                      )}
+   470→                      <button
+   471→                        type="button"
+   472→                        aria-label="remove favorite"
+   473→                        onClick={() => removeFav(f.user_id)}
+   474→                        className="absolute -top-1.5 -end-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-card shadow-sm opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 hover:bg-destructive/10 hover:border-destructive/40 [&>svg]:text-destructive"
+   475→                      >
+   476→                        <X className="h-3 w-3" />
+   477→                      </button>
+   478→                    </div>
+   479→                  );
+   480→                })}
+   481→              </div>
+   482→            </div>
+   483→          )}
+   484→
+   485→          {/* search */}
+   486→          <div className="space-y-2">
+   487→            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+   488→              <Search className="h-3.5 w-3.5" />
+   489→              {t("transfer.searchLabel")}
+   490→            </Label>
+   491→            <Input
+   492→              placeholder={t("transfer.searchPlaceholder")}
+   493→              value={query}
+   494→              onChange={(e) => setQuery(e.target.value)}
+   495→            />
+   496→            {searching && (
+   497→              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+   498→                <Loader2 className="h-3 w-3 animate-spin" /> {t("transfer.searching")}
+   499→              </p>
+   500→            )}
+   501→            {results && !searching && (
+   502→              <div className="rounded-2xl border border-border/60 divide-y divide-border/50 max-h-64 overflow-y-auto scrollbar-slim bg-background">
+   503→                {results.length === 0 ? (
+   504→                  <p className="p-4 text-sm text-muted-foreground text-center">
+   505→                    {t("transfer.noResults")}
+   506→                  </p>
+   507→                ) : (
+   508→                  results.map((u) => (
+   509→                    <button
+   510→                      key={u.id}
+   511→                      type="button"
+   512→                      onClick={() => {
+   513→                        setReceiver(u);
+   514→                        setQuery("");
+   515→                        setResults(null);
+   516→                        setCardInput("");
+   517→                      }}
+   518→                      className="w-full flex items-center gap-3 p-3 hover:bg-secondary/60 transition-colors text-start"
+   519→                    >
+   520→                      <UserAvatar name={u.full_name} hue={u.avatar_hue} size={36} />
+   521→                      <div className="flex-1 min-w-0">
+   522→                        <p className="font-bold text-sm truncate">{u.full_name}</p>
+   523→                        <p className="text-xs text-muted-foreground">{u.city}</p>
+   524→                      </div>
+   525→                      <Badge variant="outline" className="rounded-lg num" dir="ltr">
+   526→                        •••• {u.card_number.slice(-4)}
+   527→                      </Badge>
+   528→                    </button>
+   529→                  ))
+   530→                )}
+   531→              </div>
+   532→            )}
+   533→          </div>
+   534→
+   535→          {/* receiver */}
+   536→          <div className="space-y-2">
+   537→            <Label className="text-xs font-semibold text-muted-foreground">{t("transfer.recipientLabel")}</Label>
+   538→            {receiver ? (
+   539→              <div className="flex items-center gap-3 rounded-2xl border border-primary/35 bg-primary/[.05] p-3.5">
+   540→                <span className="relative shrink-0">
+   541→                  <UserAvatar name={receiver.full_name} hue={receiver.avatar_hue} size={44} />
+   542→                  {isFav && (
+   543→                    <span
+   544→                      className="absolute -bottom-0.5 -end-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-gold/40 bg-card"
+   545→                      aria-hidden="true"
+   546→                    >
+   547→                      <Star className="h-2.5 w-2.5 fill-gold-deep text-gold-deep" />
+   548→                    </span>
+   549→                  )}
+   550→                </span>
+   551→                <div className="flex-1 min-w-0">
+   552→                  <p className="font-bold">{receiver.full_name}</p>
+   553→                  <p className="text-xs text-muted-foreground num" dir="ltr">
+   554→                    {receiver.card_number.replace(/(\d{4})(?=\d)/g, "$1 ")}
+   555→                  </p>
+   556→                </div>
+   557→                <Button
+   558→                  type="button"
+   559→                  size="sm"
+   560→                  variant="ghost"
+   561→                  aria-pressed={isFav}
+   562→                  onClick={toggleFav}
+   563→                  className="rounded-xl text-muted-foreground hover:text-gold-deep"
+   564→                >
+   565→                  <Star
+   566→                    className={`h-4 w-4 ${isFav ? "fill-gold-deep text-gold-deep" : "text-muted-foreground"}`}
+   567→                  />
+   568→                  <span className="hidden sm:inline">{t("transfer.favAddBtn")}</span>
+   569→                </Button>
+   570→                <Button
+   571→                  type="button"
+   572→                  size="sm"
+   573→                  variant="ghost"
+   574→                  onClick={() => setReceiver(null)}
+   575→                  className="rounded-xl text-muted-foreground"
+   576→                >
+   577→                  {t("transfer.changeBtn")}
+   578→                </Button>
+   579→              </div>
+   580→            ) : (
+   581→              <Input
+   582→                dir="ltr"
+   583→                inputMode="numeric"
+   584→                placeholder={t("transfer.cardPlaceholder")}
+   585→                value={cardInput}
+   586→                onChange={(e) =>
+   587→                  setCardInput(
+   588→                    e.target.value
+   589→                      .replace(/\D/g, "")
+   590→                      .slice(0, 16)
+   591→                      .replace(/(\d{4})(?=\d)/g, "$1 "),
+   592→                  )
+   593→                }
+   594→                className="num text-left tracking-[0.08em]"
+   595→              />
+   596→            )}
+   597→          </div>
+   598→
+   599→          {/* amount */}
+   600→          <div className="space-y-2">
+   601→            <Label className="text-xs font-semibold text-muted-foreground">{t("transfer.amountLabel")}</Label>
+   602→            <div className="relative">
+   603→              <Input
+   604→                ref={amountRef}
+   605→                dir="ltr"
+   606→                inputMode="numeric"
+   607→                placeholder="25000"
+   608→                value={amount}
+   609→                onChange={(e) => setAmount(e.target.value.replace(/\D/g, "").slice(0, 9))}
+   610→                className="num text-left text-lg font-bold pe-12"
+   611→              />
+   612→              <span className="absolute inset-y-0 end-4 flex items-center text-xs font-semibold text-muted-foreground">
+   613→                {t("common.iqd")}
+   614→              </span>
+   615→            </div>
+   616→            <div className="flex gap-1.5">
+   617→              {[25000, 50000, 100000, 250000].map((v) => (
+   618→                <button
+   619→                  key={v}
+   620→                  type="button"
+   621→                  onClick={() => setAmount(String(v))}
+   622→                  className="rounded-full border border-border/70 bg-secondary px-3 py-1 text-[0.68rem] font-bold text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors num"
+   623→                >
+   624→                  {v.toLocaleString("en-US")}
+   625→                </button>
+   626→              ))}
+   627→            </div>
+   628→            {amountNum > 0 && user && amountNum > user.balance && (
+   629→              <p className="text-xs font-semibold text-destructive">
+   630→                {t("transfer.exceedsBalance", { balance: fmtIQD(user.balance, true, lang) })}
+   631→              </p>
+   632→            )}
+   633→          </div>
+   634→
+   635→          <Button type="submit" disabled={!valid} className="w-full h-12 rounded-2xl font-bold text-base shadow-lift">
+   636→            <Send className="h-4 w-4" />
+   637→            {t("transfer.continueBtn")}
+   638→          </Button>
+   639→        </form>
+   640→      )}
+   641→
+   642→      {/* pending requests */}
+   643→      <PendingRequests
+   644→        refreshSignal={reqSignal}
+   645→        onReceipt={(r) => setReceipt(r)}
+   646→      />
+   647→
+   648→      {/* how it works */}
+   649→      <div className="rounded-3xl border border-dashed border-border bg-secondary/30 p-5">
+   650→        <p className="font-bold text-sm flex items-center gap-2">
+   651→          <Users className="h-4 w-4 text-primary" />
+   652→          {t("transfer.howTitle")}
+   653→        </p>
+   654→        <ol className="mt-2.5 text-xs text-muted-foreground leading-relaxed space-y-1 list-decimal list-inside">
+   655→          <li>{t("transfer.how1")}</li>
+   656→          <li>{t("transfer.how2")}</li>
+   657→          <li>{t("transfer.how3")}</li>
+   658→          <li>{t("transfer.how4")}</li>
+   659→        </ol>
+   660→      </div>
+   661→
+   662→      <PinDialog
+   663→        open={pinOpen}
+   664→        onOpenChange={(v) => {
+   665→          setPinOpen(v);
+   666→          if (!v) setPendingReq(null);
+   667→        }}
+   668→        title={t("transfer.pinTitle")}
+   669→        description={
+   670→          pendingReq
+   671→            ? t("transfer.toReceiverDesc", { name: pendingReq.receiver })
+   672→            : t("transfer.enterPinDesc")
+   673→        }
+   674→        amount={pendingReq?.amount}
+   675→        confirmText={t("transfer.executeBtn")}
+   676→        onConfirm={confirmTransfer}
+   677→      />
+   678→    </div>
+   679→  );
+   680→}
+   681→

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDownLeft, ArrowUpRight, Bell, CalendarCheck2, CalendarX2, CheckCheck,
-  ChevronLeft, Gauge, Inbox, ReceiptText, TriangleAlert, UserPlus, Wallet,
+  ChevronLeft, Gauge, Inbox, PieChart, ReceiptText, TriangleAlert, UserPlus, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -28,6 +28,7 @@ const KIND_META: Record<
   budget_exceeded: { icon: Gauge, cls: "bg-rose-500/10 text-rose-600 dark:text-rose-300" },
   scheduled_executed: { icon: CalendarCheck2, cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
   scheduled_failed: { icon: CalendarX2, cls: "bg-rose-500/10 text-rose-600 dark:text-rose-300" },
+  spend_digest: { icon: PieChart, cls: "bg-primary/10 text-primary" },
   welcome: { icon: Bell, cls: "bg-primary/10 text-primary" },
 };
 
@@ -43,6 +44,7 @@ const KIND_TAB: Record<string, DashTab> = {
   budget_exceeded: "overview",
   scheduled_executed: "overview",
   scheduled_failed: "overview",
+  spend_digest: "overview",
   welcome: "overview",
 };
 

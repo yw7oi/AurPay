@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { BadgeCheck, Copy, Loader2, ShieldCheck, X } from "lucide-react";
+import { BadgeCheck, ChevronLeft, Copy, Loader2, ShieldCheck, X } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -14,8 +14,7 @@ import {
 import { CategoryIcon, DirectionIcon } from "./icons";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useT } from "@/lib/i18n";
-import { fmtDateTime, fmtIQD, type Bill, type Receipt, type Txn } from "@/lib/urpay";
-import { dueLabel } from "@/lib/urpay";
+import { categoryName, dueLabel, fmtDateTime, fmtIQD, type Bill, type Receipt, type Txn } from "@/lib/urpay";
 
 /* ----------------------------- PIN dialog ---------------------------- */
 
@@ -343,11 +342,29 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
 
 /* ------------------------------- txn row ----------------------------- */
 
-export function TxnRow({ txn }: { txn: Txn }) {
+export function TxnRow({ txn, onOpen }: { txn: Txn; onOpen?: (txn: Txn) => void }) {
   const { t, lang } = useT();
+  const interactive = typeof onOpen === "function";
   return (
     <div
-      className="flex items-center gap-3.5 rounded-2xl border border-border/60 bg-card p-3.5 transition-all hover:border-primary/35 hover:shadow-lift"
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpen?.(txn);
+              }
+            }
+          : undefined
+      }
+      onClick={interactive ? () => onOpen?.(txn) : undefined}
+      className={`flex items-center gap-3.5 rounded-2xl border border-border/60 bg-card p-3.5 transition-all group/txn ${
+        interactive
+          ? "cursor-pointer hover:border-primary/35 hover:shadow-lift hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          : "hover:border-primary/35"
+      }`}
     >
       <CategoryIcon category={txn.category === "transfer" ? "transfer" : txn.category} />
       <div className="flex-1 min-w-0">
@@ -372,6 +389,124 @@ export function TxnRow({ txn }: { txn: Txn }) {
           {t("parts.balance", { n: fmtIQD(txn.balance_after, true, lang) })}
         </p>
       </div>
+      {interactive && (
+        <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover/txn:text-primary" aria-hidden="true" />
+      )}
+    </div>
+  );
+}
+
+/* --------------------------- txn detail dialog ------------------------ */
+
+const TXN_TYPE_KEY: Record<Txn["type"], string> = {
+  bill_payment: "txns.typeBillPayment",
+  transfer_out: "txns.typeTransferOut",
+  transfer_in: "txns.typeTransferIn",
+  topup: "txns.typeTopup",
+};
+
+export function TxnDetailDialog({
+  txn,
+  onOpenChange,
+}: {
+  txn: Txn | null;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { t, lang } = useT();
+  const [copied, setCopied] = useState(false);
+
+  async function copyRef() {
+    if (!txn) return;
+    const ok = await copyToClipboard(txn.reference);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    }
+  }
+
+  return (
+    <Dialog open={!!txn} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm rounded-3xl p-6" dir={lang === "ar" ? "rtl" : "ltr"}>
+        {txn && (
+          <>
+            <DialogHeader className="text-center">
+              <DialogTitle className="flex items-center justify-center gap-2 font-display text-xl">
+                <DirectionIcon direction={txn.direction} />
+                {t("parts.txnDetail")}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="flex flex-col items-center pt-1">
+              <CategoryIcon category={txn.category === "transfer" ? "transfer" : txn.category} />
+              <p className="mt-3 font-semibold text-center leading-snug">{txn.title}</p>
+              <p
+                className={`num mt-2 text-3xl font-bold ${
+                  txn.direction === "in" ? "text-primary" : "text-foreground"
+                }`}
+              >
+                {txn.direction === "out" ? "−" : "+"}
+                {fmtIQD(txn.amount, true, lang)}
+              </p>
+              <Badge
+                variant="outline"
+                className={`mt-2 rounded-full text-[0.65rem] font-bold ${
+                  txn.direction === "in"
+                    ? "border-primary/30 text-primary"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                {t(TXN_TYPE_KEY[txn.type])}
+              </Badge>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-dashed border-border bg-secondary/30 divide-y divide-border/60">
+              <DetailRow label={t("parts.txnDirection")}>
+                {txn.direction === "in"
+                  ? t("parts.txnDirectionIn")
+                  : t("parts.txnDirectionOut")}
+              </DetailRow>
+              <DetailRow label={t("parts.txnCategory")}>
+                {categoryName(txn.category, lang)}
+              </DetailRow>
+              {txn.subtitle && (
+                <DetailRow label={t("parts.txnNotes")}>{txn.subtitle}</DetailRow>
+              )}
+              <DetailRow label={t("parts.txnWhen")}>
+                <span className="num">{fmtDateTime(txn.created_at, lang)}</span>
+              </DetailRow>
+              <DetailRow label={t("parts.txnBalanceAfter")}>
+                <span className="num font-bold text-primary">
+                  {fmtIQD(txn.balance_after, true, lang)}
+                </span>
+              </DetailRow>
+              <DetailRow label={t("parts.reference")}>
+                <button
+                  onClick={copyRef}
+                  className="num font-semibold inline-flex items-center gap-1.5 hover:text-primary transition-colors"
+                  dir="ltr"
+                  title={t("parts.copyReference")}
+                >
+                  {txn.reference}
+                  {copied ? (
+                    <BadgeCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+              </DetailRow>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-2.5 text-xs">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-semibold text-foreground text-end min-w-0">{children}</span>
     </div>
   );
 }

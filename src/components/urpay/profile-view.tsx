@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   BadgeCheck, CalendarDays, CreditCard, Fingerprint, KeyRound, Landmark,
-  Loader2, LogOut, MapPin, Moon, Phone, ShieldCheck, Sun, User, Languages,
+  Loader2, LogOut, MapPin, Moon, Phone, QrCode, ShieldCheck, Sun, User, Languages,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import { fmtDate, fmtIQD, urpay } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
 import { UserAvatar } from "./parts";
 import { UrSeal } from "./logo";
+import { QrDialog } from "./qr-card";
 import { useTheme } from "./theme-toggle";
 import type { DashTab } from "./dashboard";
 
@@ -171,6 +172,7 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
   const { t, lang, setLang } = useT();
   const { theme, setTheme } = useTheme();
   const [pinOpen, setPinOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   if (!user) return null;
 
   const rows: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; ltr?: boolean }[] = [
@@ -335,6 +337,14 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
       <div className="flex flex-wrap gap-3">
         <Button
           variant="outline"
+          onClick={() => setQrOpen(true)}
+          className="rounded-xl font-bold"
+        >
+          <QrCode className="h-4 w-4" />
+          {t("profile.myQr")}
+        </Button>
+        <Button
+          variant="outline"
           onClick={() => setTab("agent")}
           className="rounded-xl font-bold"
         >
@@ -354,6 +364,7 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
       </div>
 
       <ChangePinDialog open={pinOpen} onOpenChange={setPinOpen} />
+      <QrDialog open={qrOpen} onOpenChange={setQrOpen} />
     </div>
   );
 }
