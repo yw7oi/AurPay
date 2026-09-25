@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel
+
 from ..config import WELCOME_BALANCE
 from ..db import get_session
 from ..models import Bill, Transaction, User, utcnow
@@ -108,3 +110,30 @@ async def login(body: LoginRequest,
 @router.get("/me", response_model=UserPublic)
 async def me(user: User = Depends(get_current_user)):
     return user
+
+
+class ChangePinRequest(BaseModel):
+    current_pin: str
+    new_pin: str
+
+
+@router.post("/change-pin")
+async def change_pin(body: ChangePinRequest,
+                     user: User = Depends(get_current_user),
+                     session: AsyncSession = Depends(get_session)):
+    """Update the wallet PIN — requires the current PIN."""
+    import re as _re
+
+    if not verify_pin(body.current_pin, user.pin_salt, user.pin_hash):
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "رمز الـ PIN الحالي غير صحيح")
+    if not _re.fullmatch(r"\d{4,6}", body.new_pin):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "الرمز الجديد لازم يكون 4 إلى 6 أرقام")
+    if body.new_pin == body.current_pin:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "الرمز الجديد نفس القديم — اختر رمزًا مختلفًا")
+
+    user.pin_salt, user.pin_hash = make_pin_secret(body.new_pin)
+    await session.commit()
+    return {"message": "تم تحديث رمز الـ PIN بنجاح"}

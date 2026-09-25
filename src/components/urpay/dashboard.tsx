@@ -18,6 +18,7 @@ import { AgentView } from "./agent-view";
 import { TransactionsView } from "./transactions-view";
 import { ProfileView } from "./profile-view";
 import { UserAvatar } from "./parts";
+import { ThemeToggle } from "./theme-toggle";
 
 export type DashTab = "overview" | "bills" | "transfer" | "agent" | "transactions" | "profile";
 
@@ -61,7 +62,7 @@ export function Dashboard({
   return (
     <div className="min-h-screen flex flex-col bg-background overflow-x-clip" dir="rtl">
       {/* top header */}
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-[color-mix(in_oklab,var(--background)_85%,white)]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <UrPayLogo compact className="lg:hidden" />
@@ -75,6 +76,12 @@ export function Dashboard({
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="sm:hidden">
+              <ThemeToggle compact />
+            </div>
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -175,7 +182,7 @@ export function Dashboard({
 
       {/* bottom bar — mobile */}
       <nav
-        className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/70 bg-[color-mix(in_oklab,var(--background)_88%,white)]/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/70 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]"
         aria-label="التنقل السفلي"
       >
         <div className="grid grid-cols-6 h-16">

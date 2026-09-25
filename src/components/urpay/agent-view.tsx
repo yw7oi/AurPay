@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Eraser, Loader2, SendHorizonal, Sparkles, Zap } from "lucide-react";
+import { CheckCircle2, Eraser, Loader2, SendHorizonal, Sparkles, Wrench, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/lib/store";
@@ -11,6 +11,7 @@ import { UrPayMark } from "./logo";
 import { ReceiptCard } from "./parts";
 
 type ChatMsg = AgentMessage & { actions?: AgentAction[] };
+type Step = { tool: string; label: string };
 
 const SUGGESTIONS = [
   "شكد رصيدي؟",
@@ -33,6 +34,9 @@ export function AgentView() {
   const [sending, setSending] = useState(false);
   const [provider, setProvider] = useState<string>("");
   const [loaded, setLoaded] = useState(false);
+  /* live streaming state */
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [streamText, setStreamText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   /* load history */
@@ -47,38 +51,63 @@ export function AgentView() {
       .catch(() => setLoaded(true));
   }, [token]);
 
-  /* auto-scroll */
+  /* auto-scroll — follows streamed tokens too */
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, sending]);
+  }, [messages, sending, steps, streamText]);
 
   async function send(text?: string) {
     const message = (text ?? input).trim();
     if (!message || sending || !token) return;
     setInput("");
     setSending(true);
+    setSteps([]);
+    setStreamText("");
     setMessages((ms) => [...ms, { role: "user", content: message }]);
     try {
-      const res = await urpay.agentChat(token, message);
+      /* SSE streaming path — tool steps + word-by-word reply */
+      const res = await urpay.agentChatStream(token, message, {
+        onStep: (s) => setSteps((prev) => [...prev, s]),
+        onToken: (t) => setStreamText((prev) => prev + t),
+      });
       setProvider(res.provider);
-      setMessages((ms) => [
-        ...ms,
-        { role: "assistant", content: res.reply, actions: res.actions, provider: res.provider },
-      ]);
-      // refresh balance after possible payment
-      const me = await urpay.me(token).catch(() => null);
-      if (me) setUser(me);
-    } catch (err) {
       setMessages((ms) => [
         ...ms,
         {
           role: "assistant",
-          content: `صار خطأ بالاتصال: ${err instanceof Error ? err.message : "حاول مرة ثانية"}`,
+          content: res.reply,
+          actions: res.actions,
+          provider: res.provider,
         },
       ]);
+      // refresh balance after possible payment
+      const me = await urpay.me(token).catch(() => null);
+      if (me) setUser(me);
+    } catch {
+      /* graceful fallback — legacy non-streaming endpoint */
+      try {
+        const res = await urpay.agentChat(token, message);
+        setProvider(res.provider);
+        setMessages((ms) => [
+          ...ms,
+          { role: "assistant", content: res.reply, actions: res.actions, provider: res.provider },
+        ]);
+        const me = await urpay.me(token).catch(() => null);
+        if (me) setUser(me);
+      } catch (err) {
+        setMessages((ms) => [
+          ...ms,
+          {
+            role: "assistant",
+            content: `صار خطأ بالاتصال: ${err instanceof Error ? err.message : "حاول مرة ثانية"}`,
+          },
+        ]);
+      }
     } finally {
       setSending(false);
+      setSteps([]);
+      setStreamText("");
     }
   }
 
@@ -87,6 +116,8 @@ export function AgentView() {
     await urpay.agentClear(token).catch(() => null);
     setMessages([]);
   }
+
+  const streaming = sending && (steps.length > 0 || streamText.length > 0);
 
   return (
     <div className="flex flex-col h-[calc(100vh-12.5rem)] lg:h-[calc(100vh-10rem)]" dir="rtl">
@@ -100,7 +131,7 @@ export function AgentView() {
           <div className="min-w-0">
             <h1 className="font-display text-xl leading-tight">أور · وكيل الدفع الذكي</h1>
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
               {provider ? PROVIDER_LABEL[provider] ?? provider : "متصل — Groq gpt-oss-120b"}
               {user && (
                 <>
@@ -187,7 +218,53 @@ export function AgentView() {
           ))}
         </AnimatePresence>
 
-        {sending && (
+        {/* live streaming bubble — tool steps + word-by-word reply */}
+        {streaming && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-end"
+          >
+            <div className="max-w-[88%] sm:max-w-[76%] space-y-2.5 items-end">
+              {steps.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                  {steps.map((s, i) => (
+                    <motion.span
+                      key={i}
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/[.07] px-2.5 py-1 text-[0.66rem] font-semibold text-primary"
+                    >
+                      {i === steps.length - 1 && !streamText ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3 w-3" />
+                      )}
+                      {s.label}
+                    </motion.span>
+                  ))}
+                </div>
+              )}
+              {streamText && (
+                <div className="rounded-2xl rounded-br-md bg-card border border-border/60 shadow-sm px-4 py-3 text-[0.88rem] leading-relaxed whitespace-pre-line">
+                  {streamText}
+                  <span className="inline-block w-1.5 h-4 align-[-3px] ms-0.5 rounded-[2px] bg-primary/70 animate-pulse-dot" aria-hidden="true" />
+                </div>
+              )}
+              {!streamText && steps.length === 0 && (
+                <div className="bg-card border border-border/60 rounded-2xl rounded-br-md px-4 py-3.5 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" style={{ animationDelay: "0.2s" }} />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" style={{ animationDelay: "0.4s" }} />
+                  <span className="text-[0.68rem] text-muted-foreground ms-1">أور يفكر…</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* waiting (no steps/tokens yet) */}
+        {sending && !streaming && (
           <div className="flex justify-end">
             <div className="bg-card border border-border/60 rounded-2xl rounded-br-md px-4 py-3.5 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse-dot" />

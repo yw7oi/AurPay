@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { UrPayLogo, UrPayMark, UrSeal } from "./logo";
 import { CategoryIcon } from "./icons";
+import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fmtIQD, type PlatformStats } from "@/lib/urpay";
@@ -42,7 +43,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${
           scrolled
-            ? "bg-[color-mix(in_oklab,var(--background)_88%,white)]/90 backdrop-blur-xl border-b border-border/70 shadow-[0_8px_30px_-18px_rgba(27,33,30,.25)]"
+            ? "bg-background/90 backdrop-blur-xl border-b border-border/70 shadow-[0_8px_30px_-18px_rgba(27,33,30,.25)] dark:shadow-[0_8px_30px_-18px_rgba(0,0,0,.6)]"
             : "bg-transparent"
         }`}
       >
@@ -60,6 +61,12 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <div className="flex items-center sm:hidden">
+              <ThemeToggle compact className="me-1" />
+            </div>
+            <div className="hidden sm:flex items-center">
+              <ThemeToggle className="me-1" />
+            </div>
             <Button
               onClick={onEnter}
               variant="outline"
@@ -251,6 +258,29 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                 </li>
               ))}
             </ol>
+
+            {/* live platform stats */}
+            <div className="mt-8 grid grid-cols-2 gap-3">
+              {[
+                { label: "مستخدم مسجّل", value: stats ? stats.users.toLocaleString("en-US") : "—" },
+                { label: "معاملة منفّذة", value: stats ? stats.transactions.toLocaleString("en-US") : "—" },
+                { label: "فاتورة مدفوعة", value: stats ? stats.bills_paid.toLocaleString("en-US") : "—" },
+                { label: "حجم التداول", value: stats ? fmtIQD(stats.volume_iqd, false) : "—" },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-2xl border border-white/10 bg-white/[.04] backdrop-blur px-4 py-3"
+                >
+                  <p className="num text-lg sm:text-xl font-bold text-[#3ED9A3]" dir="rtl">
+                    {s.value}
+                    {s.label === "حجم التداول" && stats && (
+                      <span className="text-[0.62rem] font-medium text-white/50 ms-1">د.ع</span>
+                    )}
+                  </p>
+                  <p className="text-[0.68rem] font-medium text-white/55 mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
           <AgentFlowCard />
         </div>
@@ -467,7 +497,7 @@ function AgentPhoneDemo() {
       >
         <div className="rounded-2xl border border-border/60 bg-card/95 backdrop-blur px-4 py-3 shadow-lift-lg">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/25">
               <Check className="h-4 w-4" />
             </span>
             <div>

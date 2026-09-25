@@ -1,21 +1,173 @@
 "use client";
 
+import { useState } from "react";
 import {
-  BadgeCheck, CalendarDays, CreditCard, Fingerprint, Landmark, LogOut, MapPin,
-  Phone, ShieldCheck, User,
+  BadgeCheck, CalendarDays, CreditCard, Fingerprint, KeyRound, Landmark,
+  Loader2, LogOut, MapPin, Moon, Phone, ShieldCheck, Sun, User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useSession } from "@/lib/store";
-import { fmtDate, fmtIQD } from "@/lib/urpay";
+import { fmtDate, fmtIQD, urpay } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
 import { UserAvatar } from "./parts";
 import { UrSeal } from "./logo";
+import { useTheme } from "./theme-toggle";
 import type { DashTab } from "./dashboard";
+
+/* ------------------------------------------------------------------ */
+/* Change PIN dialog — verifies current PIN before updating.           */
+/* ------------------------------------------------------------------ */
+
+function ChangePinDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { token } = useSession();
+  const { toast } = useToast();
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const valid =
+    /^\d{4,6}$/.test(currentPin) &&
+    /^\d{4,6}$/.test(newPin) &&
+    newPin === confirmPin;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!valid || loading || !token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await urpay.changePin(token, currentPin, newPin);
+      toast({ title: "تم التغيير ✅", description: res.message });
+      onOpenChange(false);
+      setCurrentPin("");
+      setNewPin("");
+      setConfirmPin("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر تحديث الرمز");
+      setCurrentPin("");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* reset on open */
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setCurrentPin("");
+      setNewPin("");
+      setConfirmPin("");
+      setError(null);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm rounded-3xl" dir="rtl">
+        <DialogHeader className="text-center items-center space-y-0">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gold/15 text-gold-deep ring-1 ring-gold/30">
+            <KeyRound className="h-7 w-7" />
+          </span>
+          <DialogTitle className="font-display text-xl mt-3">غيّر رمز الـ PIN</DialogTitle>
+          <DialogDescription className="text-center leading-relaxed">
+            أدخل رمزك الحالي للتأكيد — الرمز الجديد يُفعّل فورًا لكل العمليات.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={submit} className="space-y-3.5">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">
+              الرمز الحالي
+            </Label>
+            <Input
+              dir="ltr"
+              inputMode="numeric"
+              type="password"
+              value={currentPin}
+              onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="••••"
+              className="num text-left tracking-[0.4em]"
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">
+                الرمز الجديد
+              </Label>
+              <Input
+                dir="ltr"
+                inputMode="numeric"
+                type="password"
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="••••"
+                className="num text-left tracking-[0.4em]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">
+                تأكيد الرمز
+              </Label>
+              <Input
+                dir="ltr"
+                inputMode="numeric"
+                type="password"
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="••••"
+                className="num text-left tracking-[0.4em]"
+              />
+            </div>
+          </div>
+
+          {newPin && confirmPin && newPin !== confirmPin && (
+            <p className="text-xs font-semibold text-destructive">
+              التأكيد ما يطابق الرمز الجديد
+            </p>
+          )}
+          {error && (
+            <p className="text-sm font-semibold text-destructive text-center">
+              {error}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            disabled={!valid || loading}
+            className="w-full h-12 rounded-2xl font-bold text-base shadow-lift"
+          >
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <KeyRound className="h-5 w-5" />}
+            حدّث الرمز
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 
 export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
   const { user, logout } = useSession();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
+  const [pinOpen, setPinOpen] = useState(false);
   if (!user) return null;
 
   const rows: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; ltr?: boolean }[] = [
@@ -55,6 +207,52 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
           </div>
         </div>
         <UrSeal className="relative h-3 w-40 text-[#E8C867]/70 mt-6" />
+      </section>
+
+      {/* quick actions */}
+      <section className="grid sm:grid-cols-2 gap-4">
+        <button
+          onClick={() => setPinOpen(true)}
+          className="group rounded-3xl border border-border/70 bg-card p-5 text-start transition-all hover:border-primary/40 hover:shadow-lift"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20 group-hover:scale-105 transition-transform">
+            <KeyRound className="h-5 w-5" />
+          </span>
+          <p className="mt-3 font-bold">غيّر رمز الـ PIN</p>
+          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+            رمز جديد لكل عمليات الدفع والتحويل — يتطلب الرمز الحالي.
+          </p>
+        </button>
+
+        <div className="rounded-3xl border border-border/70 bg-card p-5">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-primary ring-1 ring-border/60">
+            {theme === "dark" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </span>
+          <p className="mt-3 font-bold">مظهر المحفظة</p>
+          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+            {theme === "dark" ? "الوضع الليلي مفعّل" : "الوضع النهاري مفعّل"} — بدّل حسب راحتك.
+          </p>
+          <div className="mt-3.5 flex gap-2">
+            <Button
+              size="sm"
+              variant={theme === "light" ? "default" : "outline"}
+              onClick={() => setTheme("light")}
+              className="rounded-xl font-bold flex-1"
+            >
+              <Sun className="h-3.5 w-3.5" />
+              نهاري
+            </Button>
+            <Button
+              size="sm"
+              variant={theme === "dark" ? "default" : "outline"}
+              onClick={() => setTheme("dark")}
+              className="rounded-xl font-bold flex-1"
+            >
+              <Moon className="h-3.5 w-3.5" />
+              ليلي
+            </Button>
+          </div>
+        </div>
       </section>
 
       {/* details */}
@@ -131,6 +329,8 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
           تسجيل الخروج
         </Button>
       </div>
+
+      <ChangePinDialog open={pinOpen} onOpenChange={setPinOpen} />
     </div>
   );
 }

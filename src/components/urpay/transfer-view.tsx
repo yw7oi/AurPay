@@ -1,15 +1,259 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Loader2, Search, Send, Users } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowDownLeft, ArrowUpRight, CheckCheck, Clock3, Loader2,
+  Search, Send, TimerOff, Users, XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/lib/store";
-import { fmtIQD, urpay, type Receipt, type UserSummary } from "@/lib/urpay";
+import { fmtIQD, urpay, type Receipt, type TransferReq, type UserSummary } from "@/lib/urpay";
 import { useToast } from "@/hooks/use-toast";
 import { EmptyState, PinDialog, ReceiptCard, UserAvatar } from "./parts";
+
+/* ------------------------------------------------------------------ */
+/* Pending transfer requests — sender confirms/cancels, receiver      */
+/* declines. 24h TTL auto-expiry runs server-side on every list call.  */
+/* ------------------------------------------------------------------ */
+
+function ttlLeft(createdAtIso: string): { hours: number; label: string; danger: boolean } {
+  const created = new Date(createdAtIso).getTime();
+  const expires = created + 24 * 3600_000;
+  const ms = expires - Date.now();
+  if (ms <= 0) return { hours: 0, label: "على وشك الانتهاء", danger: true };
+  const hours = Math.floor(ms / 3600_000);
+  const mins = Math.floor((ms % 3600_000) / 60_000);
+  const label = hours >= 1 ? `${hours} سا و${mins} د` : `${mins} دقيقة`;
+  return { hours, label: `تنتهي بعد ${label}`, danger: hours < 2 };
+}
+
+function PendingRequests({
+  refreshSignal,
+  onReceipt,
+}: {
+  refreshSignal: number;
+  onReceipt: (r: Receipt) => void;
+}) {
+  const { token, setUser } = useSession();
+  const { toast } = useToast();
+  const [reqs, setReqs] = useState<TransferReq[] | null>(null);
+  const [busy, setBusy] = useState<number | null>(null);
+  const [confirming, setConfirming] = useState<TransferReq | null>(null);
+  const [pinOpen, setPinOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!token) return;
+    try {
+      setReqs(await urpay.transferRequests(token));
+    } catch {
+      /* silent — keeps last known list */
+    }
+  }, [token]);
+
+  useEffect(() => {
+    load();
+  }, [load, refreshSignal]);
+
+  async function cancelReq(id: number) {
+    if (!token) return;
+    setBusy(id);
+    try {
+      const res = await urpay.transferCancel(token, id);
+      toast({ title: "تم الإلغاء", description: res.message });
+      await load();
+    } catch (err) {
+      toast({
+        title: "تعذر الإلغاء",
+        description: err instanceof Error ? err.message : "حاول مرة أخرى",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function declineReq(id: number) {
+    if (!token) return;
+    setBusy(id);
+    try {
+      const res = await urpay.transferDecline(token, id);
+      toast({ title: "تم الرفض", description: res.message });
+      await load();
+    } catch (err) {
+      toast({
+        title: "تعذر الرفض",
+        description: err instanceof Error ? err.message : "حاول مرة أخرى",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function confirmReq(pin: string): Promise<string | null> {
+    if (!token || !confirming) return "خطأ غير متوقع";
+    try {
+      const res = await urpay.transferConfirm(token, confirming.id, pin);
+      onReceipt(res.receipt);
+      const me = await urpay.me(token);
+      setUser(me);
+      toast({ title: "وصلت الحوالة ✅", description: res.message });
+      await load();
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "فشل التحويل";
+    }
+  }
+
+  if (reqs === null || reqs.length === 0) return null;
+
+  return (
+    <section className="rounded-3xl border border-border/70 bg-card p-5 sm:p-6 space-y-4" dir="rtl">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg flex items-center gap-2">
+          <Clock3 className="h-4.5 w-4.5 h-[18px] w-[18px] text-primary" />
+          طلبات معلّقة
+          <Badge className="rounded-full bg-gold/15 text-gold-deep hover:bg-gold/15 num px-2">
+            {reqs.length}
+          </Badge>
+        </h2>
+        <p className="text-[0.68rem] text-muted-foreground">
+          تنتهي تلقائيًا بعد 24 ساعة من إنشائها
+        </p>
+      </div>
+
+      <div className="space-y-2.5">
+        {reqs.map((r) => {
+          const ttl = ttlLeft(r.created_at);
+          const isSender = r.role === "sender";
+          return (
+            <div
+              key={r.id}
+              className="rounded-2xl border border-border/60 bg-background p-3.5 sm:p-4 transition-all hover:border-primary/35"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ${
+                    isSender
+                      ? "bg-primary/10 text-primary ring-primary/20"
+                      : "bg-gold/15 text-gold-deep ring-gold/30"
+                  }`}
+                >
+                  {isSender ? (
+                    <ArrowUpRight className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+                  ) : (
+                    <ArrowDownLeft className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+                  )}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-sm truncate">
+                      {r.counterparty}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={`rounded-md text-[0.6rem] px-1.5 h-5 ${
+                        isSender
+                          ? "border-primary/30 text-primary"
+                          : "border-gold/40 text-gold-deep"
+                      }`}
+                    >
+                      {isSender ? "صادرة — بانتظار تأكيدك" : "واردة — بانتظار المرسل"}
+                    </Badge>
+                  </div>
+                  <p className="text-[0.7rem] text-muted-foreground mt-0.5 num" dir="rtl">
+                    {r.counterparty_card} ·{" "}
+                    <span className={`font-semibold ${ttl.danger ? "text-destructive" : ""}`}>
+                      {ttl.label}
+                    </span>
+                    {ttl.danger && (
+                      <TimerOff className="inline h-3 w-3 ms-1 -mt-0.5 text-destructive" />
+                    )}
+                  </p>
+                </div>
+                <p className="num font-bold text-base shrink-0" dir="rtl">
+                  {fmtIQD(r.amount, false)}
+                  <span className="text-[0.6rem] font-medium text-muted-foreground block text-center mt-0.5">
+                    د.ع
+                  </span>
+                </p>
+              </div>
+
+              <div className="flex gap-2 mt-3">
+                {isSender ? (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setConfirming(r);
+                        setPinOpen(true);
+                      }}
+                      className="rounded-xl h-9 px-4 text-xs font-bold flex-1 sm:flex-none"
+                    >
+                      <CheckCheck className="h-3.5 w-3.5" />
+                      أكّد بالـ PIN
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === r.id}
+                      onClick={() => cancelReq(r.id)}
+                      className="rounded-xl h-9 px-4 text-xs font-bold text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                    >
+                      {busy === r.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5" />
+                      )}
+                      إلغاء
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy === r.id}
+                    onClick={() => declineReq(r.id)}
+                    className="rounded-xl h-9 px-4 text-xs font-bold text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                  >
+                    {busy === r.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5" />
+                    )}
+                    ارفض الحوالة
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <PinDialog
+        open={pinOpen}
+        onOpenChange={(v) => {
+          setPinOpen(v);
+          if (!v) setConfirming(null);
+        }}
+        title="تأكيد الحوالة المعلّقة"
+        description={
+          confirming
+            ? `إلى ${confirming.counterparty} — لا تنعكس العملية بعد التنفيذ`
+            : "أدخل رمزك السري"
+        }
+        amount={confirming?.amount}
+        confirmText="نفّذ الحوالة"
+        onConfirm={confirmReq}
+      />
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 
 export function TransferView() {
   const { user, token, setUser } = useSession();
@@ -23,6 +267,7 @@ export function TransferView() {
   const [pinOpen, setPinOpen] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [pendingReq, setPendingReq] = useState<{ id: number; receiver: string; amount: number } | null>(null);
+  const [reqSignal, setReqSignal] = useState(0);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* live user search */
@@ -67,6 +312,7 @@ export function TransferView() {
       setReceiver(null);
       setCardInput("");
       setAmount("");
+      setReqSignal((s) => s + 1);
       toast({ title: "وصلت الحوالة ✅", description: res.message });
       return null;
     } catch (err) {
@@ -245,6 +491,12 @@ export function TransferView() {
         </form>
       )}
 
+      {/* pending requests */}
+      <PendingRequests
+        refreshSignal={reqSignal}
+        onReceipt={(r) => setReceipt(r)}
+      />
+
       {/* how it works */}
       <div className="rounded-3xl border border-dashed border-border bg-secondary/30 p-5">
         <p className="font-bold text-sm flex items-center gap-2">
@@ -255,6 +507,7 @@ export function TransferView() {
           <li>تدور على المستلم (من 100 مستخدم مسجل بالمنصة) أو تكتب بطاقته مباشرة.</li>
           <li>تنشئ طلب تحويل مؤكد — ما ينفذ إلا بعد رمز الـ PIN.</li>
           <li>تستلم إيصالًا برقم مرجعي، ويوصل المبلغ فوري للطرف الثاني.</li>
+          <li>إذا ما أكّدت الطلب خلال 24 ساعة — ينتهي تلقائيًا ويرجع رصيدك محفوظ.</li>
         </ol>
       </div>
 

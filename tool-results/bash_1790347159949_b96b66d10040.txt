@@ -1,0 +1,2173 @@
+✓ أور پاي UrPay — محفظة العراق الذكية
+  http://localhost:3000/
+✓ Done
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 537ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 142ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 139ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 139ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 214ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 167ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 106ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 125ms
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 991ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 496ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 185ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 264ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 191ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 247ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 199ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 123ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 138ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 243ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 117ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 188ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 301ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 165ms
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[clear] console.clear
+[error] ./src/components/urpay/overview.tsx:14:11
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |           ^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogContent` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:26
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                          ^^^^^^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogDescription` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:45
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                             ^^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogHeader` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:59
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |                                                           ^^^^^^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `DialogTitle` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[error] ./src/components/urpay/overview.tsx:14:3
+Ecmascript file had an error
+  12 | } from "@/components/ui/dialog";
+  13 | import {
+> 14 |   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+     |   ^^^^^^
+  15 | } from "@/components/ui/dialog";
+  16 | import { useSession } from "@/lib/store";
+  17 | import {
+
+the name `Dialog` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/components/urpay/overview.tsx [Client Component Browser]
+    ./src/components/urpay/dashboard.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/urpay/overview.tsx [Client Component SSR]
+    ./src/components/urpay/dashboard.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] rebuilding
+[clear] console.clear
+[log] [Fast Refresh] done in 248ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 119ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 157ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 167ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 127ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 229ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 128ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 276ms
+[log] [Fast Refresh] rebuilding
+[warning] [Fast Refresh] performing full reload because your application had an unrecoverable error
+[log] [Fast Refresh] done in 893ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 471ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 476ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 234ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected

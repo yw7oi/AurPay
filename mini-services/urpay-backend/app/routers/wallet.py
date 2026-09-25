@@ -248,6 +248,19 @@ async def cancel_transfer(request_id: int,
     return {"message": "تم إلغاء طلب التحويل"}
 
 
+@router.post("/transfer/decline/{request_id}")
+async def decline_transfer(request_id: int,
+                           user: User = Depends(get_current_user),
+                           session: AsyncSession = Depends(get_session)):
+    """Receiver-side rejection of an incoming pending request."""
+    req = await session.get(TransferRequest, request_id)
+    if req is None or req.receiver_id != user.id or req.status != "pending":
+        raise HTTPException(404, "الطلب غير موجود")
+    req.status = "declined"
+    await session.commit()
+    return {"message": "تم رفض الحوالة"}
+
+
 # ---------------------------------------------------------------- top-up ---
 class TopUpRequest(BaseModel):
     amount: int = Field(gt=1000, le=5_000_000)

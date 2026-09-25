@@ -13,6 +13,18 @@ log = logging.getLogger("urpay.agent")
 # multi-turn pending actions for the deterministic engine
 _pending: dict[int, dict] = {}
 
+# UI labels for live agent tool steps (streamed to the client)
+TOOL_STEP_LABELS = {
+    "get_balance": "يفحص رصيدك…",
+    "list_bills": "يراجع فواتيرك…",
+    "pay_bill": "ينفّذ الدفع…",
+    "search_users": "يدوّر على المستلم…",
+    "transfer_money": "ينفّذ الحوالة…",
+    "recent_transactions": "يراجع معاملاتك…",
+    "topup_wallet": "يعبّي المحفظة…",
+    "get_profile": "يجيب بياناتك…",
+}
+
 SYSTEM_PROMPT = """أنت "أور" — المساعد الذكي (AI Agent) داخل محفظة أور پاي (UrPay)، منصة الدفع العراقية.
 دورك: مساعدة المستخدم على استعلام رصيده، عرض فواتيره، دفع الفواتير، التحويل بين المستخدمين، ومراجعة معاملاته — كل ذلك من خلال المحادثة.
 
@@ -144,16 +156,18 @@ def _mask_pin(text: str, pin: str) -> str:
     return text
 
 
-async def run_agent(session: AsyncSession, user: User,
-                    message: str) -> tuple[str, list[dict], str]:
-    """Returns (reply, actions, provider)."""
+async def run_agent(session: AsyncSession, user: User, message: str,
+                    emit=None) -> tuple[str, list[dict], str]:
+    """Returns (reply, actions, provider). `emit` (optional) is awaited with
+    {"tool": name} after each executed tool call — used for SSE streaming."""
     actions: list[dict] = []
 
     # --- provider chain ----------------------------------------------------
     if providers.groq_available():
         provider = "groq"
         try:
-            reply = await _llm_loop(session, user, message, actions, mode="groq")
+            reply = await _llm_loop(session, user, message, actions,
+                                     mode="groq", emit=emit)
             return reply, actions, provider
         except Exception as e:
             log.warning("Groq provider failed: %s", e)
@@ -161,18 +175,19 @@ async def run_agent(session: AsyncSession, user: User,
     if await providers.bridge_available():
         provider = "zai"
         try:
-            reply = await _llm_loop(session, user, message, actions, mode="zai")
+            reply = await _llm_loop(session, user, message, actions,
+                                     mode="zai", emit=emit)
             return reply, actions, provider
         except Exception as e:
             log.warning("z-ai bridge failed: %s", e)
 
     provider = "local"
-    reply = await local_engine(session, user, message, actions)
+    reply = await local_engine(session, user, message, actions, emit=emit)
     return reply, actions, provider
 
 
 async def _llm_loop(session: AsyncSession, user: User, message: str,
-                    actions: list[dict], mode: str) -> str:
+                    actions: list[dict], mode: str, emit=None) -> str:
     history = (await session.execute(
         _history_query(user.id)
     )).scalars().all()
@@ -215,6 +230,11 @@ async def _llm_loop(session: AsyncSession, user: User, message: str,
                 action = _tool_summary_for_actions(call["name"], result)
                 if action:
                     actions.append(action)
+                if emit is not None:
+                    try:
+                        await emit({"tool": call["name"]})
+                    except Exception:  # never let streaming break the loop
+                        pass
                 llm_messages.append({
                     "role": "user",
                     "content": f"[نتيجة الأداة {call['name']}] "
@@ -271,10 +291,17 @@ def _parse_amount(text: str) -> int | None:
 
 
 async def local_engine(session: AsyncSession, user: User,
-                       message: str, actions: list[dict]) -> str:
+                       message: str, actions: list[dict], emit=None) -> str:
     msg = message.strip()
     low = msg.lower()
     pending = _pending.get(user.id)
+
+    async def _emit(tool: str) -> None:
+        if emit is not None:
+            try:
+                await emit({"tool": tool})
+            except Exception:
+                pass
 
     # --- continue pending bill payment ------------------------------------
     if pending and pending.get("bill_id"):
@@ -289,6 +316,7 @@ async def local_engine(session: AsyncSession, user: User,
         else:
             pin = None
         if pin:
+            await _emit("pay_bill")
             result = await T.pay_bill(session, user, pending["bill_id"], pin)
             _pending.pop(user.id, None)
             if result.get("ok"):
@@ -319,10 +347,12 @@ async def local_engine(session: AsyncSession, user: User,
 
     # --- balance -----------------------------------------------------------
     if re.search(r"رصيد|balance|شكد عندي|شكد", low):
+        await _emit("get_balance")
         return f"رصيدك الحالي: **{user.balance:,} د.ع** 💰"
 
     # --- bills -------------------------------------------------------------
     if re.search(r"فواتير|فاتورة|bills|bill", low) and not any(w in low for w in PAY_WORDS):
+        await _emit("list_bills")
         unpaid = await T.list_bills(session, user, "unpaid")
         if unpaid["count"] == 0:
             return "ما عندك فواتير غير مدفوعة — عاش! 🎉"
@@ -336,6 +366,7 @@ async def local_engine(session: AsyncSession, user: User,
 
     # --- pay ---------------------------------------------------------------
     if any(w in low for w in PAY_WORDS):
+        await _emit("list_bills")
         unpaid = await T.list_bills(session, user, "unpaid")
         if unpaid["count"] == 0:
             return "ما عندك فواتير غير مدفودة حاليًا 🎉"
@@ -360,6 +391,7 @@ async def local_engine(session: AsyncSession, user: User,
         pin_match = PIN_RE.search(low)
         if pin_match and not re.fullmatch(r"\d{4,6}", msg.strip() or "x"):
             pin = pin_match.group(1)
+            await _emit("pay_bill")
             result = await T.pay_bill(session, user, bill_id, pin)
             if result.get("ok"):
                 r = result["receipt"]
@@ -385,6 +417,7 @@ async def local_engine(session: AsyncSession, user: User,
         if amount and amount >= 1000:
             pin_match = PIN_RE.search(low)
             if pin_match:
+                await _emit("topup_wallet")
                 result = await T.topup_wallet(session, user, amount, pin_match.group(1))
                 if result.get("ok"):
                     r = result["receipt"]
@@ -405,6 +438,7 @@ async def local_engine(session: AsyncSession, user: User,
         if card and amount:
             pin_match = PIN_RE.search(low)
             if pin_match:
+                await _emit("transfer_money")
                 result = await T.transfer_money(session, user, card.group(1),
                                                 amount, pin_match.group(1))
                 if result.get("ok"):
@@ -430,6 +464,7 @@ async def local_engine(session: AsyncSession, user: User,
 
     # --- transactions ------------------------------------------------------
     if re.search(r"سجل|معاملات|حركات|آخر|transactions|history", low):
+        await _emit("recent_transactions")
         txns = await T.recent_transactions(session, user, 5)
         lines = ["آخر 5 معاملات:"]
         for t in txns["transactions"]:

@@ -1,11 +1,14 @@
-"""Agent endpoints — chat, history, clear."""
+"""Agent endpoints — chat, history, clear, SSE streaming."""
+import asyncio
+import json
 import re
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..agent.engine import run_agent
+from ..agent.engine import TOOL_STEP_LABELS, run_agent
 from ..db import get_session
 from ..models import AgentMessage, User
 from ..schemas import AgentAction, AgentChatRequest, AgentChatResponse
@@ -20,6 +23,17 @@ def _mask_pins(text: str) -> str:
     def repl(m: re.Match) -> str:
         return (m.group(1) or "") + " ••••"
     return PIN_MASK_RE.sub(repl, text)
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _chunk_words(text: str, size: int = 3):
+    """Split the final reply into small chunks for the typewriter effect."""
+    words = text.split(" ")
+    for i in range(0, len(words), size):
+        yield " ".join(words[i:i + size]) + (" " if i + size < len(words) else "")
 
 
 @router.post("/chat", response_model=AgentChatResponse)
@@ -42,6 +56,77 @@ async def agent_chat(body: AgentChatRequest,
         reply=reply,
         actions=[AgentAction(**a) for a in actions],
         provider=provider,
+    )
+
+
+@router.post("/chat/stream")
+async def agent_chat_stream(body: AgentChatRequest,
+                            user: User = Depends(get_current_user),
+                            session: AsyncSession = Depends(get_session)):
+    """SSE stream: `step` events while the agent works (tool calls), then the
+    final reply word-by-word as `token` events, then one `done` event with
+    actions + provider. Falls back gracefully — the client keeps the legacy
+    non-streaming endpoint available."""
+    stored_user_msg = _mask_pins(body.message.strip())
+    session.add(AgentMessage(user_id=user.id, role="user",
+                             content=stored_user_msg))
+    await session.commit()
+
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def emit(ev: dict) -> None:
+        label = TOOL_STEP_LABELS.get(ev.get("tool", ""), "يشتغل…")
+        await queue.put({"tool": ev.get("tool", ""), "label": label})
+
+    async def runner():
+        try:
+            reply, actions, provider = await run_agent(session, user,
+                                                       body.message, emit=emit)
+            await queue.put({"__final__": {
+                "reply": reply, "actions": actions, "provider": provider}})
+        except Exception as e:  # pragma: no cover — defensive
+            await queue.put({"__error__": str(e)})
+
+    task = asyncio.create_task(runner())
+
+    async def gen():
+        try:
+            while True:
+                ev = await queue.get()
+                if "__final__" in ev:
+                    final = ev["__final__"]
+                    # persist the assistant turn (task already finished using
+                    # the session — no concurrent access)
+                    await task
+                    session.add(AgentMessage(
+                        user_id=user.id, role="assistant",
+                        content=final["reply"], provider=final["provider"]))
+                    await session.commit()
+                    for chunk in _chunk_words(final["reply"]):
+                        yield _sse("token", {"t": chunk})
+                        await asyncio.sleep(0.045)
+                    yield _sse("done", {
+                        "actions": final["actions"],
+                        "provider": final["provider"],
+                    })
+                    break
+                if "__error__" in ev:
+                    await task
+                    yield _sse("error", {"detail": ev["__error__"]})
+                    break
+                yield _sse("step", ev)
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

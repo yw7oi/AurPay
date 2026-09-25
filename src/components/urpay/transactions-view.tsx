@@ -53,19 +53,19 @@ export function TransactionsView() {
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-2xl border border-border/70 bg-card p-4">
             <p className="text-[0.68rem] font-semibold text-muted-foreground flex items-center gap-1">
-              <ArrowUpRight className="h-3 w-3 text-rose-500" />
+              <ArrowUpRight className="h-3 w-3 text-rose-500 dark:text-rose-300" />
               صادر
             </p>
-            <p className="num mt-1 font-bold text-rose-600" dir="rtl">
+            <p className="num mt-1 font-bold text-rose-600 dark:text-rose-300" dir="rtl">
               {fmtIQD(totals.out)}
             </p>
           </div>
           <div className="rounded-2xl border border-border/70 bg-card p-4">
             <p className="text-[0.68rem] font-semibold text-muted-foreground flex items-center gap-1">
-              <ArrowDownLeft className="h-3 w-3 text-emerald-600" />
+              <ArrowDownLeft className="h-3 w-3 text-emerald-600 dark:text-emerald-300" />
               وارد
             </p>
-            <p className="num mt-1 font-bold text-emerald-600" dir="rtl">
+            <p className="num mt-1 font-bold text-emerald-600 dark:text-emerald-300" dir="rtl">
               {fmtIQD(totals.inn)}
             </p>
           </div>

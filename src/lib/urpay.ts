@@ -100,6 +100,21 @@ export type UserSummary = {
   avatar_hue: number;
 };
 
+export type TransferReq = {
+  id: number;
+  amount: number;
+  status: "pending";
+  role: "sender" | "receiver";
+  counterparty: string;
+  counterparty_card: string;
+  created_at: string;
+};
+
+export type AgentStreamHandlers = {
+  onStep?: (step: { tool: string; label: string }) => void;
+  onToken?: (chunk: string) => void;
+};
+
 export type Analytics = {
   window_days: number;
   spend_total: number;
@@ -207,6 +222,97 @@ export const urpay = {
       body: { pin },
       token,
     }),
+  transferRequests: (token: string) =>
+    api<TransferReq[]>("transfer/requests", { token }),
+  transferCancel: (token: string, id: number) =>
+    api<{ message: string }>(`transfer/cancel/${id}`, { method: "POST", token }),
+  transferDecline: (token: string, id: number) =>
+    api<{ message: string }>(`transfer/decline/${id}`, { method: "POST", token }),
+
+  changePin: (token: string, current_pin: string, new_pin: string) =>
+    api<{ message: string }>("auth/change-pin", {
+      method: "POST",
+      body: { current_pin, new_pin },
+      token,
+    }),
+
+  /* agent — SSE streaming (POST + ReadableStream; falls back to agentChat) */
+  agentChatStream: async (
+    token: string,
+    message: string,
+    handlers: AgentStreamHandlers,
+  ): Promise<{ reply: string; actions: AgentAction[]; provider: string }> => {
+    const res = await fetch("/api/agent/chat/stream", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ message }),
+    });
+    if (res.status === 401 && typeof window !== "undefined") {
+      const { useSession } = await import("./store");
+      useSession.getState().logout();
+    }
+    if (!res.ok || !res.body) {
+      let detail = `خطأ (${res.status})`;
+      try {
+        const data = await res.json();
+        if (typeof data.detail === "string") detail = data.detail;
+      } catch {
+        /* ignore */
+      }
+      throw new ApiError(detail, res.status);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let reply = "";
+    let actions: AgentAction[] = [];
+    let provider = "";
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      /* SSE frames are separated by a blank line */
+      let sep: number;
+      while ((sep = buffer.indexOf("\n\n")) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        let event = "";
+        let data = "";
+        for (const line of frame.split("\n")) {
+          if (line.startsWith("event: ")) event = line.slice(7).trim();
+          else if (line.startsWith("data: ")) data += line.slice(6);
+        }
+        if (!data) continue;
+        let payload: Record<string, unknown>;
+        try {
+          payload = JSON.parse(data);
+        } catch {
+          continue;
+        }
+        if (event === "step" && handlers.onStep) {
+          handlers.onStep({
+            tool: String(payload.tool ?? ""),
+            label: String(payload.label ?? "يشتغل…"),
+          });
+        } else if (event === "token") {
+          const t = String(payload.t ?? "");
+          reply += t;
+          handlers.onToken?.(t);
+        } else if (event === "done") {
+          actions = (payload.actions as AgentAction[]) ?? [];
+          provider = String(payload.provider ?? "");
+        } else if (event === "error") {
+          throw new ApiError(String(payload.detail ?? "خطأ بالبث"), 500);
+        }
+      }
+    }
+    return { reply, actions, provider };
+  },
 
   topup: (token: string, amount: number, pin: string) =>
     api<Receipt>("topup", { method: "POST", body: { amount, pin }, token }),

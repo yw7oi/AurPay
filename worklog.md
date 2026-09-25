@@ -109,3 +109,48 @@ Stage Summary:
   3. Landing page could surface live platform stats in the agent section (currently only hero).
   4. Transfer pending-requests UI (list/cancel) — backend exists (GET /transfer/requests, POST cancel) but no frontend surface yet.
   5. Arabic/English UI language toggle.
+
+---
+Task ID: cron-round-2 (2026-09-25 ~23:00 Asia/Baghdad)
+Agent: Z.ai Code (scheduled web dev review)
+Task: QA pass + new features (agent SSE streaming, transfer requests UI, dark mode, PIN change) + styling polish
+
+Work Log:
+- QA pass (agent-browser): landing → demo login → all 6 dashboard tabs → agent chat → bills payment → transfer — no console errors, all endpoints 200s, both servers healthy.
+- NEW FEATURE — Agent SSE Streaming (worklog priority #1):
+  - Backend: engine.py gained an optional async `emit` callback (fired after each tool call in both the LLM loop and the local engine) + TOOL_STEP_LABELS (Arabic UI labels per tool). New endpoint POST /api/agent/chat/stream — asyncio.Queue pattern: `step` events during tool execution, `token` events (word chunks, 45ms) for the final reply, one `done` event with actions+provider; assistant turn persisted after the run completes.
+  - Frontend: urpay.ts `agentChatStream()` — fetch + ReadableStream reader with a manual SSE frame parser (event/data lines, \n\n separators). agent-view.tsx: live tool-step chips (spinner on the latest step, checkmark on completed ones) + typewriter reply bubble with a blinking cursor; auto-scroll follows tokens; graceful fallback to legacy agentChat on any stream error.
+  - Verified E2E through the Next.js proxy (stream passes unbuffered); VLM confirmed live chip + spinner render mid-stream; backend history shows all streamed turns persisted with provider tag.
+- NEW FEATURE — Pending Transfer Requests UI (worklog priority #4):
+  - Backend: new POST /api/transfer/decline/{id} (receiver-side rejection; status=declined).
+  - Frontend: PendingRequests section in transfer-view — sender rows: "أكّد بالـ PIN" (PinDialog → confirm → receipt) + "إلغاء"; receiver rows: "ارفض الحوالة"; 24h TTL countdown per row (danger styling + TimerOff icon under 2h); gold count badge in the header; section hidden when empty; refresh signal after every action.
+  - Verified E2E: created 2 requests via API (1 outgoing, 1 incoming) → both rendered → confirmed outgoing with PIN (receipt UR-ZFAVS1XM, count 2→1) → declined incoming → backend list empty. VLM: "well-executed, high-quality" with no glitches.
+- NEW FEATURE — Dark Mode (worklog priority #2):
+  - theme-toggle.tsx: useTheme via useSyncExternalStore (source of truth = .dark class on <html>; subscribe to custom event + storage event) — lint-clean (no setState-in-effect). ThemeToggle component: pill switch with sun/moon icons + animated knob; `compact` icon-only variant for tight mobile headers.
+  - layout.tsx: pre-paint inline script applies stored theme (no FOUC); suppressHydrationWarning already present.
+  - Placed: dashboard header (pill on sm+, compact on mobile), landing nav (same responsive pair), profile quick-action card with explicit نهاري/ليلي buttons.
+  - Dark sweep: category icon chips (amber/cyan/violet/rose/emerald/orange/slate/stone/lime now have dark:* 15%-bg + 300-level fg), ReceiptCard + paid badge + txn-in pill → token-based (bg-primary/10 text-primary), transactions totals (rose/emerald dark variants), header/bottom-nav/nav-scrolled backgrounds → bg-background/80-90 (was color-mix with white), `.dark .pattern-ur` auto-swaps to bright wedge pattern, `.dark .shadow-lift/lg/gold` neutral-black variants, agent header dot dark variant. Intentional dark surfaces (bg-night cards, phone mockup) left as-is.
+  - Verified: toggle works in all 3 locations, persists across reload (PERSISTED: DARK), VLM ratings — profile 9/10, overview 9.5/10 ("top-tier, Revolut-like"), agent chat "no issues", landing "nothing unreadable or broken".
+- NEW FEATURE — PIN Change (security):
+  - Backend: POST /api/auth/change-pin {current_pin, new_pin} — verifies current PIN (403), validates new 4-6 digits + differs from old, re-salts PBKDF2 hash.
+  - Frontend: ChangePinDialog in profile (gold KeyRound icon, current/new/confirm fields, mismatch + error states, dialog-state reset on open).
+  - Verified E2E: wrong current PIN → 403; valid change 1234→5678 → login with 5678 works → reverted back to 1234 (demo credentials preserved).
+- STYLING POLISH:
+  - ReceiptCard: reference is now a copy button (clipboard.writeText + BadgeCheck feedback for 1.6s) — works for both light/dark, verified in browser (UR-QBK6REL4).
+  - Landing agent section: 4 live platform stat tiles (مستخدم مسجّل / معاملة منفّذة / فاتورة مدفوعة / حجم التداول) fed from /api/stats — worklog priority #3.
+  - Receipt/badge/pill colors migrated to theme tokens (adapt automatically in dark mode).
+- QA fixes during round: stale Turbopack error for overview.tsx surfaced in accumulated HMR console (file was correct — clear + reload confirmed clean); no code fix needed.
+
+Stage Summary:
+- Current status: STABLE — all previous flows green plus 4 new features verified end-to-end in browser (SSE streaming, transfer requests lifecycle, dark mode everywhere, PIN change).
+- New endpoints: POST /api/agent/chat/stream (SSE), POST /api/transfer/decline/{id}, POST /api/auth/change-pin.
+- New frontend: ThemeToggle/useTheme, agent streaming UI (tool chips + typewriter), PendingRequests section, ChangePinDialog, receipt copy button, landing live stats.
+- Lint clean; dev.log + backend log all 200/201; mobile 390px exact (no overflow); theme persists; demo credentials restored (4539…1234 / 1234).
+- Files touched: backend — app/agent/engine.py, app/routers/{agent,wallet,auth}.py; frontend — src/lib/urpay.ts, src/app/{layout.tsx,globals.css}, src/components/urpay/{theme-toggle(new),dashboard,agent-view,transfer-view,profile-view,parts,icons,transactions-view,landing}.tsx.
+- QA screenshots saved to download/: qa-transfer-pending, qa-agent-stream(ing-mid), qa-dark-{profile,overview,agent,landing,mobile,mobile}, qa-final-{overview-light,receipt,mobile}.
+
+Unresolved / next-phase priorities:
+1. Arabic/English UI language toggle (last remaining worklog suggestion).
+2. Agent streaming: stream the LLM itself token-by-token (currently tool steps stream live; the final reply is chunked server-side — providers don't support raw token streaming through the z-ai bridge).
+3. Groq key verification on local Windows run (start.bat) — sandbox still uses z-ai bridge as active provider.
+4. Optional: agent chat export/copy, notifications center on the bell icon, CSV export for transactions.

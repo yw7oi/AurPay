@@ -19,15 +19,51 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
 };
 
 const CATEGORY_HUES: Record<string, { bg: string; fg: string; ring: string }> = {
-  electricity: { bg: "bg-amber-100", fg: "text-amber-700", ring: "ring-amber-200" },
-  water: { bg: "bg-cyan-100", fg: "text-cyan-700", ring: "ring-cyan-200" },
-  internet: { bg: "bg-violet-100", fg: "text-violet-700", ring: "ring-violet-200" },
-  mobile: { bg: "bg-rose-100", fg: "text-rose-700", ring: "ring-rose-200" },
-  education: { bg: "bg-emerald-100", fg: "text-emerald-700", ring: "ring-emerald-200" },
-  traffic: { bg: "bg-orange-100", fg: "text-orange-700", ring: "ring-orange-200" },
-  transfer: { bg: "bg-slate-100", fg: "text-slate-700", ring: "ring-slate-200" },
-  wallet: { bg: "bg-stone-100", fg: "text-stone-700", ring: "ring-stone-200" },
-  topup: { bg: "bg-lime-100", fg: "text-lime-700", ring: "ring-lime-200" },
+  electricity: {
+    bg: "bg-amber-100 dark:bg-amber-400/15",
+    fg: "text-amber-700 dark:text-amber-300",
+    ring: "ring-amber-200 dark:ring-amber-400/25",
+  },
+  water: {
+    bg: "bg-cyan-100 dark:bg-cyan-400/15",
+    fg: "text-cyan-700 dark:text-cyan-300",
+    ring: "ring-cyan-200 dark:ring-cyan-400/25",
+  },
+  internet: {
+    bg: "bg-violet-100 dark:bg-violet-400/15",
+    fg: "text-violet-700 dark:text-violet-300",
+    ring: "ring-violet-200 dark:ring-violet-400/25",
+  },
+  mobile: {
+    bg: "bg-rose-100 dark:bg-rose-400/15",
+    fg: "text-rose-700 dark:text-rose-300",
+    ring: "ring-rose-200 dark:ring-rose-400/25",
+  },
+  education: {
+    bg: "bg-emerald-100 dark:bg-emerald-400/15",
+    fg: "text-emerald-700 dark:text-emerald-300",
+    ring: "ring-emerald-200 dark:ring-emerald-400/25",
+  },
+  traffic: {
+    bg: "bg-orange-100 dark:bg-orange-400/15",
+    fg: "text-orange-700 dark:text-orange-300",
+    ring: "ring-orange-200 dark:ring-orange-400/25",
+  },
+  transfer: {
+    bg: "bg-slate-100 dark:bg-slate-400/15",
+    fg: "text-slate-700 dark:text-slate-300",
+    ring: "ring-slate-200 dark:ring-slate-400/25",
+  },
+  wallet: {
+    bg: "bg-stone-100 dark:bg-stone-400/15",
+    fg: "text-stone-700 dark:text-stone-300",
+    ring: "ring-stone-200 dark:ring-stone-400/25",
+  },
+  topup: {
+    bg: "bg-lime-100 dark:bg-lime-400/15",
+    fg: "text-lime-700 dark:text-lime-300",
+    ring: "ring-lime-200 dark:ring-lime-400/25",
+  },
 };
 
 export function CategoryIcon({
@@ -57,8 +93,8 @@ export function CategoryIcon({
 
 export function DirectionIcon({ direction, className }: { direction: "in" | "out"; className?: string }) {
   return direction === "out" ? (
-    <ArrowUpRight className={cn("h-4 w-4 text-rose-500", className)} />
+    <ArrowUpRight className={cn("h-4 w-4 text-rose-500 dark:text-rose-300", className)} />
   ) : (
-    <ArrowDownLeft className={cn("h-4 w-4 text-emerald-600", className)} />
+    <ArrowDownLeft className={cn("h-4 w-4 text-emerald-600 dark:text-emerald-300", className)} />
   );
 }

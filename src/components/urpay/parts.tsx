@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { BadgeCheck, Loader2, ShieldCheck, X } from "lucide-react";
+import { BadgeCheck, Copy, Loader2, ShieldCheck, X } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -150,21 +150,33 @@ export function ReceiptCard({
   receipt: Receipt;
   floating?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyRef() {
+    try {
+      await navigator.clipboard.writeText(receipt.reference);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+
   return (
     <motion.div
       initial={floating ? { opacity: 0, y: 8, scale: 0.98 } : false}
       animate={floating ? { opacity: 1, y: 0, scale: 1 } : undefined}
-      className="rounded-2xl border border-emerald-200 bg-card p-4 shadow-lift"
+      className="rounded-2xl border border-primary/30 bg-card p-4 shadow-lift"
       dir="rtl"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/25">
             <BadgeCheck className="h-4 w-4" />
           </span>
-          <p className="text-sm font-bold text-emerald-700">عملية ناجحة</p>
+          <p className="text-sm font-bold text-primary">عملية ناجحة</p>
         </div>
-        <Badge className="rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+        <Badge className="rounded-lg bg-primary/10 text-primary hover:bg-primary/10">
           إيصال
         </Badge>
       </div>
@@ -178,9 +190,19 @@ export function ReceiptCard({
       <div className="mt-3 border-t border-dashed border-border pt-2.5 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
         <div className="flex flex-col">
           <span>الرقم المرجعي</span>
-          <span className="num font-semibold text-foreground" dir="ltr">
+          <button
+            onClick={copyRef}
+            className="num font-semibold text-foreground inline-flex items-center gap-1.5 hover:text-primary transition-colors text-start"
+            dir="ltr"
+            title="انسخ الرقم المرجعي"
+          >
             {receipt.reference}
-          </span>
+            {copied ? (
+              <BadgeCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+            ) : (
+              <Copy className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            )}
+          </button>
         </div>
         <div className="flex flex-col">
           <span>الرصيد بعد العملية</span>
@@ -273,7 +295,7 @@ export function BillRow({ bill, onPay }: { bill: Bill; onPay?: (b: Bill) => void
             </Badge>
           )}
           {bill.status === "paid" && (
-            <Badge className="rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[0.62rem] px-1.5 h-5">
+            <Badge className="rounded-md bg-primary/10 text-primary hover:bg-primary/10 text-[0.62rem] px-1.5 h-5">
               مدفوعة
             </Badge>
           )}
@@ -330,7 +352,7 @@ export function TxnRow({ txn }: { txn: Txn }) {
         <p
           className={`num font-bold flex items-center gap-1 justify-end rounded-xl px-2 py-1 ${
             txn.direction === "in"
-              ? "text-emerald-700 bg-emerald-50"
+              ? "text-primary bg-primary/10"
               : "text-foreground bg-secondary"
           }`}
           dir="rtl"
