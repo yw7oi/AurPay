@@ -34,6 +34,10 @@ class User(Base):
     avatar_hue: Mapped[int] = mapped_column(Integer, default=152)
     is_demo: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # login lockout: wrong-PIN attempt tracking + escalating temporary bans
+    failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    ban_count: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     @property
     def card_masked(self) -> str:

@@ -752,3 +752,36 @@ Work Log:
 Stage Summary:
 - User answer: مفتاح Groq يحط بملف .env بجذر المشروع (سطر GROQ_API_KEY=gsk_...) — الباكند يقرأه تلقائيًا، أو set GROQ_API_KEY قبل start.bat (لها الأولوية).
 - Note: the currently-running sandbox backend imported config before this change — harmless here (no Groq key in sandbox, z-ai bridge active); all future spawns pick up .env automatically.
+
+---
+Task ID: manual-round-14 (2026-09-26 ~12:30→14:30 Asia/Baghdad)
+Agent: Z.ai Code (user-triggered — big de-branding + PIN-6 + lockout batch)
+Task: Remove Groq/tech/stats/slides branding from all UI, Zain-only telecom, 6-digit PIN everywhere, 5-attempt login lockout with escalating bans, wording cleanups.
+
+Work Log:
+- LANDING: deleted hero stats row (100+ مستخدم/فاتورة اندفعت/حجم التحويلات) + agent-section 4-tile stats + Stat component; deleted «قلله ادفع فاتورة الكهرباء وبيسألك PIN وبيخلصها» from hero desc; deleted «أسماء ثلاثية… ووكيل ذكي يفهم لهجتك» from features sub; deleted «من وزارة الكهرباء إلى باقات تارين —» prefix from categories sub; deleted welcome-balance step (how-it-works 3→2 steps, خطوتان, grid-cols-2); deleted footer FastAPI·SQLite + Groq gpt-oss-120b spans + slides download link; deleted unused FileDown import; hero demo-card PIN → 123456; agent flow card pin=••••••.
+- GROQ/GPT-OSS → «وكيل Ur الذكي» everywhere: landing agent badge + desc + flow hint + hero chatStatus (متصل — وكيل Ur الذكي), agent-view PROVIDER_LABEL (groq AND zai both → وكيل Ur الذكي), dashboard sidebar promo DELETED entirely (خلّي أور يدفع فواتيرك card), agent.online dict, features f6 (سرعة الوكيل الذكي), EN equivalents (Ur Smart Agent).
+- PROFILE: deleted «أمان حسابك» card (PBKDF2/ملح/JWT) + «تقنية المنصة» card (FastAPI/SQLite/Groq/Next.js/fonts badges + hackathon note) + unused Fingerprint/Landmark/ShieldCheck imports.
+- SECURITY WORDING (landing, kept sections): «ملح فردي» → «مفتاح فريد لكل حساب», PBKDF2 jargon → «معيار عالمي», «تفويض JWT» → «جلسات محمية», «تقنين الوكيل» → «حماية في المحادثة», «تُقنَّن» → «تُخفى»; auth benefit1 → «رمزك محفوظ مشفّرًا».
+- CTA text: «يدفع فاتورة كهرباء من محادثة وحدة» → «يحوّل فلوس ويدفع فواتير من محادثة وحدة» (ar+en).
+- GOALS: removed «قرش قرش» from subtitle + emptyDesc (ar+en).
+- OVERVIEW: «فواتير بتستنى» → «فواتير بانتظار الدفع».
+- TELECOM: constants.py mobile billers → Zain only (removed Asiacell/Korek), category desc → «شحن رصيد وباقات شركة زين»; landing BILLERS_ROW marquee − آسياسيل − كورك; landing dict mobile.desc → «شركة زين»; seed.py topup carrier → زين only. DB migration zain_only_telecom renames stray Asiacell/Korek bills+txns.
+- PIN 6 DIGITS EVERYWHERE: schemas PIN_RE ^\d{6}$; register/change-pin errors «6 أرقام»; seed PIN 123456 (2 places); stats demo pin 123456; auth-view register pinMatch ===6 + placeholders •••••• + labels (6 أرقام); parts.tsx PinDialog submit/disable length 6 (OTP UI was already 6 slots); profile ChangePinDialog ^\d{6}$; agent-view PIN_ECHO_RE \d{6}; engine.py PIN_RE + fullmatch patterns \d{6} + error msg «الرمز 6 أرقام» + example PIN 123456; start.bat/README PIN → 123456.
+- DB MIGRATIONS (db.py, guarded by _migrations table, idempotent): ALTER TABLE users + failed_attempts/ban_count/locked_until (via PRAGMA check); pin_6_digits — re-issues EVERY user's pin_hash with fresh salt for PIN 123456 (demo state preserved — balance/goals/bills intact); zain_only_telecom renames.
+- LOGIN LOCKOUT (auth.py): 5 attempts max — «رقم البطاقة أو رمز الـ PIN غير صحيح — باقي 4 محاولات» (singular محاولة for 1); 5th wrong → 423 «انتهت المحاولات — الحساب موقوف لمدة 3 دقيقة»; ban blocks even CORRECT PIN with «جرب بعد N دقيقة»; escalation 3→6→12→24→48→60min cap (doubling per consecutive ban, ban_count resets on success); success clears all lockout state.
+- OPS: frontend dev-server was wedged (110% CPU, requests timing out) — killed + restarted via node scripts/dev.mjs (setsid survives); backend respawned via spawn route → migrations ran on boot.
+- QA (agent-browser): landing 0 matches for Groq/gpt-oss/stats/تارين-phrase/آسياسيل/كورك/رصيد ترحيبي/سلايدات/FastAPI/PBKDF2/ملح/تقنين/قرش; login via demo-fill (123456) → dashboard renders (promo/security/tech sections 0 matches); agent chat «شكد رصيدي؟» replied via bridge with provider label «⚡ وكيل Ur الذكي»; PAID A BILL E2E: 4-digit PIN left confirm disabled, 6th digit auto-submitted → receipt UR-OVWN3FPS + PDF/WhatsApp buttons; goals subtitle clean; profile clean; EN mode 0 Groq; mobile 390 fine; ZERO console/page errors all round; VLM hero-balance check passed (no awkward gap after stats removal).
+- API VERIFIED: 5 wrong PINs → «باقي 4/3/2/1 محاولات» → «موقوف لمدة 3 دقيقة» → correct PIN during ban → «جرب بعد 2 دقيقة»; escalation test ban_count=2 → «موقوف لمدة 12 دقيقة»; new PIN 123456 login OK; 4-digit PIN fails.
+- bun run lint 0 errors; tsc --noEmit clean for src/; dict parity ar=en verified (landing 98/98, misc 137/137); zip regenerated (164 files) with all changes verified inside.
+
+Stage Summary:
+- Current status: STABLE — full de-branding batch + PIN policy + lockout live and browser-verified.
+- Demo credentials now: card 4539 1234 1234 1234 / PIN 123456 (same for all 100 seeded users).
+- Changed: landing.tsx, dashboard.tsx, profile-view.tsx, agent-view.tsx, auth-view.tsx, parts.tsx, dict/{landing,misc,auth,dashboard}.ts, backend: auth.py, schemas.py, models.py, db.py, constants.py, seed.py, public.py, engine.py, start.bat, README.
+- Zip: download/UrPay.zip regenerated — includes everything; old local copies need re-download.
+
+Unresolved / next-phase priorities:
+1. UrPay-Slides.pptx still shows old PIN 1234 + Groq branding on 1 slide — user asked to remove Groq from the SITE, not the slides; flag for a possible slides revision before the demo.
+2. Agent local-engine PIN examples updated; LLM path has no digit mention — fine.
+3. OOM/wedged-dev-server risk remains — restart procedure proven this round (kill next + node scripts/dev.mjs).

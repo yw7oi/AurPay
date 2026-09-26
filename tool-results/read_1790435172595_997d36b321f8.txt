@@ -1,0 +1,781 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useEffect, useState } from "react";
+     4→     4→import { AnimatePresence, motion } from "framer-motion";
+     5→     5→import {
+     6→     6→  ArrowLeft, BadgeCheck, Banknote, CarFront, Check, CreditCard, Droplets,
+     7→     7→  FileDown, Fingerprint, GraduationCap, Landmark, Lock, MessageCircleHeart,
+     8→     8→  ShieldCheck, Smartphone, Sparkles, Wifi, Zap,
+     9→     9→} from "lucide-react";
+    10→    10→import { UrPayLogo, UrPayMark, UrSeal } from "./logo";
+    11→    11→import { CategoryIcon } from "./icons";
+    12→    12→import { ThemeToggle } from "./theme-toggle";
+    13→    13→import { LangToggle } from "./lang-toggle";
+    14→    14→import { Button } from "@/components/ui/button";
+    15→    15→import { Badge } from "@/components/ui/badge";
+    16→    16→import { categoryName, fmtIQD, type PlatformStats } from "@/lib/urpay";
+    17→    17→import { useT } from "@/lib/i18n";
+    18→    18→
+    19→    19→/* ------------------------------------------------------------------ */
+    20→    20→
+    21→    21→const NAV = [
+    22→    22→  { href: "#features", labelKey: "landing.nav.features" },
+    23→    23→  { href: "#categories", labelKey: "landing.nav.categories" },
+    24→    24→  { href: "#agent", labelKey: "landing.nav.agent" },
+    25→    25→  { href: "#security", labelKey: "landing.nav.security" },
+    26→    26→];
+    27→    27→
+    28→    28→export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () => void }) {
+    29→    29→  const { t, lang } = useT();
+    30→    30→  const [stats, setStats] = useState<PlatformStats | null>(null);
+    31→    31→  const [scrolled, setScrolled] = useState(false);
+    32→    32→
+    33→    33→  useEffect(() => {
+    34→    34→    fetch("/api/stats")
+    35→    35→      .then((r) => (r.ok ? r.json() : null))
+    36→    36→      .then(setStats)
+    37→    37→      .catch(() => setStats(null));
+    38→    38→    const onScroll = () => setScrolled(window.scrollY > 24);
+    39→    39→    window.addEventListener("scroll", onScroll, { passive: true });
+    40→    40→    return () => window.removeEventListener("scroll", onScroll);
+    41→    41→  }, []);
+    42→    42→
+    43→    43→  return (
+    44→    44→    <div className="min-h-screen flex flex-col bg-background overflow-x-clip">
+    45→    45→      {/* ============================== NAV ============================== */}
+    46→    46→      <header
+    47→    47→        className={`sticky top-0 z-50 transition-all duration-300 ${
+    48→    48→          scrolled
+    49→    49→            ? "bg-background/90 backdrop-blur-xl border-b border-border/70 shadow-[0_8px_30px_-18px_rgba(27,33,30,.25)] dark:shadow-[0_8px_30px_-18px_rgba(0,0,0,.6)]"
+    50→    50→            : "bg-transparent"
+    51→    51→        }`}
+    52→    52→      >
+    53→    53→        <div className="mx-auto max-w-6xl px-4 sm:px-6 h-16 sm:h-[4.5rem] flex items-center justify-between gap-4">
+    54→    54→          <UrPayLogo />
+    55→    55→          <nav className="hidden md:flex items-center gap-1" aria-label={t("landing.nav.aria")}>
+    56→    56→            {NAV.map((n) => (
+    57→    57→              <a
+    58→    58→                key={n.href}
+    59→    59→                href={n.href}
+    60→    60→                className="px-3.5 py-2 rounded-full text-[0.9rem] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+    61→    61→              >
+    62→    62→                {t(n.labelKey)}
+    63→    63→              </a>
+    64→    64→            ))}
+    65→    65→          </nav>
+    66→    66→          <div className="flex items-center gap-2">
+    67→    67→            <div className="flex items-center sm:hidden">
+    68→    68→              <LangToggle compact className="me-1" />
+    69→    69→              <ThemeToggle compact className="me-1" />
+    70→    70→            </div>
+    71→    71→            <div className="hidden sm:flex items-center">
+    72→    72→              <LangToggle compact className="me-1" />
+    73→    73→              <ThemeToggle className="me-1" />
+    74→    74→            </div>
+    75→    75→            <Button
+    76→    76→              onClick={onEnter}
+    77→    77→              variant="outline"
+    78→    78→              className="hidden sm:inline-flex rounded-full border-border/80 font-semibold"
+    79→    79→            >
+    80→    80→              {t("landing.nav.login")}
+    81→    81→            </Button>
+    82→    82→            <Button
+    83→    83→              onClick={onEnter}
+    84→    84→              className="rounded-full font-semibold shadow-lift"
+    85→    85→            >
+    86→    86→              {t("landing.nav.openWallet")}
+    87→    87→              <ArrowLeft className="ms-1 h-4 w-4 rtl:-scale-x-100" />
+    88→    88→            </Button>
+    89→    89→          </div>
+    90→    90→        </div>
+    91→    91→      </header>
+    92→    92→
+    93→    93→      {/* ============================== HERO ============================= */}
+    94→    94→      <section className="relative overflow-hidden">
+    95→    95→        <div className="absolute inset-0 pattern-ur opacity-90" aria-hidden="true" />
+    96→    96→        <div
+    97→    97→          className="absolute -top-40 -start-40 h-[34rem] w-[34rem] rounded-full blur-3xl"
+    98→    98→          style={{ background: "radial-gradient(closest-side, rgba(17,138,99,.16), transparent)" }}
+    99→    99→          aria-hidden="true"
+   100→   100→        />
+   101→   101→        <div
+   102→   102→          className="absolute -bottom-56 -end-40 h-[30rem] w-[30rem] rounded-full blur-3xl"
+   103→   103→          style={{ background: "radial-gradient(closest-side, rgba(203,161,53,.14), transparent)" }}
+   104→   104→          aria-hidden="true"
+   105→   105→        />
+   106→   106→
+   107→   107→        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-10 pb-16 sm:pt-16 sm:pb-24 grid lg:grid-cols-[1.05fr_.95fr] gap-12 lg:gap-8 items-center">
+   108→   108→          <div className="max-w-xl">
+   109→   109→            <Badge
+   110→   110→              variant="outline"
+   111→   111→              className="mb-5 rounded-full border-gold/60 bg-gold/10 text-gold-deep px-3.5 py-1.5 gap-1.5 font-medium"
+   112→   112→            >
+   113→   113→              <Sparkles className="h-3.5 w-3.5" />
+   114→   114→              {t("landing.hero.badge")}
+   115→   115→            </Badge>
+   116→   116→
+   117→   117→            <h1 className="font-display text-[2.6rem] leading-[1.08] sm:text-6xl text-ink">
+   118→   118→              {t("landing.hero.title1")}
+   119→   119→              <br />
+   120→   120→              <span className="text-primary">{t("landing.hero.title2")}</span>
+   121→   121→            </h1>
+   122→   122→
+   123→   123→            <p className="mt-5 text-[1.05rem] sm:text-lg leading-relaxed text-muted-foreground max-w-lg">
+   124→   124→              {t("landing.hero.desc1")}{" "}
+   125→   125→              <b className="text-foreground">{t("landing.hero.descBold")}</b>{" "}
+   126→   126→              {t("landing.hero.desc2")}
+   127→   127→            </p>
+   128→   128→
+   129→   129→            <div className="mt-7 flex flex-wrap items-center gap-3">
+   130→   130→              <Button
+   131→   131→                size="lg"
+   132→   132→                onClick={onEnter}
+   133→   133→                className="rounded-full h-12 px-7 text-base font-bold shadow-lift-lg"
+   134→   134→              >
+   135→   135→                <CreditCard className="me-2 h-5 w-5" />
+   136→   136→                {t("landing.hero.ctaOpen")}
+   137→   137→              </Button>
+   138→   138→              <Button
+   139→   139→                size="lg"
+   140→   140→                variant="outline"
+   141→   141→                onClick={onDemo}
+   142→   142→                className="rounded-full h-12 px-6 text-base font-semibold border-border"
+   143→   143→              >
+   144→   144→                {t("landing.hero.ctaDemo")}
+   145→   145→              </Button>
+   146→   146→            </div>
+   147→   147→
+   148→   148→            {stats?.demo && (
+   149→   149→              <div
+   150→   150→                className="mt-6 inline-flex items-center gap-2.5 rounded-2xl border border-dashed border-primary/35 bg-primary/[.06] px-4 py-2.5 text-sm"
+   151→   151→              >
+   152→   152→                <Fingerprint className="h-4 w-4 text-primary" />
+   153→   153→                <span className="text-muted-foreground">{t("landing.hero.demoCard")}</span>
+   154→   154→                <span className="num tracking-wide" dir="ltr">
+   155→   155→                  {stats.demo.card_number.replace(/(\d{4})(?=\d)/g, "$1 ")}
+   156→   156→                </span>
+   157→   157→                <span className="text-muted-foreground">· PIN</span>
+   158→   158→                <span className="num">1234</span>
+   159→   159→              </div>
+   160→   160→            )}
+   161→   161→
+   162→   162→            <dl className="mt-9 grid grid-cols-3 gap-4 border-t border-border/70 pt-6">
+   163→   163→              <Stat label={t("landing.stats.users")} value={stats ? `${stats.users}+` : "100+"} />
+   164→   164→              <Stat label={t("landing.stats.bills")} value={stats ? `${stats.bills_paid}` : "300+"} />
+   165→   165→              <Stat
+   166→   166→                label={t("landing.stats.volume")}
+   167→   167→                value={stats ? fmtIQD(stats.volume_iqd, true, lang) : t("landing.stats.volumeFallback")}
+   168→   168→                compact
+   169→   169→              />
+   170→   170→            </dl>
+   171→   171→          </div>
+   172→   172→
+   173→   173→          {/* phone demo */}
+   174→   174→          <AgentPhoneDemo />
+   175→   175→        </div>
+   176→   176→      </section>
+   177→   177→
+   178→   178→      {/* ============================ BILLERS ============================ */}
+   179→   179→      <section className="border-y border-border/70 bg-secondary/40 py-5 overflow-hidden marquee-hover">
+   180→   180→        <div className="relative flex" dir="ltr">
+   181→   181→          <div className="animate-marquee flex shrink-0 items-center gap-3 pl-3">
+   182→   182→            {[...BILLERS_ROW, ...BILLERS_ROW].map((b, i) => (
+   183→   183→              <span
+   184→   184→                key={i}
+   185→   185→                className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-semibold text-muted-foreground whitespace-nowrap"
+   186→   186→              >
+   187→   187→                <b.icon className="h-4 w-4 text-primary" />
+   188→   188→                {b.name}
+   189→   189→              </span>
+   190→   190→            ))}
+   191→   191→          </div>
+   192→   192→        </div>
+   193→   193→      </section>
+   194→   194→
+   195→   195→      {/* ============================ FEATURES =========================== */}
+   196→   196→      <section id="features" className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24 w-full">
+   197→   197→        <SectionHead
+   198→   198→          kicker={t("landing.features.kicker")}
+   199→   199→          title={t("landing.features.title")}
+   200→   200→          sub={t("landing.features.sub")}
+   201→   201→        />
+   202→   202→        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+   203→   203→          {FEATURES.map((f) => (
+   204→   204→            <FeatureCard key={f.titleKey} icon={f.icon} title={t(f.titleKey)} desc={t(f.descKey)} />
+   205→   205→          ))}
+   206→   206→        </div>
+   207→   207→      </section>
+   208→   208→
+   209→   209→      {/* =========================== CATEGORIES ========================== */}
+   210→   210→      <section id="categories" className="bg-card border-y border-border/70 py-16 sm:py-24">
+   211→   211→        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   212→   212→          <SectionHead
+   213→   213→            kicker={t("landing.categories.kicker")}
+   214→   214→            title={t("landing.categories.title")}
+   215→   215→            sub={t("landing.categories.sub")}
+   216→   216→          />
+   217→   217→          <div className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+   218→   218→            {CATEGORIES.map((c) => (
+   219→   219→              <div
+   220→   220→                key={c.key}
+   221→   221→                className="group rounded-2xl border border-border/70 bg-background p-4 text-center transition-all hover:shadow-lift hover:-translate-y-0.5 hover:border-primary/40"
+   222→   222→              >
+   223→   223→                <div className="mx-auto w-fit transition-transform group-hover:scale-110">
+   224→   224→                  <CategoryIcon category={c.key} />
+   225→   225→                </div>
+   226→   226→                <p className="mt-3 font-bold text-[0.95rem]">{categoryName(c.key, lang)}</p>
+   227→   227→                <p className="mt-1 text-[0.72rem] leading-snug text-muted-foreground">{t(c.descKey)}</p>
+   228→   228→              </div>
+   229→   229→            ))}
+   230→   230→          </div>
+   231→   231→        </div>
+   232→   232→      </section>
+   233→   233→
+   234→   234→      {/* ============================= AGENT ============================= */}
+   235→   235→      <section id="agent" className="relative py-16 sm:py-24 overflow-hidden bg-night text-[#F4F1E8]">
+   236→   236→        <div className="absolute inset-0 pattern-ur-dark opacity-80" aria-hidden="true" />
+   237→   237→        <div
+   238→   238→          className="absolute -top-32 end-1/4 h-96 w-96 rounded-full blur-3xl"
+   239→   239→          style={{ background: "radial-gradient(closest-side, rgba(62,217,163,.18), transparent)" }}
+   240→   240→          aria-hidden="true"
+   241→   241→        />
+   242→   242→        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 grid lg:grid-cols-[.9fr_1.1fr] gap-12 items-center">
+   243→   243→          <div>
+   244→   244→            <Badge className="rounded-full bg-[#3ED9A3]/15 text-[#3ED9A3] border-[#3ED9A3]/30 gap-1.5 px-3.5 py-1.5 font-medium hover:bg-[#3ED9A3]/15">
+   245→   245→              <Zap className="h-3.5 w-3.5" />
+   246→   246→              Groq · gpt-oss-120b
+   247→   247→            </Badge>
+   248→   248→            <h2 className="font-display mt-4 text-4xl sm:text-5xl leading-[1.12]">
+   249→   249→              {t("landing.agent.title1")}{" "}
+   250→   250→              <span className="text-[#E8C867]">{t("landing.agent.titleBold")}</span>{" "}
+   251→   251→              {t("landing.agent.title2")}
+   252→   252→            </h2>
+   253→   253→            <p className="mt-4 text-white/70 leading-relaxed text-[1.02rem] max-w-md">
+   254→   254→              {t("landing.agent.desc1")}{" "}
+   255→   255→              <b dir="ltr" className="text-white/90">gpt-oss-120b</b>{" "}
+   256→   256→              {t("landing.agent.desc2")}
+   257→   257→            </p>
+   258→   258→            <ol className="mt-8 space-y-4">
+   259→   259→              {AGENT_STEPS.map((s, i) => (
+   260→   260→                <li key={s.titleKey} className="flex gap-4">
+   261→   261→                  <span className="font-display flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#3ED9A3]/15 text-[#3ED9A3] ring-1 ring-[#3ED9A3]/25 num">
+   262→   262→                    {i + 1}
+   263→   263→                  </span>
+   264→   264→                  <div>
+   265→   265→                    <p className="font-bold">{t(s.titleKey)}</p>
+   266→   266→                    <p className="text-sm text-white/60 leading-relaxed">{t(s.descKey)}</p>
+   267→   267→                  </div>
+   268→   268→                </li>
+   269→   269→              ))}
+   270→   270→            </ol>
+   271→   271→
+   272→   272→            {/* live platform stats */}
+   273→   273→            <div className="mt-8 grid grid-cols-2 gap-3">
+   274→   274→              {[
+   275→   275→                { labelKey: "landing.agent.statUsers", value: stats ? stats.users.toLocaleString("en-US") : "—" },
+   276→   276→                { labelKey: "landing.agent.statTxns", value: stats ? stats.transactions.toLocaleString("en-US") : "—" },
+   277→   277→                { labelKey: "landing.agent.statBills", value: stats ? stats.bills_paid.toLocaleString("en-US") : "—" },
+   278→   278→                { labelKey: "landing.agent.statVolume", value: stats ? fmtIQD(stats.volume_iqd, false, lang) : "—", iqd: true },
+   279→   279→              ].map((s) => (
+   280→   280→                <div
+   281→   281→                  key={s.labelKey}
+   282→   282→                  className="rounded-2xl border border-white/10 bg-white/[.04] backdrop-blur px-4 py-3"
+   283→   283→                >
+   284→   284→                  <p className="num text-lg sm:text-xl font-bold text-[#3ED9A3]">
+   285→   285→                    {s.value}
+   286→   286→                    {s.iqd && stats && (
+   287→   287→                      <span className="text-[0.62rem] font-medium text-white/50 ms-1">{t("landing.agent.iqdUnit")}</span>
+   288→   288→                    )}
+   289→   289→                  </p>
+   290→   290→                  <p className="text-[0.68rem] font-medium text-white/55 mt-0.5">{t(s.labelKey)}</p>
+   291→   291→                </div>
+   292→   292→              ))}
+   293→   293→            </div>
+   294→   294→          </div>
+   295→   295→          <AgentFlowCard />
+   296→   296→        </div>
+   297→   297→      </section>
+   298→   298→
+   299→   299→      {/* ========================== HOW IT WORKS ========================= */}
+   300→   300→      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24 w-full">
+   301→   301→        <SectionHead
+   302→   302→          kicker={t("landing.how.kicker")}
+   303→   303→          title={t("landing.how.title")}
+   304→   304→          sub={t("landing.how.sub")}
+   305→   305→        />
+   306→   306→        <div className="mt-10 grid md:grid-cols-3 gap-5">
+   307→   307→          {STEPS.map((s, i) => (
+   308→   308→            <div key={s.titleKey} className="relative rounded-2xl border border-border/70 bg-card p-6">
+   309→   309→              <span className="font-display absolute -top-4 start-5 rounded-full bg-primary text-primary-foreground h-9 min-w-9 px-3 inline-flex items-center justify-center num shadow-lift">
+   310→   310→                {i + 1}
+   311→   311→              </span>
+   312→   312→              <s.icon className="h-6 w-6 text-primary" />
+   313→   313→              <p className="mt-3 font-bold text-lg">{t(s.titleKey)}</p>
+   314→   314→              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{t(s.descKey)}</p>
+   315→   315→            </div>
+   316→   316→          ))}
+   317→   317→        </div>
+   318→   318→      </section>
+   319→   319→
+   320→   320→      {/* =========================== SECURITY =========================== */}
+   321→   321→      <section id="security" className="bg-secondary/40 border-t border-border/70 py-16 sm:py-24">
+   322→   322→        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   323→   323→          <SectionHead
+   324→   324→            kicker={t("landing.security.kicker")}
+   325→   325→            title={t("landing.security.title")}
+   326→   326→            sub={t("landing.security.sub")}
+   327→   327→          />
+   328→   328→          <div className="mt-10 grid sm:grid-cols-3 gap-5">
+   329→   329→            {SECURITY.map((s) => (
+   330→   330→              <div key={s.titleKey} className="rounded-2xl bg-card border border-border/70 p-6">
+   331→   331→                <s.icon className="h-6 w-6 text-gold-deep" />
+   332→   332→                <p className="mt-3 font-bold">{t(s.titleKey)}</p>
+   333→   333→                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{t(s.descKey)}</p>
+   334→   334→              </div>
+   335→   335→            ))}
+   336→   336→          </div>
+   337→   337→        </div>
+   338→   338→      </section>
+   339→   339→
+   340→   340→      {/* ============================== CTA ============================== */}
+   341→   341→      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-16 sm:pb-24 w-full">
+   342→   342→        <div className="relative overflow-hidden rounded-[2rem] bg-night text-[#F4F1E8] p-8 sm:p-14 grain">
+   343→   343→          <div className="absolute inset-0 pattern-ur-dark" aria-hidden="true" />
+   344→   344→          <div
+   345→   345→            className="absolute -bottom-24 -start-24 h-72 w-72 rounded-full blur-3xl"
+   346→   346→            style={{ background: "radial-gradient(closest-side, rgba(203,161,53,.25), transparent)" }}
+   347→   347→            aria-hidden="true"
+   348→   348→          />
+   349→   349→          <div className="relative max-w-2xl">
+   350→   350→            <UrSeal className="h-3 w-40 text-[#E8C867]" />
+   351→   351→            <h2 className="font-display mt-4 text-3xl sm:text-5xl leading-[1.15]">
+   352→   352→              {t("landing.cta.title1")}{" "}
+   353→   353→              <span className="text-gold-gradient">{t("landing.cta.title2")}</span>
+   354→   354→            </h2>
+   355→   355→            <p className="mt-4 text-white/70 leading-relaxed">
+   356→   356→              {t("landing.cta.desc")}
+   357→   357→            </p>
+   358→   358→            <div className="mt-7 flex flex-wrap gap-3">
+   359→   359→              <Button
+   360→   360→                size="lg"
+   361→   361→                onClick={onEnter}
+   362→   362→                className="rounded-full h-12 px-7 text-base font-bold bg-[#3ED9A3] text-[#0C2A21] hover:bg-[#5ce0b0] shadow-gold"
+   363→   363→              >
+   364→   364→                <CreditCard className="me-2 h-5 w-5" />
+   365→   365→                {t("landing.cta.openWallet")}
+   366→   366→              </Button>
+   367→   367→              <Button
+   368→   368→                size="lg"
+   369→   369→                variant="outline"
+   370→   370→                onClick={onDemo}
+   371→   371→                className="rounded-full h-12 px-6 text-base font-semibold border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+   372→   372→              >
+   373→   373→                {t("landing.cta.demo")}
+   374→   374→              </Button>
+   375→   375→            </div>
+   376→   376→          </div>
+   377→   377→        </div>
+   378→   378→      </section>
+   379→   379→
+   380→   380→      {/* ============================= FOOTER ============================ */}
+   381→   381→      <footer className="mt-auto border-t border-border/70 bg-card">
+   382→   382→        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
+   383→   383→          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+   384→   384→            <div>
+   385→   385→              <UrPayLogo />
+   386→   386→              <p className="mt-3 text-sm text-muted-foreground max-w-sm leading-relaxed">
+   387→   387→                {t("landing.footer.about")}
+   388→   388→              </p>
+   389→   389→            </div>
+   390→   390→            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+   391→   391→              <span className="inline-flex items-center gap-1.5">
+   392→   392→                <Landmark className="h-4 w-4 text-primary" /> FastAPI · SQLite
+   393→   393→              </span>
+   394→   394→              <span className="inline-flex items-center gap-1.5">
+   395→   395→                <Zap className="h-4 w-4 text-gold-deep" /> Groq gpt-oss-120b
+   396→   396→              </span>
+   397→   397→              <span className="inline-flex items-center gap-1.5" dir="ltr">
+   398→   398→                Made in Iraq 🇮🇶
+   399→   399→              </span>
+   400→   400→            </div>
+   401→   401→          </div>
+   402→   402→          <div className="mt-8 border-t border-border/60 pt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground/80">
+   403→   403→            <span>{t("landing.footer.copyright")}</span>
+   404→   404→            <div className="flex items-center gap-4">
+   405→   405→              <a
+   406→   406→                href="/UrPay-Slides.pptx"
+   407→   407→                download
+   408→   408→                className="inline-flex items-center gap-1.5 font-semibold text-gold-deep hover:text-gold-deep/80 transition-colors"
+   409→   409→              >
+   410→   410→                <FileDown className="h-3.5 w-3.5" />
+   411→   411→                {t("landing.footer.slides")}
+   412→   412→              </a>
+   413→   413→              <UrSeal className="h-2.5 w-28 text-primary/50" />
+   414→   414→            </div>
+   415→   415→          </div>
+   416→   416→        </div>
+   417→   417→      </footer>
+   418→   418→    </div>
+   419→   419→  );
+   420→   420→}
+   421→   421→
+   422→   422→/* ------------------------------------------------------------------ */
+   423→   423→
+   424→   424→function Stat({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
+   425→   425→  return (
+   426→   426→    <div>
+   427→   427→      <dt className={`num text-primary ${compact ? "text-lg sm:text-xl" : "text-2xl sm:text-3xl"}`}>
+   428→   428→        {value}
+   429→   429→      </dt>
+   430→   430→      <dd className="mt-1 text-[0.78rem] font-medium text-muted-foreground">{label}</dd>
+   431→   431→    </div>
+   432→   432→  );
+   433→   433→}
+   434→   434→
+   435→   435→function SectionHead({ kicker, title, sub }: { kicker: string; title: string; sub: string }) {
+   436→   436→  return (
+   437→   437→    <div className="max-w-2xl">
+   438→   438→      <p className="font-semibold text-primary text-sm tracking-wide">{kicker}</p>
+   439→   439→      <h2 className="font-display mt-2 text-3xl sm:text-4xl leading-[1.18] text-ink">{title}</h2>
+   440→   440→      <p className="mt-3 text-muted-foreground leading-relaxed">{sub}</p>
+   441→   441→    </div>
+   442→   442→  );
+   443→   443→}
+   444→   444→
+   445→   445→function FeatureCard({
+   446→   446→  icon: Icon,
+   447→   447→  title,
+   448→   448→  desc,
+   449→   449→}: {
+   450→   450→  icon: React.ComponentType<{ className?: string }>;
+   451→   451→  title: string;
+   452→   452→  desc: string;
+   453→   453→}) {
+   454→   454→  return (
+   455→   455→    <div className="group rounded-2xl border border-border/70 bg-card p-6 transition-all hover:shadow-lift hover:-translate-y-1 hover:border-primary/35">
+   456→   456→      <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15 transition-transform group-hover:scale-110">
+   457→   457→        <Icon className="h-5 w-5" />
+   458→   458→      </span>
+   459→   459→      <p className="mt-4 font-bold">{title}</p>
+   460→   460→      <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{desc}</p>
+   461→   461→    </div>
+   462→   462→  );
+   463→   463→}
+   464→   464→
+   465→   465→/* ------------------------- hero phone demo -------------------------- */
+   466→   466→
+   467→   467→const CHAT_SCRIPT: { role: "user" | "assistant"; textKey: string; receipt?: boolean }[] = [
+   468→   468→  { role: "user", textKey: "landing.hero.chat.q1" },
+   469→   469→  { role: "assistant", textKey: "landing.hero.chat.a1" },
+   470→   470→  { role: "user", textKey: "landing.hero.chat.q2" },
+   471→   471→  {
+   472→   472→    role: "assistant",
+   473→   473→    textKey: "landing.hero.chat.a2",
+   474→   474→  },
+   475→   475→  { role: "user", textKey: "landing.hero.chat.q3" },
+   476→   476→  {
+   477→   477→    role: "assistant",
+   478→   478→    textKey: "landing.hero.chat.a3",
+   479→   479→    receipt: true,
+   480→   480→  },
+   481→   481→];
+   482→   482→
+   483→   483→function AgentPhoneDemo() {
+   484→   484→  const { t } = useT();
+   485→   485→  const [step, setStep] = useState(0);
+   486→   486→  const [typing, setTyping] = useState(false);
+   487→   487→
+   488→   488→  useEffect(() => {
+   489→   489→    const timer = setTimeout(() => {
+   490→   490→      const next = (step + 1) % (CHAT_SCRIPT.length + 2);
+   491→   491→      setTyping(next <= CHAT_SCRIPT.length && CHAT_SCRIPT[next - 1]?.role === "assistant");
+   492→   492→      setStep(next);
+   493→   493→    }, step === 0 ? 1400 : 2600);
+   494→   494→    return () => clearTimeout(timer);
+   495→   495→  }, [step]);
+   496→   496→
+   497→   497→  const visible = CHAT_SCRIPT.slice(0, Math.min(step, CHAT_SCRIPT.length));
+   498→   498→
+   499→   499→  return (
+   500→   500→    <div className="relative mx-auto w-full max-w-[340px]">
+   501→   501→      {/* floating cards */}
+   502→   502→      <motion.div
+   503→   503→        initial={{ opacity: 0, y: 12 }}
+   504→   504→        animate={{ opacity: 1, y: 0 }}
+   505→   505→        transition={{ delay: 0.6 }}
+   506→   506→        className="absolute -top-6 -start-10 sm:-start-16 z-20 animate-float"
+   507→   507→      >
+   508→   508→        <div className="rounded-2xl border border-border/60 bg-card/95 backdrop-blur px-4 py-3 shadow-lift-lg">
+   509→   509→          <div className="flex items-center gap-2.5">
+   510→   510→            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/25">
+   511→   511→              <Check className="h-4 w-4" />
+   512→   512→            </span>
+   513→   513→            <div>
+   514→   514→              <p className="text-xs font-bold">{t("landing.hero.card1Title")}</p>
+   515→   515→              <p className="num text-[0.7rem] text-muted-foreground">{t("landing.hero.card1Amount")}</p>
+   516→   516→            </div>
+   517→   517→          </div>
+   518→   518→        </div>
+   519→   519→      </motion.div>
+   520→   520→
+   521→   521→      <motion.div
+   522→   522→        initial={{ opacity: 0, y: 12 }}
+   523→   523→        animate={{ opacity: 1, y: 0 }}
+   524→   524→        transition={{ delay: 1 }}
+   525→   525→        className="absolute -bottom-8 -end-6 sm:-end-12 z-20 animate-float"
+   526→   526→        style={{ animationDelay: "1.2s" }}
+   527→   527→      >
+   528→   528→        <div className="rounded-2xl border border-gold/40 bg-card/95 backdrop-blur px-4 py-3 shadow-lift-lg">
+   529→   529→          <p className="text-[0.68rem] font-medium text-muted-foreground">{t("landing.hero.card2Label")}</p>
+   530→   530→          <p className="num text-lg text-primary">{t("landing.hero.card2Value")}</p>
+   531→   531→        </div>
+   532→   532→      </motion.div>
+   533→   533→
+   534→   534→      {/* phone */}
+   535→   535→      <div className="relative rounded-[2.6rem] border border-black/10 bg-night p-2.5 shadow-lift-lg">
+   536→   536→        <div className="rounded-[2.1rem] overflow-hidden bg-[#F4F1E8] h-[560px] flex flex-col">
+   537→   537→          {/* status bar */}
+   538→   538→          <div className="bg-night text-white/80 px-5 pt-3 pb-4 flex items-center justify-between text-[0.65rem]" dir="ltr">
+   539→   539→            <span className="num">9:41</span>
+   540→   540→            <span className="h-4 w-16 rounded-full bg-black/60 mx-auto" />
+   541→   541→            <span className="flex gap-1 items-center">
+   542→   542→              <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
+   543→   543→              <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
+   544→   544→              <span className="h-1.5 w-1.5 rounded-full bg-white/30" />
+   545→   545→            </span>
+   546→   546→          </div>
+   547→   547→          {/* chat header */}
+   548→   548→          <div className="bg-night px-4 pb-3.5 flex items-center gap-3">
+   549→   549→            <UrPayMark className="h-9 w-9" />
+   550→   550→            <div className="flex-1 min-w-0">
+   551→   551→              <p className="text-white font-bold text-sm truncate">{t("landing.hero.chatHeader")}</p>
+   552→   552→              <p className="text-white/50 text-[0.68rem] flex items-center gap-1.5">
+   553→   553→                <span className="h-1.5 w-1.5 rounded-full bg-[#3ED9A3] animate-pulse-dot" />
+   554→   554→                {t("landing.hero.chatStatus")}
+   555→   555→              </p>
+   556→   556→            </div>
+   557→   557→            <MessageCircleHeart className="h-4 w-4 text-white/40" />
+   558→   558→          </div>
+   559→   559→          {/* messages */}
+   560→   560→          <div className="flex-1 overflow-hidden px-3.5 py-4 space-y-2.5 scrollbar-slim">
+   561→   561→            <AnimatePresence initial={false}>
+   562→   562→              {visible.map((m, i) => (
+   563→   563→                <motion.div
+   564→   564→                  key={i}
+   565→   565→                  initial={{ opacity: 0, y: 10, scale: 0.97 }}
+   566→   566→                  animate={{ opacity: 1, y: 0, scale: 1 }}
+   567→   567→                  transition={{ duration: 0.3 }}
+   568→   568→                  className={`flex ${m.role === "user" ? "justify-start" : "justify-end"}`}
+   569→   569→                >
+   570→   570→                  {m.receipt ? (
+   571→   571→                    <div className="w-[85%] rounded-2xl border border-emerald-200 bg-card p-3 shadow-lift">
+   572→   572→                      <div className="flex items-center justify-between">
+   573→   573→                        <p className="text-[0.7rem] font-bold text-emerald-700">{t("landing.hero.receipt")}</p>
+   574→   574→                        <Badge className="rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[0.6rem] px-1.5">
+   575→   575→                          {t("landing.hero.paid")}
+   576→   576→                        </Badge>
+   577→   577→                      </div>
+   578→   578→                      <p className="mt-1.5 text-[0.72rem] font-semibold leading-snug">
+   579→   579→                        {t("landing.hero.receiptBiller")}
+   580→   580→                      </p>
+   581→   581→                      <p className="num mt-1 text-primary text-base">{t("landing.hero.receiptAmount")}</p>
+   582→   582→                      <div className="mt-2 border-t border-dashed border-border pt-1.5 flex justify-between text-[0.62rem] text-muted-foreground">
+   583→   583→                        <span dir="ltr">UR-8XK2F3</span>
+   584→   584→                        <span>{t("landing.hero.receiptDate")}</span>
+   585→   585→                      </div>
+   586→   586→                    </div>
+   587→   587→                  ) : (
+   588→   588→                    <div
+   589→   589→                      className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-[0.78rem] leading-relaxed whitespace-pre-line ${
+   590→   590→                        m.role === "user"
+   591→   591→                          ? "bg-primary text-primary-foreground rounded-bl-md"
+   592→   592→                          : "bg-card border border-border/60 shadow-sm rounded-br-md"
+   593→   593→                      }`}
+   594→   594→                    >
+   595→   595→                      {t(m.textKey)}
+   596→   596→                    </div>
+   597→   597→                  )}
+   598→   598→                </motion.div>
+   599→   599→              ))}
+   600→   600→            </AnimatePresence>
+   601→   601→            {typing && (
+   602→   602→              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
+   603→   603→                <div className="bg-card border border-border/60 rounded-2xl rounded-br-md px-4 py-3 flex gap-1.5">
+   604→   604→                  {[0, 1, 2].map((d) => (
+   605→   605→                    <span
+   606→   606→                      key={d}
+   607→   607→                      className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-pulse-dot"
+   608→   608→                      style={{ animationDelay: `${d * 0.2}s` }}
+   609→   609→                    />
+   610→   610→                  ))}
+   611→   611→                </div>
+   612→   612→              </motion.div>
+   613→   613→            )}
+   614→   614→          </div>
+   615→   615→          {/* input */}
+   616→   616→          <div className="px-3.5 pb-4">
+   617→   617→            <div className="rounded-full border border-border/60 bg-card px-4 py-2.5 flex items-center gap-2">
+   618→   618→              <span className="flex-1 text-[0.75rem] text-muted-foreground/70">
+   619→   619→                {t("landing.hero.placeholder")}
+   620→   620→              </span>
+   621→   621→              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+   622→   622→                <ArrowLeft className="h-3.5 w-3.5 rtl:-scale-x-100" />
+   623→   623→              </span>
+   624→   624→            </div>
+   625→   625→          </div>
+   626→   626→        </div>
+   627→   627→      </div>
+   628→   628→    </div>
+   629→   629→  );
+   630→   630→}
+   631→   631→
+   632→   632→/* ------------------------- agent flow card -------------------------- */
+   633→   633→
+   634→   634→function AgentFlowCard() {
+   635→   635→  const { t } = useT();
+   636→   636→  return (
+   637→   637→    <div className="rounded-[1.75rem] border border-white/10 bg-white/[.04] backdrop-blur p-5 sm:p-6">
+   638→   638→      <p className="text-xs font-bold text-white/50 tracking-wide mb-4" dir="ltr">
+   639→   639→        POST /api/agent/chat → tools
+   640→   640→      </p>
+   641→   641→      <div className="space-y-2.5 font-mono text-[0.72rem] leading-relaxed" dir="ltr">
+   642→   642→        {[
+   643→   643→          { c: "user", text: t("landing.agent.flow.user") },
+   644→   644→          { c: "tool", text: "list_bills() → 1 unpaid (45,000 IQD)" },
+   645→   645→          { c: "tool", text: "pay_bill(bill_id=4, pin=••••)" },
+   646→   646→          { c: "ok", text: "✓ receipt UR-YQ9KY3RK · balance 1,705,000" },
+   647→   647→          { c: "agent", text: t("landing.agent.flow.agent") },
+   648→   648→        ].map((l, i) => (
+   649→   649→          <motion.div
+   650→   650→            key={i}
+   651→   651→            initial={{ opacity: 0, x: -14 }}
+   652→   652→            whileInView={{ opacity: 1, x: 0 }}
+   653→   653→            viewport={{ once: true }}
+   654→   654→            transition={{ delay: i * 0.14 }}
+   655→   655→            className={`rounded-xl px-3.5 py-2.5 border ${
+   656→   656→              l.c === "user"
+   657→   657→                ? "bg-[#3ED9A3]/10 border-[#3ED9A3]/25 text-[#9be8c8]"
+   658→   658→                : l.c === "tool"
+   659→   659→                  ? "bg-white/[.05] border-white/10 text-white/75"
+   660→   660→                  : l.c === "ok"
+   661→   661→                    ? "bg-[#E8C867]/10 border-[#E8C867]/30 text-[#E8C867]"
+   662→   662→                    : "bg-white/[.08] border-white/15 text-white"
+   663→   663→            }`}
+   664→   664→          >
+   665→   665→            {l.text}
+   666→   666→          </motion.div>
+   667→   667→        ))}
+   668→   668→      </div>
+   669→   669→      <p className="mt-4 text-[0.7rem] text-white/45 leading-relaxed">
+   670→   670→        {t("landing.agent.flow.hint")}
+   671→   671→      </p>
+   672→   672→    </div>
+   673→   673→  );
+   674→   674→}
+   675→   675→
+   676→   676→/* ----------------------------- data -------------------------------- */
+   677→   677→
+   678→   678→const BILLERS_ROW = [
+   679→   679→  { name: "زين العراق", icon: Smartphone },
+   680→   680→  { name: "آسياسيل", icon: Smartphone },
+   681→   681→  { name: "كورك", icon: Smartphone },
+   682→   682→  { name: "وزارة الكهرباء", icon: Zap },
+   683→   683→  { name: "كهرباء أربيل", icon: Zap },
+   684→   684→  { name: "تارين", icon: Wifi },
+   685→   685→  { name: "هلال نت", icon: Wifi },
+   686→   686→  { name: "إيرثلينك", icon: Wifi },
+   687→   687→  { name: "هيلي", icon: Wifi },
+   688→   688→  { name: "نور سات", icon: Wifi },
+   689→   689→  { name: "ماء بغداد", icon: Droplets },
+   690→   690→  { name: "ماء البصرة", icon: Droplets },
+   691→   691→  { name: "جامعة بغداد", icon: GraduationCap },
+   692→   692→  { name: "جامعة الموصل", icon: GraduationCap },
+   693→   693→  { name: "المرور العراقي", icon: CarFront },
+   694→   694→  { name: "مرور البصرة", icon: CarFront },
+   695→   695→];
+   696→   696→
+   697→   697→const CATEGORIES = [
+   698→   698→  { key: "electricity", descKey: "landing.categories.electricity.desc" },
+   699→   699→  { key: "water", descKey: "landing.categories.water.desc" },
+   700→   700→  { key: "internet", descKey: "landing.categories.internet.desc" },
+   701→   701→  { key: "mobile", descKey: "landing.categories.mobile.desc" },
+   702→   702→  { key: "education", descKey: "landing.categories.education.desc" },
+   703→   703→  { key: "traffic", descKey: "landing.categories.traffic.desc" },
+   704→   704→];
+   705→   705→
+   706→   706→const FEATURES = [
+   707→   707→  {
+   708→   708→    icon: MessageCircleHeart,
+   709→   709→    titleKey: "landing.features.f1.title",
+   710→   710→    descKey: "landing.features.f1.desc",
+   711→   711→  },
+   712→   712→  {
+   713→   713→    icon: ShieldCheck,
+   714→   714→    titleKey: "landing.features.f2.title",
+   715→   715→    descKey: "landing.features.f2.desc",
+   716→   716→  },
+   717→   717→  {
+   718→   718→    icon: Banknote,
+   719→   719→    titleKey: "landing.features.f3.title",
+   720→   720→    descKey: "landing.features.f3.desc",
+   721→   721→  },
+   722→   722→  {
+   723→   723→    icon: Landmark,
+   724→   724→    titleKey: "landing.features.f4.title",
+   725→   725→    descKey: "landing.features.f4.desc",
+   726→   726→  },
+   727→   727→  {
+   728→   728→    icon: BadgeCheck,
+   729→   729→    titleKey: "landing.features.f5.title",
+   730→   730→    descKey: "landing.features.f5.desc",
+   731→   731→  },
+   732→   732→  {
+   733→   733→    icon: Zap,
+   734→   734→    titleKey: "landing.features.f6.title",
+   735→   735→    descKey: "landing.features.f6.desc",
+   736→   736→  },
+   737→   737→];
+   738→   738→
+   739→   739→const AGENT_STEPS = [
+   740→   740→  { titleKey: "landing.agent.s1.title", descKey: "landing.agent.s1.desc" },
+   741→   741→  { titleKey: "landing.agent.s2.title", descKey: "landing.agent.s2.desc" },
+   742→   742→  { titleKey: "landing.agent.s3.title", descKey: "landing.agent.s3.desc" },
+   743→   743→  { titleKey: "landing.agent.s4.title", descKey: "landing.agent.s4.desc" },
+   744→   744→];
+   745→   745→
+   746→   746→const STEPS = [
+   747→   747→  {
+   748→   748→    icon: Fingerprint,
+   749→   749→    titleKey: "landing.how.s1.title",
+   750→   750→    descKey: "landing.how.s1.desc",
+   751→   751→  },
+   752→   752→  {
+   753→   753→    icon: CreditCard,
+   754→   754→    titleKey: "landing.how.s2.title",
+   755→   755→    descKey: "landing.how.s2.desc",
+   756→   756→  },
+   757→   757→  {
+   758→   758→    icon: Check,
+   759→   759→    titleKey: "landing.how.s3.title",
+   760→   760→    descKey: "landing.how.s3.desc",
+   761→   761→  },
+   762→   762→];
+   763→   763→
+   764→   764→const SECURITY = [
+   765→   765→  {
+   766→   766→    icon: Lock,
+   767→   767→    titleKey: "landing.security.s1.title",
+   768→   768→    descKey: "landing.security.s1.desc",
+   769→   769→  },
+   770→   770→  {
+   771→   771→    icon: ShieldCheck,
+   772→   772→    titleKey: "landing.security.s2.title",
+   773→   773→    descKey: "landing.security.s2.desc",
+   774→   774→  },
+   775→   775→  {
+   776→   776→    icon: Fingerprint,
+   777→   777→    titleKey: "landing.security.s3.title",
+   778→   778→    descKey: "landing.security.s3.desc",
+   779→   779→  },
+   780→   780→];
+   781→   781→

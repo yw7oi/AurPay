@@ -18,14 +18,11 @@ export const ar: Record<string, string> = {
   "shell.logoutBye": "نشتاقلك! ترجع بأي وقت.",
   "shell.sidebarNav": "قائمة اللوحة",
   "shell.bottomNav": "التنقل السفلي",
-  "shell.promo.title": "خلّي أور يدفع فواتيرك",
-  "shell.promo.desc": "محادثة وحدة تكفي — يفهم، يتحقق، يطلب PIN، وينفّذ.",
-  "shell.promo.cta": "افتح المحادثة",
 
   /* agent chat */
   "agent.title": "أور · وكيل الدفع الذكي",
   "agent.providerLocal": "المحرك المحلي",
-  "agent.online": "متصل — Groq gpt-oss-120b",
+  "agent.online": "متصل — وكيل Ur الذكي",
   "agent.yourBalance": "رصيدك: {n} د.ع",
   "agent.copyAria": "نسخ المحادثة",
   "agent.copy": "نسخ",
@@ -102,11 +99,6 @@ export const ar: Record<string, string> = {
   "profile.themeLight": "نهاري",
   "profile.themeDark": "ليلي",
   "profile.detailsTitle": "بيانات التسجيل",
-  "profile.securityTitle": "أمان حسابك",
-  "profile.securityPin": "الـ PIN مخزّن PBKDF2-SHA256 مع ملح فردي — الدفع يتطلبه دائمًا.",
-  "profile.securityJwt": "جلساتك موقّعة JWT وتنتهي تلقائيًا بعد ٧ أيام.",
-  "profile.techTitle": "تقنية المنصة",
-  "profile.hackathonNote": "نسخة هاكاثون — البيانات تجريبية بالكامل ولا تمثل أموالًا حقيقية.",
   "profile.tryAgent": "جرّب المساعد أور",
 
   /* notifications bell */
@@ -122,7 +114,7 @@ export const ar: Record<string, string> = {
   /* shared parts — PinDialog / ReceiptCard / BillRow / TxnRow */
   "parts.confirm": "تأكيد العملية",
   "parts.unexpectedError": "صار خطأ غير متوقع — حاول مرة ثانية",
-  "parts.pinHint": "أدخل رمزك السري (4–6 أرقام) — نفس PIN التسجيل",
+  "parts.pinHint": "أدخل رمزك السري (6 أرقام) — نفس PIN التسجيل",
   "parts.receiptSuccess": "عملية ناجحة",
   "parts.receipt": "إيصال",
   "parts.reference": "الرقم المرجعي",
@@ -189,14 +181,11 @@ export const en: Record<string, string> = {
   "shell.logoutBye": "We'll miss you! Come back anytime.",
   "shell.sidebarNav": "Dashboard menu",
   "shell.bottomNav": "Bottom navigation",
-  "shell.promo.title": "Let Ur pay your bills",
-  "shell.promo.desc": "One conversation is all it takes — he understands, verifies, asks for your PIN, and executes.",
-  "shell.promo.cta": "Open Chat",
 
   /* agent chat */
   "agent.title": "Ur · your payment agent",
   "agent.providerLocal": "Local engine",
-  "agent.online": "Online — Groq gpt-oss-120b",
+  "agent.online": "Online — Ur Smart Agent",
   "agent.yourBalance": "Your balance: {n} IQD",
   "agent.copyAria": "Copy conversation",
   "agent.copy": "Copy",
@@ -273,11 +262,6 @@ export const en: Record<string, string> = {
   "profile.themeLight": "Light",
   "profile.themeDark": "Dark",
   "profile.detailsTitle": "Registration details",
-  "profile.securityTitle": "Your account security",
-  "profile.securityPin": "Your PIN is stored as PBKDF2-SHA256 with an individual salt — payments always require it.",
-  "profile.securityJwt": "Your sessions are JWT-signed and expire automatically after 7 days.",
-  "profile.techTitle": "Platform tech",
-  "profile.hackathonNote": "Hackathon build — all data is demo only and does not represent real money.",
   "profile.tryAgent": "Try Agent Ur",
 
   /* notifications bell */
@@ -293,7 +277,7 @@ export const en: Record<string, string> = {
   /* shared parts — PinDialog / ReceiptCard / BillRow / TxnRow */
   "parts.confirm": "Confirm",
   "parts.unexpectedError": "An unexpected error occurred — please try again",
-  "parts.pinHint": "Enter your PIN (4–6 digits) — the same one you signed up with",
+  "parts.pinHint": "Enter your PIN (6 digits) — the same one you signed up with",
   "parts.receiptSuccess": "Operation successful",
   "parts.receipt": "Receipt",
   "parts.reference": "Reference number",

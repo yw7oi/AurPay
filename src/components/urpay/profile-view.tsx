@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  BadgeCheck, CalendarDays, CreditCard, Fingerprint, KeyRound, Landmark,
-  Loader2, LogOut, MapPin, Moon, Phone, QrCode, ShieldCheck, Sun, User, Languages,
+  BadgeCheck, CalendarDays, CreditCard, KeyRound,
+  Loader2, LogOut, MapPin, Moon, Phone, QrCode, Sun, User, Languages,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,8 +43,8 @@ function ChangePinDialog({
   const [error, setError] = useState<string | null>(null);
 
   const valid =
-    /^\d{4,6}$/.test(currentPin) &&
-    /^\d{4,6}$/.test(newPin) &&
+    /^\d{6}$/.test(currentPin) &&
+    /^\d{6}$/.test(newPin) &&
     newPin === confirmPin;
 
   async function submit(e: React.FormEvent) {
@@ -300,38 +300,6 @@ export function ProfileView({ setTab }: { setTab: (t: DashTab) => void }) {
             </div>
           ))}
         </dl>
-      </section>
-
-      {/* security + meta */}
-      <section className="grid sm:grid-cols-2 gap-4">
-        <div className="rounded-3xl border border-gold/35 bg-gold/[.06] p-5">
-          <p className="font-bold flex items-center gap-2 text-sm">
-            <ShieldCheck className="h-4 w-4 text-gold-deep" />
-            {t("profile.securityTitle")}
-          </p>
-          <ul className="mt-3 space-y-2 text-xs text-muted-foreground leading-relaxed">
-            <li className="flex gap-2">
-              <Fingerprint className="h-3.5 w-3.5 text-gold-deep shrink-0 mt-0.5" />
-              {t("profile.securityPin")}
-            </li>
-            <li className="flex gap-2">
-              <Landmark className="h-3.5 w-3.5 text-gold-deep shrink-0 mt-0.5" />
-              {t("profile.securityJwt")}
-            </li>
-          </ul>
-        </div>
-        <div className="rounded-3xl border border-border/70 bg-card p-5">
-          <p className="font-bold text-sm">{t("profile.techTitle")}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Badge variant="outline" className="rounded-lg font-semibold">FastAPI · SQLite</Badge>
-            <Badge variant="outline" className="rounded-lg font-semibold">Groq gpt-oss-120b</Badge>
-            <Badge variant="outline" className="rounded-lg font-semibold">Next.js 16</Badge>
-            <Badge variant="outline" className="rounded-lg font-semibold">Inter Tight + Plex Arabic</Badge>
-          </div>
-          <p className="mt-3 text-[0.68rem] text-muted-foreground/80 leading-relaxed">
-            {t("profile.hackathonNote")}
-          </p>
-        </div>
       </section>
 
       <div className="flex flex-wrap gap-3">

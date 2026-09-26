@@ -153,14 +153,14 @@ const SUGGESTIONS = [
 
 /* provider badge labels — "local" is resolved via t("agent.providerLocal") */
 const PROVIDER_LABEL: Record<string, string> = {
-  groq: "Groq · gpt-oss-120b",
-  zai: "Z-AI Bridge",
+  groq: "وكيل Ur الذكي",
+  zai: "وكيل Ur الذكي",
 };
 
 /* mask PIN-like digit runs in the user's own live echo (server already masks
    stored history — this keeps the on-screen bubble consistent + shoulder-surf
    safe). Mirrors the backend PIN_MASK_RE behavior. */
-const PIN_ECHO_RE = /\b(?:pin|بصورة|رمز)?\s*[:=]?\s*(\d{4,6})\b/gi;
+const PIN_ECHO_RE = /\b(?:pin|بصورة|رمز)?\s*[:=]?\s*(\d{6})\b/gi;
 function maskPin(text: string): string {
   return text.replace(PIN_ECHO_RE, (m, digits: string, offset: number) => {
     /* don't mask 16-digit card numbers or amounts attached to الف/ألف */

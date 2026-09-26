@@ -180,7 +180,7 @@ function LoginForm({ demoCard }: { demoCard?: { card_number: string; pin: string
           dir="ltr"
           inputMode="numeric"
           type="password"
-          placeholder="••••"
+          placeholder="••••••"
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
           className="num text-left tracking-[0.3em]"
@@ -227,7 +227,7 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  const pinMatch = form.pin.length >= 4 && form.pin === form.pin2;
+  const pinMatch = form.pin.length === 6 && form.pin === form.pin2;
   const valid = useMemo(
     () =>
       form.first_name.trim().length >= 2 &&
@@ -374,7 +374,7 @@ function RegisterForm() {
             dir="ltr"
             inputMode="numeric"
             type="password"
-            placeholder="••••"
+            placeholder="••••••"
             value={form.pin}
             onChange={(e) => set("pin")(e.target.value.replace(/\D/g, "").slice(0, 6))}
             className="num text-left tracking-[0.3em]"
@@ -386,7 +386,7 @@ function RegisterForm() {
             dir="ltr"
             inputMode="numeric"
             type="password"
-            placeholder="••••"
+            placeholder="••••••"
             value={form.pin2}
             onChange={(e) => set("pin2")(e.target.value.replace(/\D/g, "").slice(0, 6))}
             className={`num text-left tracking-[0.3em] ${

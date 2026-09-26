@@ -88,9 +88,9 @@ echo    Backend  :  http://localhost:8000/docs   (FastAPI docs)
 echo.
 echo    Demo login:
 echo      Card : 4539 1234 1234 1234
-echo      PIN  : 1234
+echo      PIN  : 123456
 echo.
-echo    (any of the 100 seeded users works with PIN 1234)
+echo    (any of the 100 seeded users works with PIN 123456)
 echo.
 echo    To enable the real Groq agent, put your key in the .env file:
 echo       GROQ_API_KEY=gsk_...

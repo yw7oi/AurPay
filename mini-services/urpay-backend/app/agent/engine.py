@@ -417,7 +417,7 @@ CATEGORY_KEYWORDS = {
     "traffic": ["مرور", "مخالفة", "غرامة", "traffic", "fine"],
 }
 PAY_WORDS = ["ادفع", "دفع", "سدد", "سداد", "اقطع", "pay", "settle"]
-PIN_RE = re.compile(r"(?:pin|بصورة|الرمز|رمز)?\s*[:=]?\s*(\d{4,6})\b", re.IGNORECASE)
+PIN_RE = re.compile(r"(?:pin|بصورة|الرمز|رمز)?\s*[:=]?\s*(\d{6})\b", re.IGNORECASE)
 CARD_RE = re.compile(r"\b(\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})\b")
 AMOUNT_RE = re.compile(r"(\d[\d\s.,]*)\s*(?:الف|ألف|الاف|آلاف|k|دينار|د\.ع|iqd)?", re.IGNORECASE)
 
@@ -454,9 +454,9 @@ async def local_engine(session: AsyncSession, user: User,
         if re.search(r"^(نعم|اي نعم|اكيد|أكيد|تم|يو|yes|y)\b", low):
             return (f"تمام! أكتب لي رمز الـ PIN حتى أنفّذ الدفع "
                     f"لفاتورة رقم {pending['bill_id']}.")
-        if pin_match and re.fullmatch(r"\d{4,6}", msg.replace("pin", "").strip()):
+        if pin_match and re.fullmatch(r"\d{6}", msg.replace("pin", "").strip()):
             pin = pin_match.group(1)
-        elif re.fullmatch(r"[\s]*\d{4,6}[\s]*", msg):
+        elif re.fullmatch(r"[\s]*\d{6}[\s]*", msg):
             pin = msg.strip()
         else:
             pin = None
@@ -472,7 +472,7 @@ async def local_engine(session: AsyncSession, user: User,
                         f"رصيدك الآن: {r['balance_after']:,} د.ع")
             err = result.get("error")
             if err == "pin":
-                return "رمز الـ PIN غلط — حاول مرة ثانية (تذكر: 4 إلى 6 أرقام)."
+                return "رمز الـ PIN غلط — حاول مرة ثانية (تذكر: الرمز 6 أرقام)."
             if err == "insufficient":
                 return (f"الرصيد ما يكفي — رصيدك {user.balance:,} د.ع "
                         f"والمبلغ {result.get('amount', 0):,} د.ع. شحن رصيدك أولًا.")
@@ -548,11 +548,11 @@ async def local_engine(session: AsyncSession, user: User,
                         "تقدر توفّر له من المحفظة: «وفّر 50 الف لهدفي وبعدها PIN».")
             return f"ما صار إنشاء الهدف — {result.get('error', 'جرّب مرة ثانية')}"
 
-        # deposit: «وفّر 50 الف لهدف الحج وبعدها PIN 1234»
+        # deposit: «وفّر 50 الف لهدف الحج وبعدها PIN 123456»
         if re.search(r"وفر|وفّر|خلي|اضف|أضف|deposit|save", low):
             pin_m = PIN_RE.search(msg)
             if not pin_m:
-                return "التوفير يحتاج رمز الـ PIN — أكتب: «وفّر 50 الف لهدف الحج وبعدها PIN 1234»."
+                return "التوفير يحتاج رمز الـ PIN — أكتب: «وفّر 50 الف لهدف الحج وبعدها PIN 123456»."
             if goals["count"] == 0:
                 return "ما عندك أهداف بعد — سوّي واحد أولًا: «سوّي لي هدف حج بمليون»."
             amt = _parse_amount(msg) or 0
@@ -627,7 +627,7 @@ async def local_engine(session: AsyncSession, user: User,
                                 for b in unpaid["bills"][:8]))
 
         pin_match = PIN_RE.search(low)
-        if pin_match and not re.fullmatch(r"\d{4,6}", msg.strip() or "x"):
+        if pin_match and not re.fullmatch(r"\d{6}", msg.strip() or "x"):
             pin = pin_match.group(1)
             await _emit("pay_bill")
             result = await T.pay_bill(session, user, bill_id, pin)

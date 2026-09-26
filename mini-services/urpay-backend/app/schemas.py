@@ -8,7 +8,7 @@ from .constants import CITIES
 
 ARABIC_NAME_RE = re.compile(r"^[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s'’-]+$")
 CARD_RE = re.compile(r"^\d{16}$")
-PIN_RE = re.compile(r"^\d{4,6}$")
+PIN_RE = re.compile(r"^\d{6}$")
 
 
 class RegisterRequest(BaseModel):
@@ -48,7 +48,7 @@ class RegisterRequest(BaseModel):
     @classmethod
     def valid_pin(cls, v: str) -> str:
         if not PIN_RE.match(v):
-            raise ValueError("الرمز السري PIN يجب أن يكون من 4 إلى 6 أرقام")
+            raise ValueError("الرمز السري PIN يجب أن يكون 6 أرقام")
         return v
 
 

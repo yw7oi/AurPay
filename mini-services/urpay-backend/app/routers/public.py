@@ -37,7 +37,7 @@ async def stats(session: AsyncSession = Depends(get_session)):
         "demo": {
             "full_name": demo.full_name,
             "card_number": demo.card_number,
-            "pin": "1234",
+            "pin": "123456",
             "city": demo.city,
         } if demo else None,
     }

@@ -145,27 +145,6 @@ export function Dashboard({
               </button>
             ))}
           </nav>
-          <div className="mt-4 rounded-3xl bg-night text-[#F4F1E8] p-5 relative overflow-hidden grain">
-            <div className="absolute inset-0 pattern-ur-dark opacity-70" aria-hidden="true" />
-            <div className="relative">
-              <Badge className="rounded-full bg-[#3ED9A3]/15 text-[#3ED9A3] border-[#3ED9A3]/30 text-[0.65rem] hover:bg-[#3ED9A3]/15">
-                Groq · gpt-oss-120b
-              </Badge>
-              <p className="mt-3 font-bold text-sm leading-snug">
-                {t("shell.promo.title")}
-              </p>
-              <p className="mt-1 text-[0.7rem] text-white/60 leading-relaxed">
-                {t("shell.promo.desc")}
-              </p>
-              <Button
-                size="sm"
-                onClick={() => setTab("agent")}
-                className="mt-3.5 rounded-xl bg-[#3ED9A3] text-[#0C2A21] hover:bg-[#5ce0b0] font-bold"
-              >
-                {t("shell.promo.cta")}
-              </Button>
-            </div>
-          </div>
         </aside>
 
         {/* main */}

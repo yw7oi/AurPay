@@ -29,7 +29,7 @@ export const ar: Record<string, string> = {
   "overview.overdueAlertStart": "عندك",
   "overview.overdueAlertEnd": "فاتورة متأخرة — خلّي أور يخلصها قبل لا تتراكم.",
   "overview.showBillsBtn": "اعرضها",
-  "overview.upcomingBillsTitle": "فواتير بتستنى",
+  "overview.upcomingBillsTitle": "فواتير بانتظار الدفع",
   "overview.billsCountSuffix": "فواتير بمجموع",
   "overview.viewAllBtn": "الكل",
   "overview.recentTitle": "آخر الحركات",
@@ -214,7 +214,7 @@ export const ar: Record<string, string> = {
 
   /* ---- savings goals ---- */
   "goals.title": "أهداف التوفير",
-  "goals.subtitle": "وفّر لحجّة، سيارة، أو مشروع — قرش قرش",
+  "goals.subtitle": "وفّر لحجّة، سيارة، أو مشروع",
   "goals.newBtn": "هدف جديد",
   "goals.savedBadge": "وفّرت",
   "goals.ofWord": "من",
@@ -224,7 +224,7 @@ export const ar: Record<string, string> = {
   "goals.withdrawBtn": "اسحب",
   "goals.deleteBtn": "حذف الهدف",
   "goals.emptyTitle": "ما عندك أهداف توفير بعد",
-  "goals.emptyDesc": "سوّي هدف — حج، سيارة، هاتف — ووفّر له قرش قرش لين يكتمل.",
+  "goals.emptyDesc": "سوّي هدف — حج، سيارة، هاتف — ووفّر له لين يكتمل.",
   "goals.createTitle": "هدف توفير جديد",
   "goals.createDesc": "حدّد الهدف والمبلغ — التوفير يحتاج رمز PIN وقتها.",
   "goals.emojiLabel": "اختار رمز الهدف",
@@ -515,7 +515,7 @@ export const en: Record<string, string> = {
 
   /* ---- savings goals ---- */
   "goals.title": "Savings Goals",
-  "goals.subtitle": "Save for Hajj, a car, or a project — one dinar at a time",
+  "goals.subtitle": "Save for Hajj, a car, or a project",
   "goals.newBtn": "New Goal",
   "goals.savedBadge": "Saved",
   "goals.ofWord": "of",

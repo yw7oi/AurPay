@@ -14,7 +14,7 @@ CATEGORIES = [
     {"key": "internet", "ar": "إنترنت", "en": "Internet", "icon": "wifi",
      "desc": "اشتراكات الشركات المحلية ومزودي الإنترنت"},
     {"key": "mobile", "ar": "اتصالات", "en": "Mobile", "icon": "smartphone",
-     "desc": "شحن رصيد وباقات زين وآسياسيل وكورك"},
+     "desc": "شحن رصيد وباقات شركة زين"},
     {"key": "education", "ar": "تعليم", "en": "Education", "icon": "graduation-cap",
      "desc": "رسوم جامعية ومدارس ومعاهد"},
     {"key": "traffic", "ar": "مرور", "en": "Traffic", "icon": "car-front",
@@ -73,8 +73,6 @@ BILLERS = {
     ],
     "mobile": [
         {"code": "TEL-ZAIN", "name": "زين العراق Zain Iraq"},
-        {"code": "TEL-ASIACELL", "name": "آسياسيل Asiacell"},
-        {"code": "TEL-KOREK", "name": "كورك تليكوم Korek"},
     ],
     "education": [
         {"code": "EDU-UOB", "name": "جامعة بغداد"},

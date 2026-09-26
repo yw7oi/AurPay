@@ -1,7 +1,7 @@
 """Seed the database with ~100 realistic Iraqi users, bills and transactions.
 
 Deterministic (fixed RNG seed) so demo data is stable across restarts.
-All seeded users share PIN 1234 (demo). The first two users are highlighted
+All seeded users share PIN 123456 (demo). The first two users are highlighted
 demo accounts surfaced via /api/stats.
 """
 import asyncio
@@ -60,7 +60,7 @@ def make_person(index: int, is_demo: bool = False, demo: dict | None = None) -> 
     if demo:
         p = dict(demo)
         p["card_number"] = luhn_complete(p["card_base"])
-        salt, pin_hash = make_pin_secret("1234")
+        salt, pin_hash = make_pin_secret("123456")
         p.update(pin_salt=salt, pin_hash=pin_hash)
         return p
 
@@ -90,7 +90,7 @@ def make_person(index: int, is_demo: bool = False, demo: dict | None = None) -> 
     last_email = transliterate(family if use_family else middle)
     email = f"{first_email}.{last_email}{rng.randint(1, 99)}@{rng.choice(EMAIL_DOMAINS)}"
     card = gen_card(rng.choice(["4539", "4539", "4539", "5512", "5210"]))
-    salt, pin_hash = make_pin_secret("1234")
+    salt, pin_hash = make_pin_secret("123456")
 
     return {
         "first_name": first,
@@ -176,7 +176,7 @@ def make_extra_events(user: dict) -> list[dict]:
     events: list[dict] = []
     now = utcnow()
     for _ in range(rng.randint(1, 3)):
-        carrier = rng.choice(["زين العراق Zain Iraq", "آسياسيل Asiacell", "كورك Korek"])
+        carrier = "زين العراق Zain Iraq"
         events.append({
             "kind": "topup",
             "at": now - timedelta(days=rng.randint(2, 55)),

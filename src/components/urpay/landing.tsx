@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, Banknote, CarFront, Check, CreditCard, Droplets,
-  FileDown, Fingerprint, GraduationCap, Landmark, Lock, MessageCircleHeart,
+  Fingerprint, GraduationCap, Landmark, Lock, MessageCircleHeart,
   ShieldCheck, Smartphone, Sparkles, Wifi, Zap,
 } from "lucide-react";
 import { UrPayLogo, UrPayMark, UrSeal } from "./logo";
@@ -13,7 +13,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { LangToggle } from "./lang-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { categoryName, fmtIQD, type PlatformStats } from "@/lib/urpay";
+import { categoryName, type PlatformStats } from "@/lib/urpay";
 import { useT } from "@/lib/i18n";
 
 /* ------------------------------------------------------------------ */
@@ -155,19 +155,9 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                   {stats.demo.card_number.replace(/(\d{4})(?=\d)/g, "$1 ")}
                 </span>
                 <span className="text-muted-foreground">· PIN</span>
-                <span className="num">1234</span>
+                <span className="num">123456</span>
               </div>
             )}
-
-            <dl className="mt-9 grid grid-cols-3 gap-4 border-t border-border/70 pt-6">
-              <Stat label={t("landing.stats.users")} value={stats ? `${stats.users}+` : "100+"} />
-              <Stat label={t("landing.stats.bills")} value={stats ? `${stats.bills_paid}` : "300+"} />
-              <Stat
-                label={t("landing.stats.volume")}
-                value={stats ? fmtIQD(stats.volume_iqd, true, lang) : t("landing.stats.volumeFallback")}
-                compact
-              />
-            </dl>
           </div>
 
           {/* phone demo */}
@@ -243,7 +233,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
           <div>
             <Badge className="rounded-full bg-[#3ED9A3]/15 text-[#3ED9A3] border-[#3ED9A3]/30 gap-1.5 px-3.5 py-1.5 font-medium hover:bg-[#3ED9A3]/15">
               <Zap className="h-3.5 w-3.5" />
-              Groq · gpt-oss-120b
+              {t("landing.agent.badge")}
             </Badge>
             <h2 className="font-display mt-4 text-4xl sm:text-5xl leading-[1.12]">
               {t("landing.agent.title1")}{" "}
@@ -252,7 +242,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
             </h2>
             <p className="mt-4 text-white/70 leading-relaxed text-[1.02rem] max-w-md">
               {t("landing.agent.desc1")}{" "}
-              <b dir="ltr" className="text-white/90">gpt-oss-120b</b>{" "}
+              <b className="text-white/90">{t("landing.agent.descBold")}</b>{" "}
               {t("landing.agent.desc2")}
             </p>
             <ol className="mt-8 space-y-4">
@@ -268,29 +258,6 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
                 </li>
               ))}
             </ol>
-
-            {/* live platform stats */}
-            <div className="mt-8 grid grid-cols-2 gap-3">
-              {[
-                { labelKey: "landing.agent.statUsers", value: stats ? stats.users.toLocaleString("en-US") : "—" },
-                { labelKey: "landing.agent.statTxns", value: stats ? stats.transactions.toLocaleString("en-US") : "—" },
-                { labelKey: "landing.agent.statBills", value: stats ? stats.bills_paid.toLocaleString("en-US") : "—" },
-                { labelKey: "landing.agent.statVolume", value: stats ? fmtIQD(stats.volume_iqd, false, lang) : "—", iqd: true },
-              ].map((s) => (
-                <div
-                  key={s.labelKey}
-                  className="rounded-2xl border border-white/10 bg-white/[.04] backdrop-blur px-4 py-3"
-                >
-                  <p className="num text-lg sm:text-xl font-bold text-[#3ED9A3]">
-                    {s.value}
-                    {s.iqd && stats && (
-                      <span className="text-[0.62rem] font-medium text-white/50 ms-1">{t("landing.agent.iqdUnit")}</span>
-                    )}
-                  </p>
-                  <p className="text-[0.68rem] font-medium text-white/55 mt-0.5">{t(s.labelKey)}</p>
-                </div>
-              ))}
-            </div>
           </div>
           <AgentFlowCard />
         </div>
@@ -303,7 +270,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
           title={t("landing.how.title")}
           sub={t("landing.how.sub")}
         />
-        <div className="mt-10 grid md:grid-cols-3 gap-5">
+        <div className="mt-10 grid md:grid-cols-2 gap-5 max-w-2xl">
           {STEPS.map((s, i) => (
             <div key={s.titleKey} className="relative rounded-2xl border border-border/70 bg-card p-6">
               <span className="font-display absolute -top-4 start-5 rounded-full bg-primary text-primary-foreground h-9 min-w-9 px-3 inline-flex items-center justify-center num shadow-lift">
@@ -388,12 +355,6 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <Landmark className="h-4 w-4 text-primary" /> FastAPI · SQLite
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Zap className="h-4 w-4 text-gold-deep" /> Groq gpt-oss-120b
-              </span>
               <span className="inline-flex items-center gap-1.5" dir="ltr">
                 Made in Iraq 🇮🇶
               </span>
@@ -401,17 +362,7 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
           </div>
           <div className="mt-8 border-t border-border/60 pt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground/80">
             <span>{t("landing.footer.copyright")}</span>
-            <div className="flex items-center gap-4">
-              <a
-                href="/UrPay-Slides.pptx"
-                download
-                className="inline-flex items-center gap-1.5 font-semibold text-gold-deep hover:text-gold-deep/80 transition-colors"
-              >
-                <FileDown className="h-3.5 w-3.5" />
-                {t("landing.footer.slides")}
-              </a>
-              <UrSeal className="h-2.5 w-28 text-primary/50" />
-            </div>
+            <UrSeal className="h-2.5 w-28 text-primary/50" />
           </div>
         </div>
       </footer>
@@ -420,17 +371,6 @@ export function Landing({ onEnter, onDemo }: { onEnter: () => void; onDemo: () =
 }
 
 /* ------------------------------------------------------------------ */
-
-function Stat({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
-  return (
-    <div>
-      <dt className={`num text-primary ${compact ? "text-lg sm:text-xl" : "text-2xl sm:text-3xl"}`}>
-        {value}
-      </dt>
-      <dd className="mt-1 text-[0.78rem] font-medium text-muted-foreground">{label}</dd>
-    </div>
-  );
-}
 
 function SectionHead({ kicker, title, sub }: { kicker: string; title: string; sub: string }) {
   return (
@@ -642,7 +582,7 @@ function AgentFlowCard() {
         {[
           { c: "user", text: t("landing.agent.flow.user") },
           { c: "tool", text: "list_bills() → 1 unpaid (45,000 IQD)" },
-          { c: "tool", text: "pay_bill(bill_id=4, pin=••••)" },
+          { c: "tool", text: "pay_bill(bill_id=4, pin=••••••)" },
           { c: "ok", text: "✓ receipt UR-YQ9KY3RK · balance 1,705,000" },
           { c: "agent", text: t("landing.agent.flow.agent") },
         ].map((l, i) => (
@@ -677,8 +617,6 @@ function AgentFlowCard() {
 
 const BILLERS_ROW = [
   { name: "زين العراق", icon: Smartphone },
-  { name: "آسياسيل", icon: Smartphone },
-  { name: "كورك", icon: Smartphone },
   { name: "وزارة الكهرباء", icon: Zap },
   { name: "كهرباء أربيل", icon: Zap },
   { name: "تارين", icon: Wifi },
@@ -748,11 +686,6 @@ const STEPS = [
     icon: Fingerprint,
     titleKey: "landing.how.s1.title",
     descKey: "landing.how.s1.desc",
-  },
-  {
-    icon: CreditCard,
-    titleKey: "landing.how.s2.title",
-    descKey: "landing.how.s2.desc",
   },
   {
     icon: Check,

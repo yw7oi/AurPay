@@ -61,7 +61,7 @@ export function PinDialog({
   }
 
   async function submit() {
-    if (pin.length < 4 || loading || inFlight.current) return;
+    if (pin.length < 6 || loading || inFlight.current) return;
     inFlight.current = true;
     setLoading(true);
     setError(null);
@@ -140,7 +140,7 @@ export function PinDialog({
 
         <Button
           onClick={submit}
-          disabled={pin.length < 4 || loading}
+          disabled={pin.length < 6 || loading}
           className="w-full h-12 rounded-2xl font-bold text-base shadow-lift"
         >
           {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <BadgeCheck className="h-5 w-5" />}

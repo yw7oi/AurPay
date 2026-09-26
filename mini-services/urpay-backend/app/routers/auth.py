@@ -1,6 +1,7 @@
 """Auth endpoints — register / login / me."""
 import secrets
 import string
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -18,6 +19,11 @@ from ..constants import BILLERS
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 REF_ALPHABET = string.ascii_uppercase + string.digits
+
+# wrong-PIN lockout policy
+MAX_PIN_ATTEMPTS = 5          # "باقي 4 محاولات" after the first miss → 5 total
+BASE_BAN_MINUTES = 3         # first lockout length
+MAX_BAN_MINUTES = 60         # cap for the escalating lockout
 
 
 def _ref() -> str:
@@ -98,10 +104,46 @@ async def login(body: LoginRequest,
         select(User).where(User.card_number == body.card_number)
     )).scalar_one_or_none()
 
-    if user is None or not verify_pin(body.pin, user.pin_salt, user.pin_hash):
+    if user is not None and user.locked_until and user.locked_until > utcnow():
+        remaining = user.locked_until - utcnow()
+        minutes = max(1, int(remaining.total_seconds() // 60))
+        raise HTTPException(
+            status.HTTP_423_LOCKED,
+            f"الحساب موقوف مؤقتًا بعد محاولات خاطئة — جرب بعد {minutes} دقيقة")
+
+    if user is None:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             "رقم البطاقة أو رمز الـ PIN غير صحيح")
+
+    if not verify_pin(body.pin, user.pin_salt, user.pin_hash):
+        user.failed_attempts = (user.failed_attempts or 0) + 1
+        if user.failed_attempts >= MAX_PIN_ATTEMPTS:
+            # lock the account — ban length doubles with each consecutive
+            # lockout (3, 6, 12 … minutes) and caps at MAX_BAN_MINUTES
+            ban_minutes = min(
+                BASE_BAN_MINUTES * (2 ** (user.ban_count or 0)),
+                MAX_BAN_MINUTES)
+            user.locked_until = utcnow() + timedelta(minutes=ban_minutes)
+            user.ban_count = (user.ban_count or 0) + 1
+            user.failed_attempts = 0
+            await session.commit()
+            raise HTTPException(
+                status.HTTP_423_LOCKED,
+                f"انتهت المحاولات — الحساب موقوف لمدة {ban_minutes} دقيقة")
+        await session.commit()
+        left = MAX_PIN_ATTEMPTS - user.failed_attempts
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            f"رقم البطاقة أو رمز الـ PIN غير صحيح — باقي {left} "
+            f"{'محاولة' if left == 1 else 'محاولات'}")
+
+    # success — clear the lockout state
+    if user.failed_attempts or user.locked_until or user.ban_count:
+        user.failed_attempts = 0
+        user.locked_until = None
+        user.ban_count = 0
+        await session.commit()
 
     token, exp = create_token(user.id)
     return AuthResponse(access_token=token, expires_at=exp, user=UserPublic.model_validate(user))
@@ -127,9 +169,9 @@ async def change_pin(body: ChangePinRequest,
     if not verify_pin(body.current_pin, user.pin_salt, user.pin_hash):
         raise HTTPException(status.HTTP_403_FORBIDDEN,
                             "رمز الـ PIN الحالي غير صحيح")
-    if not _re.fullmatch(r"\d{4,6}", body.new_pin):
+    if not _re.fullmatch(r"\d{6}", body.new_pin):
         raise HTTPException(status.HTTP_400_BAD_REQUEST,
-                            "الرمز الجديد لازم يكون 4 إلى 6 أرقام")
+                            "الرمز الجديد لازم يكون 6 أرقام")
     if body.new_pin == body.current_pin:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,
                             "الرمز الجديد نفس القديم — اختر رمزًا مختلفًا")
