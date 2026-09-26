@@ -52,7 +52,7 @@ if %errorlevel%==0 (
         echo        Installing frontend packages - first run may take a few minutes...
         bun install
     )
-    start "UrPay Frontend :3000" cmd /k "cd /d %~dp0 && set URPAY_BACKEND_URL=http://127.0.0.1:8000 && bun run dev"
+    start "UrPay Frontend :3000" cmd /k "cd /d %~dp0 && set URPAY_BACKEND_URL=http://127.0.0.1:8000 && bun scripts/dev.mjs"
 ) else (
     where npm >nul 2>nul
     if %errorlevel%==0 (
@@ -61,7 +61,7 @@ if %errorlevel%==0 (
             echo        Installing frontend packages - first run may take a few minutes...
             npm install
         )
-        start "UrPay Frontend :3000" cmd /k "cd /d %~dp0 && set URPAY_BACKEND_URL=http://127.0.0.1:8000 && npm run dev"
+        start "UrPay Frontend :3000" cmd /k "cd /d %~dp0 && set URPAY_BACKEND_URL=http://127.0.0.1:8000 && node scripts/dev.mjs"
     ) else (
         echo  [ERROR] Neither Bun nor Node.js was found!
         echo          Install Node.js 18+ from https://nodejs.org then re-run.

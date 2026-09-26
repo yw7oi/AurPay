@@ -714,3 +714,26 @@ Unresolved / next-phase priorities:
 2. Sandbox OOM/reaping risk remains (documented rounds 9–10); both restart procedures verified this round.
 3. Arabic TTS voices still unavailable (skipped — documented round 9/10).
 4. Optional ideas: goal auto-save weekly mandate, budget quick-adjust from digest, receipt PNG image share, spend forecast.
+
+---
+Task ID: manual-round-12 (2026-09-26 ~09:30 Asia/Baghdad)
+Agent: Z.ai Code (user-triggered — «make me a valid zip file for the project»)
+Task: Produce a clean, valid, Windows-friendly project zip for local runs / hackathon handover.
+
+Work Log:
+- HARDENED scripts/dev.mjs: Next CLI now spawned via `process.execPath node_modules/next/dist/bin/next` (works under BOTH node and bun — no node PATH requirement for bun-only machines, no .cmd shim shell quirks on Windows); PORT env override; existence check with actionable error. start.bat: bun branch → `bun scripts/dev.mjs`, npm branch → `node scripts/dev.mjs`. Verified under bun: banner + serving on :3100.
+- .env fixed to relative path (`file:../db/custom.db`) — was sandbox-absolute.
+- NEW scripts/make_zip.py: builds download/UrPay.zip — everything under one top-level `UrPay/` folder; CRLF-normalized start.bat (cmd.exe-safest); live SQLite snapshot via sqlite3 backup API (consistent while backend runs); excludes node_modules/.next/venv/__pycache__/.git/logs/download/skills/examples/tool-results/worklog.
+- RESULT: download/UrPay.zip — 164 files, 1.38 MB (src, public incl. 23 self-hosted woff2 + UrPay-Slides.pptx, scripts, prisma, db snapshot with 100 users + demo state 1,236,480 IQD, backend app + requirements with greenlet/python-multipart fixes, start.bat, README, bun.lock, configs).
+- VALIDATION (all PASS): CRC testzip on every entry; zero forbidden paths; all key files present; start.bat has CRLF + UTF-8; greenlet>=3.1.0 + python-multipart in requirements; zero non-ASCII filenames (Windows Explorer safe); db snapshot deserializes → 100 users, demo أحمد علي حسين.
+- GOLD-STANDARD E2E (fresh-dir simulation of the user's flow): extracted the zip to /tmp → `bun install` 829 pkgs in 5s (lockfile valid) → FRESH venv + pip install -r requirements.txt → all imports OK (the exact thing that crashed on the user's Windows) → booted backend on :8010 + frontend on :3100 with URPAY_BACKEND_URL=http://127.0.0.1:8010 (env-override path also proven) → login through the extracted proxy returned a token → /api/stats returned 100 users / 854 transactions. Cleanup done; main sandbox servers untouched (200/200).
+
+Stage Summary:
+- Current status: STABLE — deliverable zip fully verified from clean extraction to login.
+- Artifact: /home/z/my-project/download/UrPay.zip (1.38 MB, 164 files, top folder UrPay/).
+- Changed: scripts/dev.mjs (execPath spawn), start.bat (bun/node direct invocation), .env (relative path), NEW scripts/make_zip.py.
+- User instructions: download UrPay.zip from the Preview Panel download area → extract → double-click start.bat (first run installs ~829 npm packages + Python deps automatically) → browser opens http://localhost:3000 → login 4539 1234 1234 1234 / PIN 1234.
+
+Unresolved / next-phase priorities:
+1. Optional: regenerate zip via `python3 scripts/make_zip.py` after any future change (script is included in the zip itself).
+2. Standing items from round 11 (OOM restart procedures, Arabic TTS voices unavailable, optional feature ideas).
