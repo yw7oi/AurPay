@@ -92,9 +92,10 @@ echo      PIN  : 1234
 echo.
 echo    (any of the 100 seeded users works with PIN 1234)
 echo.
-echo    To enable the real Groq agent, stop the backend and
-echo    re-run this file after:
-echo       set GROQ_API_KEY=your_key_here
+echo    To enable the real Groq agent, put your key in the .env file:
+echo       GROQ_API_KEY=gsk_...
+echo    (or run:  set GROQ_API_KEY=gsk_...  before start.bat)
+echo    Without a key the agent still works via 2 fallback layers.
 echo.
 echo    Custom backend port? set URPAY_BACKEND_URL first
 echo    (and start uvicorn on that port).

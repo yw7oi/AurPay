@@ -22,6 +22,16 @@
 
 ### تشغيل الوكيل على Groq الحقيقية (اختياري)
 
+**الأسهل:** افتح ملف `.env` الموجود بجذر المشروع، شيل `#` من السطر وحط مفتاحك:
+
+```env
+GROQ_API_KEY=gsk_...
+```
+
+خذ مفتاح مجاني من [console.groq.com/keys](https://console.groq.com/keys) — وبس، `start.bat` راح يقرأه تلقائيًا.
+
+أو بدون ما تعدل ملف:
+
 ```bat
 set GROQ_API_KEY=gsk_...
 start.bat

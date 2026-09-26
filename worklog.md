@@ -737,3 +737,18 @@ Stage Summary:
 Unresolved / next-phase priorities:
 1. Optional: regenerate zip via `python3 scripts/make_zip.py` after any future change (script is included in the zip itself).
 2. Standing items from round 11 (OOM restart procedures, Arabic TTS voices unavailable, optional feature ideas).
+
+---
+Task ID: manual-round-13 (2026-09-26 ~10:05 Asia/Baghdad)
+Agent: Z.ai Code (user-triggered — «وين اخلي مفتاح Groq؟»)
+Task: Give the Groq API key a permanent, dead-simple home.
+
+Work Log:
+- NEW: .env loading in backend config.py — tiny dependency-free _load_env_file() (KEY=VALUE parser, skips comments/quotes, never overrides existing env vars) applied before GROQ_API_KEY/URPAY_* reads. ROOT/.env = project root next to start.bat.
+- .env now ships a commented template: «شيل علامة # وحط مفتاحك» + link console.groq.com/keys.
+- start.bat banner + README quick-start updated: put the key in .env (easiest) or `set GROQ_API_KEY=...` (env still wins over file — tested both: .env value picked up ✔, env-var precedence ✔).
+- Regenerated download/UrPay.zip (164 files, 1.38 MB) — verified CRC + .env template + config loader inside.
+
+Stage Summary:
+- User answer: مفتاح Groq يحط بملف .env بجذر المشروع (سطر GROQ_API_KEY=gsk_...) — الباكند يقرأه تلقائيًا، أو set GROQ_API_KEY قبل start.bat (لها الأولوية).
+- Note: the currently-running sandbox backend imported config before this change — harmless here (no Groq key in sandbox, z-ai bridge active); all future spawns pick up .env automatically.
