@@ -47,6 +47,7 @@ SYSTEM_PROMPT = """أنت "أور" — المساعد الذكي (AI Agent) دا
 9. الميزانيات: المستخدم ممكن يطلب تحديد حد شهري لتصنيف (مثال: «ميزانية الكهرباء 150 ألف») — استخدم set_budget. إذًا صرفَه تجاوز الحد، أبلغه بذلك ولطفًا اقترح رفعه أو تقليص الصرف. لا تحتاج PIN لتعيين ميزانية (ما هي عملية مالية مباشرة).
 10. صرف المستخدم: عندما يسأل عن صرفه («شكد صرفي على الكهرباء؟» / «فين تروح فلوسي؟») استخدم get_spending وأجبه بالأرقام. إذا كان صرفه قريب من حد الميزانية (80%+) أو تجاوزها، نبّهه بلطف واستخدم نفس بيانات الصرف المعطاة في السياق أعلاه دون أدوات إضافية إن كانت كافية.
 11. الدفع المجدول: المستخدم ممكن يطلب جدولة دفعة مستقبلية («جدّل دفع فاتورة الكهرباء أول الشهر الجاي»، «حوّل 100 الف لأمي كل شهر») — استخدم schedule_payment (يتطلب PIN مرة واحدة لتخويل الجدولة؛ التنفيذ بعدين تلقائي بدون PIN). «جدولاتي» تعرض القائمة (list_scheduled)، و«ألغِ جدولة رقم X» تلغيها (cancel_scheduled). مرر `when` بنفس صياغة المستخدم — النظام يفهم العربية («غدًا»، «بعد يومين»، «أول الشهر الجاي») والتواريخ ISO. إذا لم يذكر PIN اطلبه أولًا.
+12. البحث عن مستلم والتحويل: أداة search_users مطابقة ذكية — مرر ما قاله المستخدم حرفيًا (اسم جزئي، بدون الاسم الأوسط، بخطأ إملائي، بالإنجليزية، أو مع المدينة مثل «زينب من النجف»)؛ النظام يتجاهل «ال» التعريف والأخطاء الإملائية ويرتّب النتائج بنسبة تطابق (score). ما تحتاج الاسم الكامل أبدًا — أي معلومة معقولة عن الشخص كافية. إذا كانت النتيجة الأولى واضحة (نتيجة وحيدة، أو حقل note يقول إنها المقصودة، أو نسبتها 95%+ والباقي أقل بفارق ملموس): اعتبرها المقصودة مباشرة — عرّفها للمستخدم بالاسم الكامل والمحافظة وآخر 4 أرقام بطاقتها واطلب PIN. عند طلب PIN للتحويل اذكر المبلغ والمستلم بالضبط في ردّك (مثال: «أرسل PIN لتحويل 15,000 د.ع إلى زينب مرتضى الموسوي»). عند التنفيذ استخدم المبلغ المذكور في طلب المستخدم الأصلي حرفيًا — لا تخترع أو تغيّر المبلغ أبدًا، ونفّذ transfer_money ببطاقتها (card_number) من نتيجة البحث نفسها. فقط إذا كانت النتائج متقاربة فعلًا (نسب متقاربة وبلا note): اعرض أفضل 2-3 واطلب التحديد قبل التحويل.
 
  persona: اسمك "أور" — مستوحى من مدينة أور السومرية حيث سُجّلت أولى عمليات التبادل في التاريخ.
 """
@@ -97,7 +98,14 @@ TOOL_SCHEMAS = [
             "hint": {"type": "string"}}}}},
     {"type": "function", "function": {
         "name": "search_users",
-        "description": "Search registered UrPay users by (partial) name or card digits — used before transfers.",
+        "description": ("Smart recipient search: pass whatever the user said about "
+                        "the person — partial name, first+family without the middle "
+                        "name, a nickname, a misspelling, an English transliteration "
+                        "('zainab mousawi'), or name + city ('زينب من النجف'). "
+                        "Matching ignores the definite article ال, middle names and "
+                        "typos; results are ranked by similarity score with city "
+                        "and full card numbers. Use the returned card_number "
+                        "directly in transfer_money."),
         "parameters": {"type": "object", "required": ["query"], "properties": {
             "query": {"type": "string"}}}}},
     {"type": "function", "function": {
@@ -347,6 +355,25 @@ async def _llm_loop(session: AsyncSession, user: User, message: str,
         llm_messages.append({"role": m.role, "content": m.content})
     llm_messages.append({"role": "user", "content": message})
 
+    # anti-hallucination guard: surface the latest explicitly requested
+    # transfer amount from the recent conversation, so the model never has
+    # to "remember" it from memory on the PIN turn (e.g. «حوّل 15000 …» then
+    # «PIN 123456» two turns later)
+    amt_hint = ""
+    user_msgs = [x for x in llm_messages if x["role"] == "user"]
+    for m in reversed(user_msgs[-6:]):
+        low = m["content"].lower()
+        if re.search(r"حو[لّ]?|تحويل|حوالة|transfer|send", low):
+            amt = _parse_amount(low)
+            if amt and amt >= 1000:
+                amt_hint = (f"\nتنبيه المبلغ: آخر مبلغ تحويل طلبه المستخدم هو "
+                            f"{amt:,} د.ع — إذا نفّذت transfer_money الآن "
+                            "فاستخدم هذا المبلغ بالضبط، ولا تخترع أو تغيّره، "
+                            "ما لم يحدد المستخدم مبلغًا آخر صراحة في رسالته الأخيرة.")
+                break
+    if amt_hint:
+        llm_messages[0]["content"] += amt_hint
+
     tool_schema_text = "\n".join(
         f"- {t['function']['name']}: {t['function']['description']} "
         f"args={json_dumps_compact(t['function']['parameters'])}"
@@ -479,6 +506,59 @@ async def local_engine(session: AsyncSession, user: User,
             if err == "already_paid":
                 return "هذي الفاتورة مدفوعة أصلًا ✅"
             return "ما لقيت الفاتورة — تأكد من رقمها من قائمة الفواتير."
+
+    # --- continue pending transfer (recipient resolved, awaiting PIN) -----
+    if pending and pending.get("transfer"):
+        tr = pending["transfer"]
+        if re.search(r"الغاء|إلغاء|cancel|stop|لا لا|ما اريد|لا اريد|خلاص", low):
+            _pending.pop(user.id, None)
+            return "تم إلغاء الحوالة. أبرد أي شي ثاني؟"
+        pin = None
+        if re.fullmatch(r"\s*\d{6}\s*", msg):
+            pin = msg.strip()
+        else:
+            pm = PIN_RE.search(low)
+            if pm and re.search(r"pin|بصورة|رمز", low):
+                pin = pm.group(1)
+        if pin:
+            await _emit("transfer_money")
+            result = await T.transfer_money(session, user, tr["card"],
+                                            tr["amount"], pin)
+            if result.get("ok"):
+                _pending.pop(user.id, None)
+                r = result["receipt"]
+                actions.append({"tool": "transfer_money", "ok": True, "data": r})
+                return (f"✅ تم التحويل! {r['title']} — {r['amount']:,} د.ع\n"
+                        f"المرجع: {r['reference']}\nرصيدك: {r['balance_after']:,} د.ع")
+            if result.get("error") == "pin":
+                return "رمز الـ PIN غلط — حاول مرة ثانية (6 أرقام)."
+            if result.get("error") == "insufficient":
+                _pending.pop(user.id, None)
+                return (f"الرصيد ما يكفي — رصيدك {user.balance:,} د.ع "
+                        f"والمبلغ {tr['amount']:,} د.ع. عبّي المحفظة أولًا.")
+            return "ما أكمل التحويل — جرب مرة ثانية."
+        # message looks like a brand-new request → drop pending & re-run
+        if not re.search(r"رصيد|فواتير|فاتورة|ادفع|دفع|اشحن|تعب[يّ]|ميزاني|جدول|سجل|"
+                         r"اهداف|هدف|توفير|صرفي|معاملات|تحويل|حوالة|حو", low):
+            return (f"الحوالة جاهزة: {tr['amount']:,} د.ع إلى {tr['name']} "
+                    f"(بطاقة …{tr['card'][-4:]}).\n"
+                    "أرسل رمز الـ PIN (6 أرقام) لإتمامها، أو اكتب «إلغاء».")
+        _pending.pop(user.id, None)
+        pending = None
+
+    # --- pending amount answer (single recipient found, awaiting amount) --
+    if pending and pending.get("asked_amount"):
+        amt = _parse_amount(low)
+        if amt and len(msg.split()) <= 3:
+            memo = pending.pop("asked_amount")
+            _pending[user.id] = {"transfer": {"card": memo["card"],
+                                              "name": memo["name"],
+                                              "amount": amt}}
+            return (f"تمام — ححوّل {amt:,} د.ع إلى {memo['name']} "
+                    f"(بطاقة …{memo['card'][-4:]}).\n"
+                    "أرسل رمز الـ PIN (6 أرقام) لإتمامها، أو اكتب «إلغاء».")
+        _pending.pop(user.id, None)
+        pending = None
 
     if re.search(r"الغاء|إلغاء|cancel|stop|لا لا", low):
         _pending.pop(user.id, None)
@@ -650,7 +730,7 @@ async def local_engine(session: AsyncSession, user: User,
                     "أكتب «نعم» وبعدها سأطلب منك رمز الـ PIN لإتمام الدفع.")
 
     # --- top-up ------------------------------------------------------------
-    if re.search(r"اشحن|عب[يّ]?|ايداع|إيداع|تعبئة|topup|top.?up|recharge", low):
+    if re.search(r"اشحن|\bعب[يّ]?ي\b|\bعب[يّ]?يها\b|\bعب[يّ]?يه\b|ايداع|إيداع|تعبئة|املا|املأ|topup|top.?up|recharge", low):
         amount = _parse_amount(low)
         if amount and amount >= 1000:
             pin_match = PIN_RE.search(low)
@@ -697,14 +777,62 @@ async def local_engine(session: AsyncSession, user: User,
                 return "ما أكمل التحويل — تأكد من المبلغ والرصيد."
             return (f"حاضر أحوّل {amount:,} د.ع إلى البطاقة …{card.group(1)[-4:]}. "
                     "أرسل لي رمز الـ PIN لإتمامها.")
-        search = await T.search_users(session, user, re.sub(r"حو[لّ]?\s*لى?|إلى|to", "", msg).strip())
-        if search["count"] > 0:
-            lines = ["لقيت هؤلاء — لمن تحب التحويل؟"]
-            for u in search["results"][:5]:
-                lines.append(f"• {u['full_name']} ({u['city']}) — بطاقة …{u['card_number'][-4:]}")
-            lines.append("اكتب: «حوّل 25000 على بطاقة XXXX»")
-            return "\n".join(lines)
-        return "أعطني اسم المستلم أو رقم بطاقته (16 رقم) والمبلغ، مثل: «حوّل 50000 على 4539123412341234»."
+        # smart recipient resolution — the matcher ignores amounts/filler
+        # and scores name + city tokens (partial names, typos, English…)
+        await _emit("search_users")
+        search = await T.search_users(session, user, msg)
+        if search["count"] == 0:
+            return ("أعطني اسم المستلم أو رقم بطاقته (16 رقم) والمبلغ، مثل:\n"
+                    "• «حوّل 50000 لزينب الموسوي»\n"
+                    "• «حوّل 50000 على 4539555544441236»")
+        best = search["results"][0]
+        runner_up = (search["results"][1].get("score", 0.0)
+                     if search["count"] > 1 else 0.0)
+        clear = search["count"] == 1 or best.get("score", 0) - runner_up >= 0.12
+        if clear:
+            if not amount:
+                _pending[user.id] = {"asked_amount": {
+                    "card": best["card_number"], "name": best["full_name"],
+                    "city": best["city"], "card_masked": best["card_masked"]}}
+                return (f"لقيت {best['full_name']} ({best['city']}) — بطاقة "
+                        f"{best['card_masked']}.\n"
+                        "كم المبلغ اللي تحب تحوّله؟ (مثال: 25000)")
+            pin_m = PIN_RE.search(low)
+            inline_pin = (pin_m.group(1)
+                          if pin_m and pin_m.group(1) != str(amount) else None)
+            if inline_pin:
+                await _emit("transfer_money")
+                result = await T.transfer_money(session, user,
+                                                best["card_number"], amount,
+                                                inline_pin)
+                if result.get("ok"):
+                    r = result["receipt"]
+                    actions.append({"tool": "transfer_money", "ok": True,
+                                    "data": r})
+                    return (f"✅ تم التحويل! {r['title']} — {r['amount']:,} د.ع\n"
+                            f"المرجع: {r['reference']}\n"
+                            f"رصيدك: {r['balance_after']:,} د.ع")
+                if result.get("error") == "pin":
+                    return "رمز الـ PIN غلط — حاول مرة ثانية."
+                if result.get("error") == "insufficient":
+                    return f"الرصيد ما يكفي ({user.balance:,} د.ع)."
+                return "ما أكمل التحويل — تأكد من المبلغ والرصيد."
+            _pending[user.id] = {"transfer": {
+                "card": best["card_number"], "name": best["full_name"],
+                "amount": amount}}
+            return (f"لقيت المستلم ✅ {best['full_name']} ({best['city']}) — "
+                    f"بطاقة {best['card_masked']}.\n"
+                    f"ححوّل {amount:,} د.ع — أرسل رمز الـ PIN (6 أرقام) "
+                    "لإتمام الحوالة، أو اكتب «إلغاء».")
+        # several close candidates — let the user pick
+        lines = ["لقيت أكثر من مستخدم بهالمعلومات — لمن تقصد؟"]
+        for u in search["results"][:5]:
+            sc = (f" · تطابق {int(round(u.get('score', 0) * 100))}%"
+                  if u.get("score") else "")
+            lines.append(f"• {u['full_name']} ({u['city']}) — بطاقة "
+                         f"{u['card_masked']}{sc}")
+        lines.append("حدّد وحدة بالمدينة أو الاسم الكامل، أو أرسل رقم بطاقة كامل (16 رقم).")
+        return "\n".join(lines)
 
     # --- budgets -------------------------------------------------------------
     if re.search(r"ميزاني|بودج|budget|حد شهر|سقف", low):
@@ -810,6 +938,29 @@ async def local_engine(session: AsyncSession, user: User,
             return res.get("detail", "ما أكملت الجدولة — تأكد من البيانات.")
         return ("تمام — أرسل لي رمز الـ PIN مرة واحدة لتخويل الجدولة "
                 "(التنفيذ بعدين تلقائي).")
+
+    # --- who-is / person lookup --------------------------------------------
+    if (re.search(r"منو|من هو|من هي|مين|ابحث|دور على|شسمه|شسمها|بطاقتها|بطاقته|رقم بطاقة|\bwho\b|\bfind\b|\bsearch\b", low)
+            and not any(w in low for w in PAY_WORDS)):
+        await _emit("search_users")
+        search = await T.search_users(session, user, msg)
+        if search["count"] == 0:
+            return ("ما لقيت أحد بهالمعلومات بين مستخدمي أور پاي.\n"
+                    "أعطني اسم أو معلومة أوضح (مثال: «زينب من النجف»).")
+        lines = [f"لقيت {search['count']} " +
+                 ("مستخدمين بهالمعلومات:" if search["count"] > 1
+                  else "مستخدم بهالمعلومات:")]
+        for u in search["results"][:5]:
+            sc = (f" · تطابق {int(round(u.get('score', 0) * 100))}%"
+                  if u.get("score") else "")
+            lines.append(f"• {u['full_name']} ({u['city']}) — بطاقة "
+                         f"{u['card_masked']}{sc}")
+        if search["count"] == 1:
+            u = search["results"][0]
+            lines.append(f"تحب تحوّل لها مبلغ؟ اكتب: «حوّل 25000 ل{u['full_name']}».")
+        else:
+            lines.append("حدّد وحدة منهم بالمدينة أو بالاسم الكامل.")
+        return "\n".join(lines)
 
     # --- transactions ------------------------------------------------------
     if re.search(r"سجل|معاملات|حركات|آخر|transactions|history", low):

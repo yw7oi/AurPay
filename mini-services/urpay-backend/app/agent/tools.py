@@ -3,8 +3,9 @@ import re
 import secrets
 import string
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..budget import check_budget_crossing
@@ -125,23 +126,208 @@ async def pay_bill(session: AsyncSession, user: User, bill_id: int, pin: str,
     }
 
 
+# ---------------------------------------------------------------------------
+# Smart people search — forgiving Arabic/Latin name matching.
+# Understands: partial names, first+family without the middle name, the
+# definite article «ال», the attached لام («لزينب»), common misspellings,
+# English transliteration ("zainab mousawi"), and city hints («من النجف»).
+# ---------------------------------------------------------------------------
+_AR_DIACRITICS = re.compile(r"[\u064B-\u0652\u0670\u0640]")
+_LATIN_WORD_RE = re.compile(r"[a-z]+")
+
+# rough Arabic→Latin letter map — enough for transliteration search
+_AR_TO_LATIN = {
+    "ا": "a", "ب": "b", "ت": "t", "ث": "th", "ج": "j", "ح": "h", "خ": "kh",
+    "د": "d", "ذ": "dh", "ر": "r", "ز": "z", "س": "s", "ش": "sh", "ص": "s",
+    "ض": "d", "ط": "t", "ظ": "z", "ع": "a", "غ": "gh", "ف": "f", "ق": "q",
+    "ك": "k", "ل": "l", "م": "m", "ن": "n", "ه": "h", "و": "w", "ي": "y",
+    "پ": "p", "چ": "ch", "ژ": "zh", "ک": "k", "ی": "y", "گ": "g", "ڤ": "v",
+}
+
+# filler words that carry no identity (علي/على deliberately NOT here —
+# علي is one of the most common first names)
+_NAME_STOPWORDS = {
+    "الى", "اللي", "اللى", "لي", "لها", "له", "منو", "مين", "من", "هو", "هي",
+    "هذا", "هذي", "هذيل", "ذيج", "دي", "شخص", "الشخص", "الشخصية", "المستلم",
+    "المستلمه", "المتلقي", "المحوله", "حواله", "حوالة", "تحويل", "حول", "حو",
+    "حولله", "دفع", "المبلغ", "مبلغ", "دينار", "دع", "الف", "الاف", "تو",
+    "سيند", "اسم", "ابحث", "دور", "بحث", "رقم", "بطاقه", "بطاقة", "كارت",
+    "عنده", "عندها", "بيها", "به", "في", "و", "بس", "فقط", "المحفظه", "محفظه",
+    "شسمه", "شسمها", "وين", "فين", "بصورة", "رمز", "pin",
+    "to", "for", "send", "transfer", "user", "name", "card", "number",
+    "who", "find", "search", "the", "of", "is",
+}
+
+
+def _norm_name(text: str) -> str:
+    """Normalize a name/query for forgiving comparison."""
+    t = (text or "").lower().strip()
+    t = _AR_DIACRITICS.sub("", t)
+    for ch in ("أ", "إ", "آ", "ٱ"):
+        t = t.replace(ch, "ا")
+    t = t.replace("ى", "ي").replace("ئ", "ي").replace("ؤ", "و").replace("ة", "ه")
+    t = re.sub(r"[^\w\s]", " ", t)          # punctuation → space
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _token_variants(tok: str) -> list[str]:
+    """Generous variants of a token to fight Arabic orthography."""
+    out = [tok]
+    if tok.startswith("ال") and len(tok) > 3:
+        out.append(tok[2:])          # «الموسوي» → «موسوي»
+    if tok.startswith("ل") and len(tok) > 3:
+        out.append(tok[1:])          # attached لام: «لزينب» → «زينب»
+    if tok.startswith("بال") and len(tok) > 4:
+        out.append(tok[3:])
+    return out
+
+
+def _latin_norm(s: str) -> str:
+    """Fold common Latin digraphs so transliterations line up."""
+    return (s.replace("ou", "w").replace("oo", "w")
+             .replace("ee", "i").replace("y", "i").replace("ai", "e"))
+
+
+def _strip_vowels(s: str) -> str:
+    return re.sub(r"[aeiou]", "", s)
+
+
+def _latin_forms(tok: str) -> list[tuple[str, str]]:
+    """(full, skeleton) Latin renderings of an Arabic token."""
+    lat = "".join(_AR_TO_LATIN.get(ch, "") for ch in tok)
+    if not lat:
+        return []
+    full = _latin_norm(lat)
+    return [(full, _strip_vowels(full))]
+
+
+def _token_score(a: str, b: str) -> float:
+    """Similarity of two normalized tokens in [0, 1]."""
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    if len(a) >= 3 and len(b) >= 3:
+        if b.startswith(a) or a.startswith(b):
+            return 0.9
+        if a in b or b in a:
+            return 0.82
+    ratio = SequenceMatcher(None, a, b).ratio()
+    # fuzzy (edit-distance) matches are discounted ×0.85: a real typo still
+    # scores high, but genuinely different names (موسى vs الموسوي) rank
+    # clearly below an exact family-name hit
+    return ratio * 0.85 if ratio >= 0.72 else 0.0
+
+
+def _pair_score(qt: str, nt: str) -> float:
+    """Best score between a query token and a name token (Arabic or Latin)."""
+    best = _token_score(qt, nt)
+    if best >= 0.9:
+        return best
+    if _LATIN_WORD_RE.fullmatch(qt):          # Latin query ↔ Arabic name
+        qn = _latin_norm(qt)
+        qs = _strip_vowels(qn)
+        for full, skel in _latin_forms(nt):
+            best = max(best, _token_score(qn, full))
+            if qs == skel:                    # exact consonant skeleton
+                best = max(best, 1.0)
+            elif (len(qs) >= 3 and len(skel) >= 3
+                  and (skel.startswith(qs) or qs.startswith(skel))):
+                best = max(best, 0.75)        # skeleton prefix — weak signal
+    return best
+
+
+def _score_user(q_tokens: list[str], u: "User") -> tuple[float, list[str], bool]:
+    """Score one candidate: (score, matched name tokens, has_strong_match)."""
+    name_tokens: list[str] = []
+    for part in (u.full_name, u.first_name, u.father_name, u.family_name):
+        for t in _norm_name(part or "").split():
+            if t and t not in name_tokens:
+                name_tokens.append(t)
+    city_tokens = [c for c in _norm_name(u.city or "").split() if len(c) >= 3]
+
+    total, matched, strong, city_hit = 0.0, [], False, False
+    for qt in q_tokens:
+        qv = _token_variants(qt)
+        best, hit_tok = 0.0, None
+        for nt in name_tokens:
+            for a in qv:
+                for b in _token_variants(nt):
+                    s = _pair_score(a, b)
+                    if s > best:
+                        best, hit_tok = s, nt
+        if best >= 0.72:
+            total += best
+            strong = strong or best >= 0.9
+            if hit_tok not in matched:
+                matched.append(hit_tok)
+        elif any(_token_score(a, c) >= 0.8
+                 for a in qv for c in city_tokens):
+            city_hit = True
+            total += 0.5                      # city hint — disambiguates only
+    if not q_tokens:
+        return 0.0, [], False
+    score = total / len(q_tokens)
+    if city_hit:
+        score = min(1.0, score + 0.06)
+    return score, matched, strong
+
+
 async def search_users(session: AsyncSession, user: User, query: str) -> dict:
-    q = query.strip()
+    """Smart recipient search — ranked fuzzy matches (name + city + card)."""
+    q = (query or "").strip()
     if len(q) < 2:
         return {"count": 0, "results": []}
-    digits = re.sub(r"\D", "", q)
-    cond = User.full_name.like(f"%{q}%")
-    if len(digits) >= 4:
-        cond = or_(cond, User.card_number.like(f"%{digits}%"))
-    rows = (await session.execute(
-        select(User).where(cond, User.id != user.id).limit(8)
-    )).scalars().all()
+
+    hits: dict[int, dict] = {}
+
+    # 1) card digits — a pure-digit query (any length ≥ 4) or long runs in text
+    compact = re.sub(r"[\s\-]", "", q)
+    runs = [compact] if re.fullmatch(r"\d{4,19}", compact) \
+        else re.findall(r"\d{8,}", q)
+    for run in runs:
+        rows = (await session.execute(
+            select(User).where(User.card_number.like(f"%{run}%"),
+                                User.id != user.id).limit(4)
+        )).scalars().all()
+        for u in rows:
+            hits[u.id] = {"u": u, "score": 1.0, "matched": ["بطاقة"],
+                          "strong": True}
+
+    # 2) smart name matching over the candidate pool
+    q_tokens = [t for t in _norm_name(q).split()
+                if len(t) >= 2 and not t.isdigit() and t not in _NAME_STOPWORDS]
+    if q_tokens:
+        rows = (await session.execute(
+            select(User).where(User.id != user.id).limit(2000)
+        )).scalars().all()
+        for u in rows:
+            score, matched, strong = _score_user(q_tokens, u)
+            if score >= 0.55 and strong and u.id not in hits:
+                hits[u.id] = {"u": u, "score": score, "matched": matched,
+                              "strong": strong}
+
+    ranked = sorted(hits.values(),
+                    key=lambda h: (-h["score"], -len(h["matched"]), h["u"].id))
+    top = ranked[:8]
+    note = ""
+    if top:
+        best_sc = top[0]["score"]
+        runner = top[1]["score"] if len(top) > 1 else 0.0
+        if best_sc >= 0.9 and best_sc - runner >= 0.1:
+            note = ("النتيجة الأولى هي المقصودة بوضوح (أعلى تطابق بفارق ملموس) — "
+                    "اعتمدها مباشرة وأكمل طلب المستخدم دون سؤال.")
+        elif len(top) == 1:
+            note = "نتيجة وحيدة — اعتمدها مباشرة."
     return {
-        "count": len(rows),
+        "count": len(top),
+        "note": note,
         "results": [{
-            "id": u.id, "full_name": u.full_name, "city": u.city,
-            "card_masked": f"•••• {u.card_number[-4:]}", "card_number": u.card_number,
-        } for u in rows],
+            "id": h["u"].id, "full_name": h["u"].full_name, "city": h["u"].city,
+            "card_masked": f"•••• {h['u'].card_number[-4:]}",
+            "card_number": h["u"].card_number,
+            "score": round(h["score"], 2), "matched_on": h["matched"][:4],
+        } for h in top],
     }
 
 
