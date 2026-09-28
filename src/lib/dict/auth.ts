@@ -83,7 +83,7 @@ export const en: Record<string, string> = {
   "auth.login.demoFill": "Autofill Demo Account — {last4}",
   "auth.login.submit": "Enter Your Wallet",
   "auth.login.toastTitle": "Welcome back, {name}! 🎉",
-  "auth.login.toastDesc": "You're signed in to your UrPay wallet",
+  "auth.login.toastDesc": "You're signed in to your AurPay wallet",
 
   /* register form */
   "auth.register.nameHint": "Triple name as printed on your card —",
@@ -93,7 +93,7 @@ export const en: Record<string, string> = {
   "auth.register.pinNoteEvery": "every payment and transfer",
   "auth.register.pinNoteTail": "— even from the Ur assistant. Never share it with anyone.",
   "auth.register.submit": "Create My Wallet — With a 250,000 IQD Gift",
-  "auth.register.toastTitle": "Welcome to UrPay, {name}! 🎉",
+  "auth.register.toastTitle": "Welcome to AurPay, {name}! 🎉",
   "auth.register.toastDesc": "You received a 250,000 IQD welcome balance + 3 sample bills to try",
 
   /* field labels */

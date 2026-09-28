@@ -23,20 +23,21 @@ import { UrPayMark } from "./logo";
 import { UserAvatar } from "./parts";
 
 /* ------------------------------------------------------------------ */
-/* QR payload — URPAY:1:<card>:<name>            (receive, any amount)  */
-/*          URPAY:2:<card>:<name>:<amount>       (request a specific)   */
+/* QR payload — AURPAY:1:<card>:<name>          (receive, any amount)  */
+/*          AURPAY:2:<card>:<name>:<amount>     (request a specific)   */
+/* (parser also accepts the legacy URPAY: prefix for old codes)        */
 /* ------------------------------------------------------------------ */
 
 export function buildQrPayload(cardNumber: string, fullName: string, amount?: number | null): string {
   if (amount && amount > 0) {
-    return `URPAY:2:${cardNumber}:${fullName}:${Math.round(amount)}`;
+    return `AURPAY:2:${cardNumber}:${fullName}:${Math.round(amount)}`;
   }
-  return `URPAY:1:${cardNumber}:${fullName}`;
+  return `AURPAY:1:${cardNumber}:${fullName}`;
 }
 
 export function parseQrPayload(raw: string): { card: string; name: string | null; amount: number | null } | null {
   const text = raw.trim();
-  const typed = /^urpay:?(\d):([\d]{14,19}):(.+)$/i.exec(text);
+  const typed = /^au?rpay:?(\d):([\d]{14,19}):(.+)$/i.exec(text);
   let card = "";
   let name: string | null = null;
   let amount: number | null = null;
@@ -55,7 +56,7 @@ export function parseQrPayload(raw: string): { card: string; name: string | null
       name = rest;
     }
   } else {
-    const colon = /^(?:urpay:?)?([\d]{14,19}):(.+)$/i.exec(text);
+    const colon = /^(?:au?rpay:?)?([\d]{14,19}):(.+)$/i.exec(text);
     if (colon) {
       card = colon[1];
       name = colon[2];
@@ -205,7 +206,7 @@ export function QrDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     const text = `${t("transfer.qrDialogTitle")} — ${user.full_name}${amountPart} · ${user.card_number}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "UrPay", text });
+        await navigator.share({ title: "AurPay", text });
         return;
       }
     } catch { /* aborted or unsupported — fall back to copy */ }

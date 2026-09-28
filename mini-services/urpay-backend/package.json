@@ -1,8 +1,0 @@
-{
-  "name": "urpay-backend",
-  "private": true,
-  "version": "1.0.0",
-  "scripts": {
-    "dev": "bash run.sh"
-  }
-}

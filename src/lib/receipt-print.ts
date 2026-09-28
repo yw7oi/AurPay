@@ -27,9 +27,9 @@ function receiptHtml(receipt: Receipt, lang: Lang): string {
     amount: L("المبلغ", "Amount"),
     balanceAfter: L("الرصيد بعد العملية", "Balance after"),
     date: L("التاريخ والوقت", "Date & time"),
-    issued: L("صادر عن محفظة أور پاي — العراق", "Issued by UrPay wallet — Iraq"),
+    issued: L("صادر عن محفظة أور پاي — العراق", "Issued by AurPay wallet — Iraq"),
     verified: L("إيصال موثّق إلكترونيًا", "Electronically verified receipt"),
-    title: L("إيصال أور پاي", "UrPay receipt"),
+    title: L("إيصال أور پاي", "AurPay receipt"),
   };
 
   return `<!DOCTYPE html>
@@ -53,7 +53,7 @@ function receiptHtml(receipt: Receipt, lang: Lang): string {
     padding: 14mm 16mm;
     position: relative;
   }
-  /* gold edge bar — the UrPay signature */
+  /* gold edge bar — the AurPay signature */
   .sheet::before {
     content: "";
     position: absolute;

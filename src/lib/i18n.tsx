@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Lightweight i18n for UrPay — Arabic (default, RTL) & English (LTR).
+ * Lightweight i18n for AurPay — Arabic (default, RTL) & English (LTR).
  * - `useT()` hook: { t, lang, dir, isRTL } — subscribes to lang changes.
  * - dictionaries live in src/lib/dict/{landing,dashboard,misc}.ts
  *   each exports { ar: {...}, en: {...} } for its namespace.

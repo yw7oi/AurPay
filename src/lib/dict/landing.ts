@@ -128,7 +128,7 @@ export const ar: Record<string, string> = {
   /* ----------------------------- footer ---------------------------- */
   "landing.footer.about":
     "أور پاي — منصة دفع عراقية بمساعد ذكي. مشاركة مسابقة (Zain Hackathon · Section 4 — Bill Pay Agent).",
-  "landing.footer.copyright": "© 2026 UrPay — نسخة عرض للهاكاثون، البيانات تجريبية.",
+  "landing.footer.copyright": "© 2026 AurPay — نسخة عرض للهاكاثون، البيانات تجريبية.",
 };
 
 export const en: Record<string, string> = {
@@ -145,7 +145,7 @@ export const en: Record<string, string> = {
   "landing.hero.badge": "Iraq's First Smart-Agent Wallet — Bill Pay Agent",
   "landing.hero.title1": "Every bill.",
   "landing.hero.title2": "One conversation.",
-  "landing.hero.desc1": "UrPay is an Iraqi payments wallet with a smart agent named",
+  "landing.hero.desc1": "AurPay is an Iraqi payments wallet with a smart agent named",
   "landing.hero.descBold": "Ur",
   "landing.hero.desc2":
     "— inspired by the Sumerian city of Ur, the first place an exchange was ever recorded. ",
@@ -179,7 +179,7 @@ export const en: Record<string, string> = {
   "landing.hero.placeholder": "Message Ur…",
 
   /* ---------------------------- features --------------------------- */
-  "landing.features.kicker": "Why UrPay?",
+  "landing.features.kicker": "Why AurPay?",
   "landing.features.title": "Built for Iraq… Not a Template",
   "landing.features.sub": "Every detail is built on the reality of daily payments in Iraq.",
   "landing.features.f1.title": "An Agent That Speaks Your Dialect",
@@ -266,6 +266,6 @@ export const en: Record<string, string> = {
 
   /* ----------------------------- footer ---------------------------- */
   "landing.footer.about":
-    "UrPay — an Iraqi payments platform with a smart agent. A hackathon entry (Zain Hackathon · Section 4 — Bill Pay Agent).",
-  "landing.footer.copyright": "© 2026 UrPay — a hackathon demo build; all data is sample data.",
+    "AurPay — an Iraqi payments platform with a smart agent. A hackathon entry (Zain Hackathon · Section 4 — Bill Pay Agent).",
+  "landing.footer.copyright": "© 2026 AurPay — a hackathon demo build; all data is sample data.",
 };

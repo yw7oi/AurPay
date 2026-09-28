@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
+// Vercel Hobby caps functions at 60s — LLM bridge calls need the headroom
+export const maxDuration = 60;
 
 const SECRET = process.env.URPAY_BRIDGE_SECRET ?? "urpay-bridge-secret";
 

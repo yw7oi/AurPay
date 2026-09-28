@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Fetch-fonts — one-time utility that self-hosts the Google Fonts used by UrPay.
+ * Fetch-fonts — one-time utility that self-hosts the Google Fonts used by AurPay.
  *
  * Why: `next/font/google` downloads fonts from fonts.gstatic.com at dev/build
  * time. That is slow and fragile (blocked/flaky networks kill the whole dev

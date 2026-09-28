@@ -5,18 +5,18 @@ import { Toaster } from "@/components/ui/toaster";
 import { LangBoot } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "أور پاي UrPay — محفظة العراق الذكية",
+  title: "أور پاي AurPay — محفظة العراق الذكية",
   description:
-    "أور پاي (UrPay): منصة دفع عراقية بمساعد ذكي (AI Agent) يدفع فواتيرك ويحوّل أموالك من محادثة واحدة. كهرباء، ماء، إنترنت، اتصالات وتعليم — كلها بلمسة.",
+    "أور پاي (AurPay): منصة دفع عراقية بمساعد ذكي (AI Agent) يدفع فواتيرك ويحوّل أموالك من محادثة واحدة. كهرباء، ماء، إنترنت، اتصالات وتعليم — كلها بلمسة.",
   keywords: [
-    "UrPay", "أور پاي", "محفظة عراقية", "دفع فواتير", "AI Agent",
+    "AurPay", "أور پاي", "محفظة عراقية", "دفع فواتير", "AI Agent",
     "زين العراق", "تحويل أموال", "fintech Iraq",
   ],
-  authors: [{ name: "UrPay Team" }],
+  authors: [{ name: "AurPay Team" }],
   openGraph: {
-    title: "أور پاي UrPay — محفظة العراق الذكية",
+    title: "أور پاي AurPay — محفظة العراق الذكية",
     description: "ادفع فواتيرك بمحادثة واحدة مع أور، المساعد الذكي.",
-    siteName: "UrPay",
+    siteName: "AurPay",
     type: "website",
   },
 };

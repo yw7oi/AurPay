@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ToastAction } from "@/components/ui/toast";
 import { useSession } from "@/lib/store";
 import { useT } from "@/lib/i18n";
 import { urpay, type AgentAction, type AgentMessage } from "@/lib/urpay";
@@ -32,6 +33,29 @@ function pickAudioMime(): string | undefined {
   }
   return undefined;
 }
+
+/* Map a getUserMedia failure to the clearest possible message key. */
+function micErrorKey(err: unknown): string {
+  const name = err instanceof DOMException ? err.name : "";
+  if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError") {
+    return "agent.voice.noMic";
+  }
+  if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError") {
+    return "agent.voice.busy";
+  }
+  if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
+    return "agent.voice.micBlocked";
+  }
+  return "agent.voice.denied";
+}
+
+const inIframe = () => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+};
 
 function useVoiceRecorder(
   token: string | null,
@@ -89,10 +113,16 @@ function useVoiceRecorder(
   const start = useCallback(async () => {
     if (state !== "idle" || !token) return;
     cancelledRef.current = false;
-    const mime = pickAudioMime();
-    if (!mime || !navigator.mediaDevices?.getUserMedia) {
+    /* secure-context / API availability checks first */
+    if (!navigator.mediaDevices?.getUserMedia) {
       setMicDenied(true);
-      toast({ title: t("agent.voice.failTitle"), description: t("agent.voice.denied"), variant: "destructive" });
+      toast({ title: t("agent.voice.failTitle"), description: t("agent.voice.insecure"), variant: "destructive" });
+      return;
+    }
+    const mime = pickAudioMime();
+    if (!mime) {
+      setMicDenied(true);
+      toast({ title: t("agent.voice.failTitle"), description: t("agent.voice.noRecorder"), variant: "destructive" });
       return;
     }
     try {
@@ -113,9 +143,28 @@ function useVoiceRecorder(
       setState("recording");
       rec.start(250);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } catch {
+    } catch (err) {
+      /* precise diagnostics: no mic / busy / blocked (+ iframe hint) */
       setMicDenied(true);
-      toast({ title: t("agent.voice.failTitle"), description: t("agent.voice.denied"), variant: "destructive" });
+      const key = micErrorKey(err);
+      const needsNewTab = key === "agent.voice.micBlocked" || (key === "agent.voice.denied" && inIframe());
+      toast({
+        title: t("agent.voice.failTitle"),
+        description: t(key),
+        variant: "destructive",
+        ...(needsNewTab
+          ? {
+              action: (
+                <ToastAction
+                  altText={t("agent.voice.openNewTab")}
+                  onClick={() => window.open("/", "_blank", "noopener")}
+                >
+                  {t("agent.voice.openNewTab")}
+                </ToastAction>
+              ),
+            }
+          : {}),
+      });
     }
   }, [state, token, upload, t, toast]);
 

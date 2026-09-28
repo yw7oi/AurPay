@@ -423,14 +423,14 @@ function receiptShareText(r: Receipt, lang: "ar" | "en"): string {
   const cur = (n: number) => fmtIQD(n, true, lang);
   if (lang === "en") {
     return [
-      "🟢 UrPay receipt",
+      "🟢 AurPay receipt",
       r.title,
       `Amount: ${cur(r.amount)}`,
       r.subtitle ? `Note: ${r.subtitle}` : "",
       `Reference: ${r.reference}`,
       `Balance after: ${cur(r.balance_after)}`,
       `Date: ${fmtDateTime(r.created_at, lang)}`,
-      "— sent via أور پاي UrPay",
+      "— sent via أور پاي AurPay",
     ].filter(Boolean).join("\n");
   }
   return [

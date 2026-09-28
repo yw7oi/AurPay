@@ -1,13 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ['query'],
-  })
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+/* Legacy stub — AurPay uses its own in-memory seeded store
+ * (src/lib/urpay-server/store.ts). This file only exists so the old
+ * prisma-based stub is overwritten cleanly by the 3.zip overlay. */
+export {};

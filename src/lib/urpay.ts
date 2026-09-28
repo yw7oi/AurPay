@@ -1,6 +1,6 @@
 "use client";
 
-/* UrPay — types + typed API client (goes through the Next.js /api proxy). */
+/* AurPay — types + typed API client (goes through the Next.js /api proxy). */
 
 import type { Lang } from "./i18n";
 
@@ -257,6 +257,60 @@ async function api<T>(
     throw new ApiError(detail, res.status);
   }
   return res.json() as Promise<T>;
+}
+
+/* ------------------------------------------------------------------ */
+/* Re-encode a recorded audio blob as 16-bit mono WAV via Web Audio.  */
+/* The ASR service only accepts WAV/WebM, but Safari records MP4 —    */
+/* this runs fully client-side so every browser can use the mic.      */
+/* ------------------------------------------------------------------ */
+async function blobToWav(blob: Blob): Promise<Blob> {
+  const arrayBuf = await blob.arrayBuffer();
+  const Ctx: typeof AudioContext =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const ctx = new Ctx();
+  try {
+    const audio = await ctx.decodeAudioData(arrayBuf);
+    const frames = audio.length;
+    const rate = audio.sampleRate;
+    /* downmix to mono */
+    let mono: Float32Array;
+    if (audio.numberOfChannels <= 1) {
+      mono = audio.getChannelData(0);
+    } else {
+      mono = new Float32Array(frames);
+      for (let c = 0; c < audio.numberOfChannels; c++) {
+        const data = audio.getChannelData(c);
+        for (let i = 0; i < frames; i++) mono[i] += data[i] / audio.numberOfChannels;
+      }
+    }
+    /* 16-bit PCM WAV container */
+    const view = new DataView(new ArrayBuffer(44 + frames * 2));
+    const tag = (off: number, s: string) => {
+      for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+    };
+    tag(0, "RIFF");
+    view.setUint32(4, 36 + frames * 2, true);
+    tag(8, "WAVE");
+    tag(12, "fmt ");
+    view.setUint32(16, 16, true);        // PCM chunk size
+    view.setUint16(20, 1, true);         // PCM format
+    view.setUint16(22, 1, true);         // mono
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);  // byte rate
+    view.setUint16(32, 2, true);         // block align
+    view.setUint16(34, 16, true);        // bits per sample
+    tag(36, "data");
+    view.setUint32(40, frames * 2, true);
+    for (let i = 0; i < frames; i++) {
+      const s = Math.max(-1, Math.min(1, mono[i]));
+      view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return new Blob([view.buffer], { type: "audio/wav" });
+  } finally {
+    void ctx.close();
+  }
 }
 
 export const urpay = {
@@ -542,8 +596,18 @@ export const urpay = {
     api<AgentMessage[]>("agent/history", { token }),
   agentClear: (token: string) => api<{ message: string }>("agent/history", { method: "DELETE", token }),
 
-  /* agent voice — multipart upload (recorded blob) → transcribed text */
-  agentVoice: async (token: string, blob: Blob): Promise<string> => {
+  /* agent voice — multipart upload (recorded blob) → transcribed text.
+     The ASR service accepts ONLY WAV and WebM; Safari records MP4/MP3 and
+     some browsers produce OGG — anything else is re-encoded to 16-bit mono
+     WAV in the browser via the Web Audio API (no dependencies, works
+     offline, keeps the payload small). */
+  agentVoice: async (token: string, rawBlob: Blob): Promise<string> => {
+    let blob = rawBlob;
+    if (!/webm|wav/i.test(blob.type) && typeof window !== "undefined") {
+      try {
+        blob = await blobToWav(blob);
+      } catch { /* keep original — backend/ASR will surface the error */ }
+    }
     const form = new FormData();
     const ext = blob.type.includes("mp4") ? "m4a"
       : blob.type.includes("webm") ? "webm"

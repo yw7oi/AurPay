@@ -2,24 +2,48 @@
 
 import { cn } from "@/lib/utils";
 
+/**
+ * AurPay brand mark — an "A" monogram for **Aur** whose crossbar is a
+ * forward arrow (money in motion: transfers & bill payments), topped by a
+ * gold coin. Green gradient + gold keeps the wallet's Iraqi identity.
+ */
 export function UrPayMark({ className, gold = "#E8C867" }: { className?: string; gold?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
       <defs>
-        <linearGradient id="urpay-g" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="aurpay-g" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#0F8A63" />
           <stop offset="1" stopColor="#0B5C46" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="16" fill="url(#urpay-g)" />
+      <rect width="64" height="64" rx="16" fill="url(#aurpay-g)" />
+      {/* the "A" — two legs meeting at the apex */}
       <path
-        d="M20 21v13a12 12 0 0 0 24 0V21"
+        d="M20.5 48 32 21 43.5 48"
         fill="none"
         stroke={gold}
         strokeWidth="5.5"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      <circle cx="32" cy="16.5" r="3.6" fill={gold} />
+      {/* crossbar drawn as a forward arrow — payment flow */}
+      <path
+        d="M25.4 38.6h10.2"
+        fill="none"
+        stroke={gold}
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M34.6 32.7l6.6 5.9-6.6 5.9"
+        fill="none"
+        stroke={gold}
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* gold coin riding above the apex */}
+      <circle cx="32" cy="11.6" r="3.5" fill={gold} />
     </svg>
   );
 }
@@ -39,11 +63,11 @@ export function UrPayLogo({
       {!compact && (
         <span className="flex flex-col leading-none">
           <span
-            className="font-display text-[1.35rem] tracking-tight"
+            className="font-display text-[1.3rem] tracking-tight"
             dir="ltr"
             style={{ color: dark ? "#F4F1E8" : "var(--ink)" }}
           >
-            Ur<span style={{ color: "var(--gold-deep)" }}>Pay</span>
+            Aur<span style={{ color: "var(--gold-deep)" }}>Pay</span>
           </span>
           <span
             className="text-[0.72rem] font-semibold mt-1"
