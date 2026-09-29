@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
  * full_name contains q (case-insensitive), OR card contains ≥4 digits. */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const q = new URL(req.url).searchParams.get("q") ?? "";
     if (q.length < 2) {
       return Response.json(

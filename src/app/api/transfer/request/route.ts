@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<Record<string, unknown>>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     const [input, validationError] = validateTransferRequest(body);
     if (!input) return err(422, validationError);

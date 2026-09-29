@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<{ amount?: unknown; pin?: unknown }>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     const [amount, validationError] = validateTopupAmount(body.amount);
     if (!amount) return err(422, validationError ?? "مبلغ غير صالح");

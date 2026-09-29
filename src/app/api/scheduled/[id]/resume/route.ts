@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * +5 minutes so it doesn't fire the instant it's resumed. */
 export async function POST(req: Request, ctx: Ctx) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const { id } = await ctx.params;

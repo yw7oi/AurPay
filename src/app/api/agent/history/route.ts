@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * The last 100 stored turns, oldest-first. */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const rows = db.agentMessages
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 /* DELETE /api/agent/history — routers/agent.py clear_history */
 export async function DELETE(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     clearAgentMessages(getDb(), user.id);
     return jsonOk({ message: "تم مسح المحادثة" });
   });

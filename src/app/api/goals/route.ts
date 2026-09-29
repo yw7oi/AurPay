@@ -16,7 +16,7 @@ const DEFAULT_EMOJI = "🎯";
  * first), then created_at — ported verbatim. */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const rows = db.goals
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<Record<string, unknown>>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const nameRaw = typeof body.name === "string" ? body.name.trim() : "";

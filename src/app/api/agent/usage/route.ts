@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
  * Groq key-pool status + token accounting (transparency for spend). */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    getAuthUser(req);
+    await getAuthUser(req);
     return jsonOk({
       groq_keys: groqPoolStatus(),
       totals: groqTotals(),

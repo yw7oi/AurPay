@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 /* GET /api/auth/me — auth.py */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     return Response.json(userPublic(user));
   });
 }

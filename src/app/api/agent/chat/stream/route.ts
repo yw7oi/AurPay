@@ -28,7 +28,7 @@ function* chunkWords(text: string, size = 3): Generator<string> {
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<{ message?: unknown }>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     const message = typeof body.message === "string" ? body.message : "";
     if (message.length < 1 || message.length > 2000) {

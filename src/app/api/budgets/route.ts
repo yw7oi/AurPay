@@ -23,7 +23,7 @@ function monthSpent(db: ReturnType<typeof getDb>, userId: number, category: stri
  * Budget rows merged with month-to-date spend + status. */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
     const now = Date.now();
     const start = monthStart(now);
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<{ category?: unknown; monthly_limit?: unknown }>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const category = body.category;

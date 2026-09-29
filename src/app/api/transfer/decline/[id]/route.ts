@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 /* POST /api/transfer/decline/[id] — wallet.py decline_transfer (receiver only) */
 export async function POST(req: Request, ctx: Ctx) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const { id } = await ctx.params;
     const requestId = Number(id);
     if (!Number.isInteger(requestId)) return err(404, "الطلب غير موجود");

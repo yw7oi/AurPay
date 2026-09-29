@@ -6,6 +6,7 @@ import { urpay } from "@/lib/urpay";
 import { Landing } from "@/components/urpay/landing";
 import { AuthView } from "@/components/urpay/auth-view";
 import { Dashboard, type DashTab } from "@/components/urpay/dashboard";
+import { StorageNotice } from "@/components/urpay/storage-notice";
 
 type View = "landing" | "auth" | "app";
 
@@ -53,13 +54,21 @@ export default function Page() {
     setView("auth");
   };
 
-  if (effectiveView === "app" && token && user) {
-    return <Dashboard tab={tab} setTab={setTab} refreshKey={refreshKey} />;
-  }
+  /* the storage notice renders above EVERY view — it is the honest answer
+     to "accounts vanish" on Vercel until a Blob store is connected */
+  const body =
+    effectiveView === "app" && token && user ? (
+      <Dashboard tab={tab} setTab={setTab} refreshKey={refreshKey} />
+    ) : effectiveView === "auth" ? (
+      <AuthView onBack={goLanding} demoCard={demo} />
+    ) : (
+      <Landing onEnter={() => goAuth("login")} onDemo={() => goAuth("login")} />
+    );
 
-  if (effectiveView === "auth") {
-    return <AuthView onBack={goLanding} demoCard={demo} />;
-  }
-
-  return <Landing onEnter={() => goAuth("login")} onDemo={() => goAuth("login")} />;
+  return (
+    <>
+      <StorageNotice />
+      {body}
+    </>
+  );
 }

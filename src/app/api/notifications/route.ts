@@ -20,7 +20,7 @@ const FEED_LIMIT = 30;
  * brief) run in the exact Python order before the feed is returned. */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     runDueScheduled(db);

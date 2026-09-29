@@ -16,7 +16,7 @@ const MAX_DEPOSIT = 5_000_000;
 export async function POST(req: Request, ctx: Ctx) {
   return runRoute(async () => {
     const body = await parseJsonBody<{ amount?: unknown; pin?: unknown }>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     const { id } = await ctx.params;
     const goalId = Number(id);

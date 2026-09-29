@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * Ordered unpaid-first, then by due_date asc. */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const status = new URL(req.url).searchParams.get("status") ?? "all";
 
     const db = getDb();

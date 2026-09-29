@@ -1,6 +1,6 @@
 import { err, jsonOk, parseJsonBody, runRoute } from "@/lib/urpay-server/http";
 import { getDb } from "@/lib/urpay-server/store";
-import { refreshNow } from "@/lib/urpay-server/persist";
+import { memoryModeWarning, refreshNow } from "@/lib/urpay-server/persist";
 import { createToken, verifyPin } from "@/lib/urpay-server/security";
 import { isoNaive, userPublic } from "@/lib/urpay-server/serializers";
 import { validateLogin } from "@/lib/urpay-server/validate";
@@ -40,6 +40,13 @@ export async function POST(req: Request) {
     }
 
     if (!user) {
+      /* On Vercel without durable storage the account genuinely is not on
+       * this instance — say THAT instead of the misleading "wrong PIN"
+       * message so the operator knows exactly what to fix (one-click Blob). */
+      const warning = memoryModeWarning();
+      if (warning) {
+        return err(401, `هذه البطاقة غير مسجّلة على هذا الخادم — ${warning}`);
+      }
       return err(401, "رقم البطاقة أو رمز الـ PIN غير صحيح");
     }
 

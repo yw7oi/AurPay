@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<{ current_pin?: unknown; new_pin?: unknown }>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     const currentPin = typeof body.current_pin === "string" ? body.current_pin : "";
     const newPin = typeof body.new_pin === "string" ? body.new_pin : "";

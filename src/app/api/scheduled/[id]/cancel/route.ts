@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ id: string }> };
 /* POST /api/scheduled/[id]/cancel — scheduled.py cancel_scheduled */
 export async function POST(req: Request, ctx: Ctx) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const { id } = await ctx.params;

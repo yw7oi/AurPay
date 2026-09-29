@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ targetUserId: string }> };
 /* DELETE /api/favorites/[targetUserId] — favorites.py remove_favorite */
 export async function DELETE(req: Request, ctx: Ctx) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const { targetUserId } = await ctx.params;

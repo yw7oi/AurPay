@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 /* POST /api/notifications/read-all — notifications.py read_all */
 export async function POST(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     let updated = 0;

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 /* GET /api/favorites — favorites.py list_favorites (newest first) */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const out = db.favorites
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<{ card_number?: unknown }>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const cardRaw = typeof body.card_number === "string" ? body.card_number : "";

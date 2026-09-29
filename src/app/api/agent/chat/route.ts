@@ -12,7 +12,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<{ message?: unknown }>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     const message =
       typeof body.message === "string" ? body.message : "";

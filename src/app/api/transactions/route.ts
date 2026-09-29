@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * Newest-first (created_at desc, id desc as a deterministic tiebreaker). */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const params = new URL(req.url).searchParams;
 
     const limitRaw = params.get("limit");

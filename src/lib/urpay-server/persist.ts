@@ -1,25 +1,25 @@
-/* Turso (libSQL) row-mirror persistence for the UrPay in-memory store.
+/* Shared-state persistence for the UrPay in-memory store.
  *
  * WHY THIS EXISTS
  * ---------------
  * On Vercel every serverless function instance keeps its OWN memory. A
  * registration created on instance A literally does not exist on instance B
- * (or on A after a cold restart): login answers 401 → the frontend
- * auto-logs-out ("returned to the home screen"), transfer confirms answer
- * 404 → money never moves, and transactions evaporate so the latest entry
- * for a contact silently replaces older ones. All three reported bugs share
- * this single root cause.
+ * (or on A after a cold restart): /api/auth/me answers 401 → the frontend
+ * auto-logs-out ("kicked out after two seconds"), login answers 401 with the
+ * generic card/PIN message ("the PIN is wrong even though I typed it
+ * right"), transfer confirms answer 404 → money never moves, and
+ * transactions evaporate so the latest entry for a contact silently replaces
+ * older ones. ALL reported bugs share this single root cause.
  *
- * This module mirrors every store row into ONE shared Turso database so all
- * instances see the same state and cold starts hydrate from it:
+ * This module mirrors the store into ONE shared database so every instance
+ * sees the same state and cold starts hydrate from it:
  *
  *   - runRoute() awaits ensureLoaded() before each handler and
  *     persistState() after it (diff-based → read-only requests write nothing).
- *   - Rows live in one table as (tbl, rid) → JSON. Changed/new rows are
- *     UPSERTed, vanished rows DELETEd (last-write-wins per row).
+ *   - Rows are mirrored as (tbl, rid) → JSON (last-write-wins per row).
  *   - ensureLoaded() also re-syncs when the local snapshot is older than
  *     URPAY_SYNC_TTL_MS (default 15s) so writes from other instances appear
- *     quickly; login/transfer-confirm additionally force a re-sync before
+ *     quickly; getAuthUser/login additionally force a re-sync before
  *     answering "not found".
  *   - The Db object is refilled IN PLACE (arrays cleared + refilled, object
  *     identity kept) so handlers holding a `getDb()` reference across an
@@ -28,14 +28,28 @@
  *   - seq counters are mirrored in a __meta__ row and merged as
  *     max(local, remote, max-rid) — new IDs never collide after a re-sync.
  *
- * MODES
- *   - No TURSO_DATABASE_URL  → pure in-memory demo mode (previous behavior).
- *   - Turso unreachable      → persistence disabled for the process and the
- *                              app keeps serving from memory (fail-open).
+ * DRIVERS (first match wins)
+ *   1. Turso / libSQL row-mirror — env TURSO_DATABASE_URL (+ TURSO_AUTH_TOKEN).
+ *      Row-level diff UPSERT/DELETE statements against one table.
+ *   2. Vercel Blob state file — enabled automatically when the project has a
+ *      Blob store connected (BLOB_READ_WRITE_TOKEN / VERCEL_OIDC_TOKEN /
+ *      BLOB_STORE_ID are auto-attached by Vercel). The whole row table is
+ *      stored as one JSON file; every write re-reads + merges the remote file
+ *      first (read-merge-write) so concurrent instances rarely clobber each
+ *      other. Works with both Private and Public stores (the access mode is
+ *      probed once). ZERO manual setup: Vercel → Storage → Create → Blob →
+ *      Connect to project → Redeploy.
+ *   3. memory — no driver configured (previous demo behavior).
  *
- * SETUP (2 env vars, see .env.example): turso.tech → create DB → token
- *   TURSO_DATABASE_URL=libsql://your-db.turso.io
- *   TURSO_AUTH_TOKEN=eyJ...
+ *   Any driver failure (unreachable, bad token, missing package) fails OPEN:
+ *   persistence is disabled for the process and the app keeps serving from
+ *   the seeded in-memory store. /api/health reports the exact mode + error,
+ *   and on Vercel in memory mode a client banner + login error explain that
+ *   accounts are ephemeral until a Blob store is connected.
+ *
+ * LOCAL TESTING
+ *   URPAY_BLOB_FAKE_DIR=/path makes the Blob driver read/write a local file
+ *   with the exact same serialization (cold-restart E2E without a real store).
  */
 
 import type { Client, InStatement } from "@libsql/client";
@@ -61,6 +75,15 @@ const META_TBL = "__meta__";
 const META_SEQ = "seq";
 const CHUNK = 100;
 
+/** Snapshot shape: tbl → rid → row JSON. */
+type SnapshotMap = Map<string, Map<string, string>>;
+
+type RemoteRow = { tbl: string; rid: string; data: string };
+type DiffStmts = {
+  upserts: RemoteRow[];
+  deletes: { tbl: string; rid: string }[];
+};
+
 /** Re-sync the local snapshot when it is older than this (ms). 0 = never. */
 function syncTtlMs(): number {
   const raw = Number(process.env.URPAY_SYNC_TTL_MS);
@@ -68,9 +91,9 @@ function syncTtlMs(): number {
 }
 
 type Global = {
-  __urpayTurso?: Client;
+  __urpayIO?: PersistDriver | null;
   __urpayLoadPromise?: Promise<void>;
-  __urpaySynced?: Map<string, Map<string, string>>;
+  __urpaySynced?: SnapshotMap;
   __urpayLastSync?: number;
   __urpayRefreshPromise?: Promise<void> | null;
   __urpayChain?: Promise<unknown>;
@@ -78,48 +101,57 @@ type Global = {
 };
 const g = globalThis as unknown as Global;
 
-type Conf = { url: string; authToken?: string };
-
-function conf(): Conf | null {
-  const url = process.env.TURSO_DATABASE_URL?.trim();
-  if (!url || !/^(libsql|https?|wss?):\/\//.test(url) && !url.startsWith("file:")) {
-    return null;
-  }
-  const token = process.env.TURSO_AUTH_TOKEN?.trim();
-  return { url, authToken: token || undefined };
+/** Am I running inside Vercel serverless? (VERCEL env is auto-set there.) */
+export function isServerless(): boolean {
+  return process.env.VERCEL === "1" || !!process.env.VERCEL_URL;
 }
 
-/** Is a shared database configured? (exposed for /api/health) */
+/* --------------------------------------------------------------- driver --- */
+
+interface PersistDriver {
+  readonly kind: "turso" | "blob";
+  /** Connect/verify + return ALL remote rows ([] when the store is fresh). */
+  readAll(): Promise<RemoteRow[]>;
+  /** Apply a diff; returns the effective post-write snapshot. */
+  writeDiff(stmts: DiffStmts, current: SnapshotMap): Promise<SnapshotMap>;
+  /** Short health description. */
+  describe(): { url: string };
+}
+
+function driverConf(): "turso" | "blob" | null {
+  if (tursoConf()) return "turso";
+  if (blobConf()) return "blob";
+  return null;
+}
+
+/** Is ANY shared database configured? (exposed for /api/health) */
 export function persistenceEnabled(): boolean {
-  return conf() !== null;
+  return driverConf() !== null;
 }
 
-async function getClient(): Promise<Client | null> {
-  const c = conf();
-  if (!c) return null;
-  if (g.__urpayTurso) return g.__urpayTurso;
-  try {
-    const opts: { url: string; authToken?: string } = { url: c.url };
-    if (c.authToken && !c.url.startsWith("file:")) opts.authToken = c.authToken;
-    // Dynamic import: without Turso configured the package is never even
-    // loaded, and a missing/broken install can never take the app down.
-    const mod = (await import("@libsql/client")) as {
-      createClient: (o: { url: string; authToken?: string }) => Client;
-    };
-    g.__urpayTurso = mod.createClient(opts);
-    return g.__urpayTurso;
-  } catch (e) {
-    g.__urpayPersistError = `libsql client unavailable: ${
-      e instanceof Error ? e.message : String(e)
-    }`;
-    console.error("[urpay-persist]", g.__urpayPersistError);
+/** Create (and cache) the active driver. null → memory mode. */
+async function getDriver(): Promise<PersistDriver | null> {
+  if (g.__urpayIO !== undefined) return g.__urpayIO;
+  const which = driverConf();
+  if (!which) {
+    g.__urpayIO = null;
     return null;
   }
+  try {
+    g.__urpayIO = which === "turso" ? await makeTursoDriver() : makeBlobDriver();
+  } catch (e) {
+    g.__urpayPersistError = e instanceof Error ? e.message : String(e);
+    console.error("[urpay-persist] driver unavailable:", g.__urpayPersistError);
+    g.__urpayIO = null;
+  }
+  return g.__urpayIO;
 }
 
-/** Serialize every table row: tbl → rid → JSON. */
-function snapshot(db: Db): Map<string, Map<string, string>> {
-  const snap = new Map<string, Map<string, string>>();
+/* ------------------------------------------------------------ snapshots --- */
+
+/** Serialize every store row (incl. the __meta__ seq row): tbl → rid → JSON. */
+function snapshotWithMeta(db: Db): SnapshotMap {
+  const snap: SnapshotMap = new Map();
   for (const t of TABLES) {
     const m = new Map<string, string>();
     for (const row of db[t] as AnyRow[]) {
@@ -127,85 +159,30 @@ function snapshot(db: Db): Map<string, Map<string, string>> {
     }
     snap.set(t, m);
   }
+  snap.set(META_TBL, new Map([[META_SEQ, JSON.stringify(db.seq)]]));
   return snap;
 }
 
-const CREATE_SQL =
-  "CREATE TABLE IF NOT EXISTS aurpay_state (" +
-  "tbl TEXT NOT NULL, rid TEXT NOT NULL, data TEXT NOT NULL, " +
-  "PRIMARY KEY (tbl, rid))";
-
-type RemoteRow = { tbl: string; rid: string; data: string };
-
-async function selectAll(cl: Client): Promise<RemoteRow[]> {
-  const res = await cl.execute("SELECT tbl, rid, data FROM aurpay_state");
-  const out: RemoteRow[] = [];
-  for (const r of res.rows as unknown as Record<string, unknown>[]) {
-    out.push({
-      tbl: String(r.tbl),
-      rid: String(r.rid),
-      data: String(r.data),
-    });
+/** Row-level diff between the live snapshot and the last synced one. */
+function diffStmts(current: SnapshotMap, old: SnapshotMap): DiffStmts {
+  const upserts: RemoteRow[] = [];
+  const deletes: DiffStmts["deletes"] = [];
+  for (const t of [...TABLES, META_TBL]) {
+    const cur = current.get(t);
+    const was = old.get(t);
+    if (!cur) continue;
+    if (!was) {
+      for (const [rid, data] of cur) upserts.push({ tbl: t, rid, data });
+      continue;
+    }
+    for (const [rid, data] of cur) {
+      if (was.get(rid) !== data) upserts.push({ tbl: t, rid, data });
+    }
+    for (const rid of was.keys()) {
+      if (!cur.has(rid)) deletes.push({ tbl: t, rid });
+    }
   }
-  return out;
-}
-
-/* --------------------------------------------------------------- loading --- */
-
-/** Await before every handler: loads once, then re-syncs past the TTL. */
-export function ensureLoaded(): Promise<void> {
-  if (!conf()) {
-    getDb(); // pure in-memory demo mode — seeds on first access
-    return Promise.resolve();
-  }
-  if (!g.__urpayLoadPromise) {
-    g.__urpayLoadPromise = load().catch((e) => {
-      // fail-open: log once, keep serving from the seeded memory store
-      g.__urpayPersistError = e instanceof Error ? e.message : String(e);
-      g.__urpaySynced = undefined;
-      console.error(
-        "[urpay-persist] load failed — continuing in-memory:",
-        g.__urpayPersistError,
-      );
-      getDb();
-    });
-  }
-  const ttl = syncTtlMs();
-  if (ttl > 0 && g.__urpaySynced && Date.now() - (g.__urpayLastSync ?? 0) > ttl) {
-    return refreshNow();
-  }
-  return g.__urpayLoadPromise;
-}
-
-async function load(): Promise<void> {
-  const cl = await getClient();
-  if (!cl) throw new Error("no libsql client");
-  await cl.execute(CREATE_SQL);
-  const rows = await selectAll(cl);
-
-  if (rows.length === 0) {
-    // first ever start anywhere: deterministic demo seed + full initial sync
-    const db = getDb();
-    g.__urpaySynced = new Map();
-    g.__urpayLastSync = 0;
-    await persistState();
-    g.__urpayLastSync = Date.now();
-    console.log(
-      "[urpay-persist] seeded fresh demo state into Turso",
-    );
-    return;
-  }
-
-  // hydrate: refill the (already seeded) Db IN PLACE with remote rows,
-  // keeping object identity for rows whose JSON is unchanged.
-  const db = getDb();
-  applyRemote(db, rows);
-  g.__urpaySynced = snapshot(db);
-  g.__urpayLastSync = Date.now();
-  console.log(
-    "[urpay-persist] hydrated from Turso: " +
-      TABLES.map((t) => `${t}=${(db[t] as AnyRow[]).length}`).join(" "),
-  );
+  return { upserts, deletes };
 }
 
 /** Refill db in place from remote rows (identity-preserving merge). */
@@ -245,7 +222,9 @@ function applyRemote(db: Db, rows: RemoteRow[]): void {
     const merged: AnyRow[] = [];
     for (const [rid, row] of rem) {
       const same = localJson.get(rid);
-      merged.push(same === JSON.stringify(row) ? findByRid(arr, rid) ?? row : row);
+      merged.push(
+        same === JSON.stringify(row) ? findByRid(arr, rid) ?? row : row,
+      );
     }
     merged.sort((a, b) => a.id - b.id);
 
@@ -263,25 +242,80 @@ function findByRid(arr: AnyRow[], rid: string): AnyRow | undefined {
   return arr.find((r) => r.id === n);
 }
 
+/* --------------------------------------------------------------- loading --- */
+
+/** Await before every handler: loads once, then re-syncs past the TTL. */
+export function ensureLoaded(): Promise<void> {
+  if (!driverConf()) {
+    getDb(); // pure in-memory demo mode — seeds on first access
+    return Promise.resolve();
+  }
+  if (!g.__urpayLoadPromise) {
+    g.__urpayLoadPromise = load().catch((e) => {
+      // fail-open: log once, keep serving from the seeded memory store
+      g.__urpayPersistError = e instanceof Error ? e.message : String(e);
+      g.__urpaySynced = undefined;
+      console.error(
+        "[urpay-persist] load failed — continuing in-memory:",
+        g.__urpayPersistError,
+      );
+      getDb();
+    });
+  }
+  const ttl = syncTtlMs();
+  if (ttl > 0 && g.__urpaySynced && Date.now() - (g.__urpayLastSync ?? 0) > ttl) {
+    return refreshNow();
+  }
+  return g.__urpayLoadPromise;
+}
+
+async function load(): Promise<void> {
+  const io = await getDriver();
+  if (!io) throw new Error("no persistence driver");
+  const rows = await io.readAll();
+
+  if (rows.length === 0) {
+    // first ever start anywhere: deterministic demo seed + full initial sync
+    const db = getDb();
+    g.__urpaySynced = new Map();
+    g.__urpayLastSync = 0;
+    await persistState();
+    g.__urpayLastSync = Date.now();
+    console.log(`[urpay-persist] seeded fresh demo state into ${io.kind}`);
+    return;
+  }
+
+  // hydrate: refill the (already seeded) Db IN PLACE with remote rows,
+  // keeping object identity for rows whose JSON is unchanged.
+  const db = getDb();
+  applyRemote(db, rows);
+  g.__urpaySynced = snapshotWithMeta(db);
+  g.__urpayLastSync = Date.now();
+  console.log(
+    `[urpay-persist] hydrated from ${io.kind}: ` +
+      TABLES.map((t) => `${t}=${(db[t] as AnyRow[]).length}`).join(" "),
+  );
+}
+
 /* ------------------------------------------------------------- refreshing --- */
 
 /** Force a re-sync from the remote database (bypasses the TTL).
  * Single-flight: concurrent callers share one roundtrip. Safe no-op when
  * persistence is off or failed. */
 export function refreshNow(): Promise<void> {
-  if (!conf() || !g.__urpaySynced) return Promise.resolve();
+  if (!driverConf() || !g.__urpaySynced) return Promise.resolve();
   if (g.__urpayRefreshPromise) return g.__urpayRefreshPromise;
   g.__urpayRefreshPromise = runSerialized(async () => {
     try {
-      const cl = await getClient();
-      if (!cl) return;
+      const io = await getDriver();
+      if (!io) return;
       // NOTE: calls the UN-QUEUED persist core — going through the queued
       // persistState() here would chain it behind this very refresh and
       // deadlock the serialization queue (requests would hang forever).
       await persistCore(); // flush local changes first (remote wins later)
-      const rows = await selectAll(cl);
+      const rows = await io.readAll();
       applyRemote(getDb(), rows);
-      g.__urpaySynced = snapshot(getDb());
+      g.__urpaySynced = snapshotWithMeta(getDb());
       g.__urpayLastSync = Date.now();
     } catch (e) {
       g.__urpayPersistError = e instanceof Error ? e.message : String(e);
@@ -305,7 +339,7 @@ function runSerialized(fn: () => Promise<void>): Promise<void> {
 /** Diff the live store against the last synced snapshot and write changes.
  * Read-only requests produce zero statements. Never throws. */
 export function persistState(): Promise<void> {
-  if (!conf() || !g.__urpaySynced) return Promise.resolve(); // off or failed
+  if (!driverConf() || !g.__urpaySynced) return Promise.resolve(); // off or failed
   return runSerialized(persistCore).catch(() => {
     /* persistState never rejects */
   });
@@ -315,83 +349,340 @@ export function persistState(): Promise<void> {
  * persistState() after a request, or inline inside refreshNow). */
 async function persistCore(): Promise<void> {
   if (!g.__urpaySynced) return;
-  const cl = await getClient();
-  if (!cl) return;
+  const io = await getDriver();
+  if (!io) return;
 
-    const db = getDb();
-    const current = snapshot(db);
-    const stmts: InStatement[] = [];
-    const upsert = (tbl: string, rid: string, data: string): void => {
-      stmts.push({
-        sql: "INSERT OR REPLACE INTO aurpay_state (tbl, rid, data) VALUES (?, ?, ?)",
-        args: [tbl, rid, data],
-      });
-    };
-    const remove = (tbl: string, rid: string): void => {
-      stmts.push({
-        sql: "DELETE FROM aurpay_state WHERE tbl = ? AND rid = ?",
-        args: [tbl, rid],
-      });
-    };
+  const db = getDb();
+  let current = snapshotWithMeta(db);
+  const stmts = diffStmts(current, g.__urpaySynced);
 
-    for (const t of TABLES) {
-      const cur = current.get(t)!;
-      const old = g.__urpaySynced.get(t);
-      if (!old) {
-        for (const [rid, data] of cur) upsert(t, rid, data);
-        continue;
-      }
-      for (const [rid, data] of cur) {
-        if (old.get(rid) !== data) upsert(t, rid, data);
-      }
-      for (const rid of old.keys()) {
-        if (!cur.has(rid)) remove(t, rid);
-      }
+  if (stmts.upserts.length > 0 || stmts.deletes.length > 0) {
+    try {
+      current = await io.writeDiff(stmts, current);
+    } catch (e) {
+      g.__urpayPersistError = e instanceof Error ? e.message : String(e);
+      console.error(
+        "[urpay-persist] save failed — persistence disabled for this process:",
+        g.__urpayPersistError,
+      );
+      g.__urpaySynced = undefined;
+      return;
     }
+  }
 
-    const seqJson = JSON.stringify(db.seq);
-    if (g.__urpaySynced.get(META_TBL)?.get(META_SEQ) !== seqJson) {
-      upsert(META_TBL, META_SEQ, seqJson);
-      current.set(META_TBL, new Map([[META_SEQ, seqJson]]));
-    } else {
-      current.set(META_TBL, new Map([[META_SEQ, seqJson]]));
+  g.__urpaySynced = current;
+  g.__urpayLastSync = Date.now();
+}
+
+/* ---------------------------------------------------------- Turso driver --- */
+
+type TursoConf = { url: string; authToken?: string };
+
+function tursoConf(): TursoConf | null {
+  const url = process.env.TURSO_DATABASE_URL?.trim();
+  if (!url || !/^(libsql|https?|wss?):\/\//.test(url) && !url.startsWith("file:")) {
+    return null;
+  }
+  const token = process.env.TURSO_AUTH_TOKEN?.trim();
+  return { url, authToken: token || undefined };
+}
+
+async function makeTursoDriver(): Promise<PersistDriver> {
+  const c = tursoConf()!;
+  const opts: { url: string; authToken?: string } = { url: c.url };
+  if (c.authToken && !c.url.startsWith("file:")) opts.authToken = c.authToken;
+  // Dynamic import: without Turso configured the package is never even
+  // loaded, and a missing/broken install can never take the app down.
+  const mod = (await import("@libsql/client")) as {
+    createClient: (o: { url: string; authToken?: string }) => Client;
+  };
+  const client = mod.createClient(opts);
+
+  const CREATE_SQL =
+    "CREATE TABLE IF NOT EXISTS aurpay_state (" +
+    "tbl TEXT NOT NULL, rid TEXT NOT NULL, data TEXT NOT NULL, " +
+    "PRIMARY KEY (tbl, rid))";
+
+  async function selectAll(cl: Client): Promise<RemoteRow[]> {
+    const res = await cl.execute("SELECT tbl, rid, data FROM aurpay_state");
+    const out: RemoteRow[] = [];
+    for (const r of res.rows as unknown as Record<string, unknown>[]) {
+      out.push({
+        tbl: String(r.tbl),
+        rid: String(r.rid),
+        data: String(r.data),
+      });
     }
+    return out;
+  }
 
-    if (stmts.length > 0) {
+  await client.execute(CREATE_SQL);
+
+  return {
+    kind: "turso",
+    async readAll() {
+      return selectAll(client);
+    },
+    async writeDiff(stmts, current) {
+      const sql: InStatement[] = [];
+      for (const u of stmts.upserts) {
+        sql.push({
+          sql: "INSERT OR REPLACE INTO aurpay_state (tbl, rid, data) VALUES (?, ?, ?)",
+          args: [u.tbl, u.rid, u.data],
+        });
+      }
+      for (const d of stmts.deletes) {
+        sql.push({
+          sql: "DELETE FROM aurpay_state WHERE tbl = ? AND rid = ?",
+          args: [d.tbl, d.rid],
+        });
+      }
+      for (let i = 0; i < sql.length; i += CHUNK) {
+        await client.batch(sql.slice(i, i + CHUNK));
+      }
+      return current;
+    },
+    describe() {
+      return { url: c.url };
+    },
+  };
+}
+
+/* ----------------------------------------------------------- Blob driver --- */
+
+const BLOB_PATHNAME = "aurpay-state.json";
+
+type BlobGlobal = {
+  __urpayBlobAccess?: "private" | "public";
+  __urpayBlobLastText?: string | null;
+};
+const bg = globalThis as unknown as BlobGlobal;
+
+/** Blob driver config: a fake dir for local E2E, real store when any Blob /
+ * OIDC env var exists (Vercel auto-attaches them when a store is connected). */
+function blobConf(): { fakeDir: string } | { real: true } | null {
+  const fakeDir = process.env.URPAY_BLOB_FAKE_DIR?.trim();
+  if (fakeDir) return { fakeDir };
+  const token =
+    process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
+    process.env.VERCEL_OIDC_TOKEN?.trim() ||
+    process.env.BLOB_STORE_ID?.trim();
+  return token ? { real: true } : null;
+}
+
+/** @vercel/blob module surface (only the pieces we call). */
+type BlobModule = {
+  put: (
+    pathname: string,
+    body: string,
+    opts: {
+      access: "private" | "public";
+      addRandomSuffix?: boolean;
+      allowOverwrite?: boolean;
+      contentType?: string;
+    },
+  ) => Promise<unknown>;
+  get: (
+    urlOrPathname: string,
+    opts: {
+      access: "private" | "public";
+      useCache?: boolean;
+    },
+  ) => Promise<{
+    statusCode: number;
+    stream: ReadableStream<Uint8Array> | null;
+    blob: { url: string; contentType: string };
+  } | null>;
+};
+
+let blobModule: BlobModule | null = null;
+async function getBlobModule(): Promise<BlobModule> {
+  if (blobModule) return blobModule;
+  blobModule = (await import("@vercel/blob")) as unknown as BlobModule;
+  return blobModule;
+}
+
+/** Deterministic JSON for the whole row table (sorted tbl, numeric rid). */
+function serializeSnapshot(snap: SnapshotMap): string {
+  const rows: RemoteRow[] = [];
+  for (const t of [...TABLES, META_TBL]) {
+    const m = snap.get(t);
+    if (!m) continue;
+    for (const [rid, data] of m) rows.push({ tbl: t, rid, data });
+  }
+  rows.sort((a, b) =>
+    a.tbl === b.tbl ? Number(a.rid) - Number(b.rid) : a.tbl < b.tbl ? -1 : 1,
+  );
+  return JSON.stringify({ v: 1, rows });
+}
+
+function parseStateFile(text: string): RemoteRow[] {
+  const parsed = JSON.parse(text) as { v?: number; rows?: RemoteRow[] };
+  if (parsed?.v !== 1 || !Array.isArray(parsed.rows)) {
+    throw new Error("corrupt aurpay state file");
+  }
+  return parsed.rows;
+}
+
+function makeBlobDriver(): PersistDriver {
+  const c = blobConf()!;
+  const fakePath = "fakeDir" in c ? `${c.fakeDir}/aurpay-state.json` : null;
+
+  /* ---- raw file I/O (real store or local fake dir) ---- */
+
+  async function readRemoteText(): Promise<string | null> {
+    if (fakePath) {
+      const { readFile } = await import("node:fs/promises");
       try {
-        for (let i = 0; i < stmts.length; i += CHUNK) {
-          await cl.batch(stmts.slice(i, i + CHUNK));
-        }
+        return await readFile(fakePath, "utf8");
       } catch (e) {
-        g.__urpayPersistError = e instanceof Error ? e.message : String(e);
-        console.error(
-          "[urpay-persist] save failed — persistence disabled for this process:",
-          g.__urpayPersistError,
-        );
-        g.__urpaySynced = undefined;
-        return;
+        const code = (e as NodeJS.ErrnoException).code;
+        if (code === "ENOENT") return null;
+        throw e;
       }
     }
+    const mod = await getBlobModule();
+    const tryGet = async (access: "private" | "public") => {
+      const res = await mod.get(BLOB_PATHNAME, { access, useCache: false });
+      if (!res) return null; // not found — store reachable, state fresh
+      if (!res.stream) throw new Error("blob stream missing (304?)");
+      return await new Response(res.stream).text();
+    };
+    const mode = bg.__urpayBlobAccess ?? "private";
+    try {
+      return await tryGet(mode);
+    } catch (e) {
+      // the cached access mode may mismatch the store (private vs public) —
+      // flip once and retry before giving up
+      const alt: "private" | "public" = mode === "private" ? "public" : "private";
+      try {
+        const text = await tryGet(alt);
+        bg.__urpayBlobAccess = alt;
+        return text;
+      } catch {
+        throw e; // original error — store truly unreachable
+      }
+    }
+  }
 
-    g.__urpaySynced = current;
-    g.__urpayLastSync = Date.now();
+  async function writeRemoteText(text: string): Promise<void> {
+    if (fakePath) {
+      const { writeFile, mkdir } = await import("node:fs/promises");
+      const { dirname } = await import("node:path");
+      await mkdir(dirname(fakePath), { recursive: true });
+      await writeFile(fakePath, text, "utf8");
+      return;
+    }
+    const mod = await getBlobModule();
+    const putOpts = (access: "private" | "public") => ({
+      access,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: "application/json",
+    });
+    const mode = bg.__urpayBlobAccess ?? "private";
+    try {
+      await mod.put(BLOB_PATHNAME, text, putOpts(mode));
+    } catch (e) {
+      const alt: "private" | "public" = mode === "private" ? "public" : "private";
+      try {
+        await mod.put(BLOB_PATHNAME, text, putOpts(alt));
+        bg.__urpayBlobAccess = alt;
+      } catch {
+        throw e;
+      }
+    }
+  }
+
+  return {
+    kind: "blob",
+    async readAll() {
+      const text = await readRemoteText();
+      bg.__urpayBlobLastText = text;
+      if (text === null) return [];
+      return parseStateFile(text);
+    },
+    async writeDiff(_stmts, current) {
+      // Read-merge-write: pull concurrent remote changes in BEFORE the
+      // overwrite so two live instances rarely clobber each other (the
+      // whole-file last-write-wins window shrinks to the get→put gap).
+      const remoteText = await readRemoteText();
+      let eff = current;
+      if (
+        remoteText !== null &&
+        remoteText !== bg.__urpayBlobLastText &&
+        remoteText.trim() !== ""
+      ) {
+        const rows = parseStateFile(remoteText);
+        applyRemote(getDb(), rows);
+        eff = snapshotWithMeta(getDb());
+      }
+      const text = serializeSnapshot(eff);
+      if (text !== bg.__urpayBlobLastText) {
+        await writeRemoteText(text);
+        bg.__urpayBlobLastText = text;
+      }
+      return eff;
+    },
+    describe() {
+      return { url: fakePath ?? "vercel-blob:" + BLOB_PATHNAME };
+    },
+  };
 }
 
 /* ---------------------------------------------------------------- status --- */
 
 /** Health-endpoint view of the persistence layer. */
-export function persistenceInfo():
-  | { mode: "memory" }
-  | { mode: "turso" | "failed" | "starting"; url: string; error: string | null } {
-  const c = conf();
-  if (!c) return { mode: "memory" };
-  const url = c.url.startsWith("file:")
-    ? c.url
-    : c.url.replace(/\/\/([^:]+):([^@]+)@/, "//$1:***@");
-  const mode = g.__urpaySynced
-    ? "turso"
-    : g.__urpayPersistError
-      ? "failed"
-      : "starting";
-  return { mode: mode as "turso" | "failed" | "starting", url, error: g.__urpayPersistError ?? null };
+export function persistenceInfo(): {
+  mode: "memory" | "turso" | "blob" | "failed" | "starting";
+  url: string | null;
+  error: string | null;
+  serverless: boolean;
+  hint: string | null;
+} {
+  const which = driverConf();
+  const driver = g.__urpayIO;
+  let mode: "memory" | "turso" | "blob" | "failed" | "starting" = "memory";
+  let url: string | null = null;
+  if (which) {
+    const rawUrl =
+      driver?.describe().url ??
+      (which === "turso" ? tursoConf()!.url : "vercel-blob:" + BLOB_PATHNAME);
+    url = rawUrl.startsWith("file:")
+      ? rawUrl
+      : rawUrl.replace(/\/\/([^:]+):([^@]+)@/, "//$1:***@");
+    mode = g.__urpaySynced
+      ? which === "turso"
+        ? "turso"
+        : "blob"
+      : g.__urpayPersistError
+        ? "failed"
+        : "starting";
+  }
+  return {
+    mode,
+    url,
+    error: g.__urpayPersistError ?? null,
+    serverless: isServerless(),
+    hint: modeWarning(),
+  };
+}
+
+/** Warning shown when running on Vercel WITHOUT durable storage — the exact
+ * situation where new accounts vanish and logins report a wrong PIN.
+ * Returns null everywhere else (local/sandbox single-process memory is fine). */
+export function memoryModeWarning(): string | null {
+  return modeWarning();
+}
+
+function modeWarning(): string | null {
+  if (!isServerless()) return null;
+  const which = driverConf();
+  if (which) return null;
+  return (
+    "نسخة فيرسيل تعمل بدون قاعدة بيانات دائمة (وضع الذاكرة): " +
+    "الحسابات الجديدة تضيع عند تبديل الخادم. " +
+    "الحل بدقيقة: لوحة فيرسيل ← تبويب Storage ← Create ← Blob ← " +
+    "اربطه بالمشروع ← Redeploy (الخطوات في README)"
+  );
 }

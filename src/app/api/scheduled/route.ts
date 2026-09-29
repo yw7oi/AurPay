@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * totals only count actually-runnable (pending) mandates. */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     runDueScheduled(db);
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<Record<string, unknown>>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const pin = typeof body.pin === "string" ? body.pin : "";

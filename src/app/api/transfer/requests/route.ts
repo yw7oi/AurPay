@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /* GET /api/transfer/requests — wallet.py my_transfer_requests */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
     expireStaleRequests(db, user); // TTL housekeeping
 

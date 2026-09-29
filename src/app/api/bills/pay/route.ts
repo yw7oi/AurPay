@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<{ bill_id?: unknown; pin?: unknown }>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     const pin = typeof body.pin === "string" ? body.pin : "";
     if (!verifyPin(pin, user.pin_salt, user.pin_hash)) {

@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ id: string }> };
 /* POST /api/notifications/[id]/read — notifications.py read_one */
 export async function POST(req: Request, ctx: Ctx) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const { id } = await ctx.params;

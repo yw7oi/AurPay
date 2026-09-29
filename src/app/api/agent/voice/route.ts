@@ -17,7 +17,7 @@ const MAX_BYTES = 20 * 1024 * 1024; // 20MB
  * (urpay.ts blobToWav). */
 export async function POST(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     let form: FormData;
     try {

@@ -6,7 +6,7 @@
 import type { UserRow } from "./types";
 import { getDb } from "./store";
 import { decodeToken } from "./security";
-import { ensureLoaded, persistState } from "./persist";
+import { ensureLoaded, memoryModeWarning, persistState, refreshNow } from "./persist";
 
 export class ApiErr extends Error {
   status: number;
@@ -60,8 +60,14 @@ export async function runRoute(fn: () => Promise<Response>): Promise<Response> {
   }
 }
 
-/** Auth guard — port of security.get_current_user. */
-export function getAuthUser(req: Request): UserRow {
+/** Auth guard — port of security.get_current_user.
+ *
+ * ASYNC + multi-instance guard: when the token is valid but the account is
+ * missing from this instance's snapshot (registered moments ago on another
+ * instance / behind the sync TTL), it forces a shared-state re-sync and
+ * looks ONE more time before answering 401 — this is what stops the
+ * "logged in, kicked out after two seconds" loop on Vercel. */
+export async function getAuthUser(req: Request): Promise<UserRow> {
   const header = req.headers.get("authorization");
   if (!header || !header.toLowerCase().startsWith("bearer ")) {
     throw new ApiErr(401, "رمز الدخول مفقود — يرجى تسجيل الدخول");
@@ -71,7 +77,19 @@ export function getAuthUser(req: Request): UserRow {
   if (userId === null) {
     throw new ApiErr(401, "انتهت صلاحية الجلسة — سجّل الدخول من جديد");
   }
-  const user = getDb().users.find((u) => u.id === userId);
-  if (!user) throw new ApiErr(401, "الحساب غير موجود");
+  let user = getDb().users.find((u) => u.id === userId);
+  if (!user) {
+    await refreshNow();
+    user = getDb().users.find((u) => u.id === userId);
+    if (!user) {
+      const warning = memoryModeWarning();
+      throw new ApiErr(
+        401,
+        warning
+          ? `الحساب غير موجود — ${warning}`
+          : "الحساب غير موجود",
+      );
+    }
+  }
   return user;
 }

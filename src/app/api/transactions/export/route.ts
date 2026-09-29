@@ -25,7 +25,7 @@ function csvField(v: string | number): string {
  * CSV export of the user's full history (Excel-friendly UTF-8 BOM). */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
     const rows = [...db.txns]
       .filter((t) => t.user_id === user.id)

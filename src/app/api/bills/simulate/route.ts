@@ -13,7 +13,7 @@ const DAY = 86_400_000;
 export async function POST(req: Request) {
   return runRoute(async () => {
     const body = await parseJsonBody<Record<string, unknown>>(req);
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
 
     const [input, validationError] = validateSimulateBill(body);
     if (!input) return err(422, validationError);

@@ -11,7 +11,7 @@ const DAY = 86_400_000;
  * bill status breakdown, top transfer counterparties. */
 export async function GET(req: Request) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
     const now = Date.now();
     const windowStart = now - 90 * DAY;

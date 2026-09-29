@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * Freeze a pending mandate — the scheduler skips it until resumed. */
 export async function POST(req: Request, ctx: Ctx) {
   return runRoute(async () => {
-    const user = getAuthUser(req);
+    const user = await getAuthUser(req);
     const db = getDb();
 
     const { id } = await ctx.params;
