@@ -1,4 +1,5 @@
-/* Legacy stub — AurPay uses its own in-memory seeded store
- * (src/lib/urpay-server/store.ts). This file only exists so the old
- * prisma-based stub is overwritten cleanly by the 3.zip overlay. */
+/* Legacy stub — AurPay uses its own store
+ * (src/lib/urpay-server/store.ts) with optional Turso persistence
+ * (src/lib/urpay-server/persist.ts). This file only exists so old prisma
+ * stubs are overwritten cleanly by the overlay. */
 export {};

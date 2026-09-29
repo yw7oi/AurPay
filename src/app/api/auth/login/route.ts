@@ -1,5 +1,6 @@
 import { err, jsonOk, parseJsonBody, runRoute } from "@/lib/urpay-server/http";
 import { getDb } from "@/lib/urpay-server/store";
+import { refreshNow } from "@/lib/urpay-server/persist";
 import { createToken, verifyPin } from "@/lib/urpay-server/security";
 import { isoNaive, userPublic } from "@/lib/urpay-server/serializers";
 import { validateLogin } from "@/lib/urpay-server/validate";
@@ -20,7 +21,13 @@ export async function POST(req: Request) {
     if (!card) return err(422, validationError);
 
     const db = getDb();
-    const user: UserRow | undefined = db.users.find((u) => u.card_number === card);
+    let user: UserRow | undefined = db.users.find((u) => u.card_number === card);
+    if (!user) {
+      /* multi-instance guard: the account may have been created on another
+       * instance moments ago — pull the shared state before rejecting */
+      await refreshNow();
+      user = db.users.find((u) => u.card_number === card);
+    }
     const now = Date.now();
 
     if (user && user.locked_until !== null && user.locked_until > now) {

@@ -6,6 +6,7 @@
 import type { UserRow } from "./types";
 import { getDb } from "./store";
 import { decodeToken } from "./security";
+import { ensureLoaded, persistState } from "./persist";
 
 export class ApiErr extends Error {
   status: number;
@@ -41,14 +42,21 @@ export async function parseJsonBody<T>(req: Request): Promise<T> {
   return body as T;
 }
 
-/** Wrap a route handler so ApiErr throws become `{ detail }` responses. */
+/** Wrap a route handler so ApiErr throws become `{ detail }` responses.
+ *
+ * Also the persistence hook point: the shared-database state is (re)loaded
+ * before the handler runs and diff-persisted after it — including on the
+ * ApiErr path (lockout counters etc. mutate then throw). */
 export async function runRoute(fn: () => Promise<Response>): Promise<Response> {
+  await ensureLoaded();
   try {
     return await fn();
   } catch (e) {
     if (e instanceof ApiErr) return err(e.status, e.detail);
     console.error("[urpay] unhandled route error:", e);
     return err(500, "خطأ داخلي بالخادم");
+  } finally {
+    await persistState();
   }
 }
 

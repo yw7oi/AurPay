@@ -1,5 +1,6 @@
 import { err, getAuthUser, jsonOk, parseJsonBody, runRoute } from "@/lib/urpay-server/http";
 import { getDb } from "@/lib/urpay-server/store";
+import { refreshNow } from "@/lib/urpay-server/persist";
 import { newRef, verifyPin } from "@/lib/urpay-server/security";
 import { fmtAr, isoNaive } from "@/lib/urpay-server/serializers";
 import { notify } from "@/lib/urpay-server/notify";
@@ -27,9 +28,17 @@ export async function POST(req: Request, ctx: Ctx) {
     }
 
     const db = getDb();
-    const request = db.transferRequests.find((r) => r.id === requestId);
+    let request = db.transferRequests.find((r) => r.id === requestId);
     if (!request || request.sender_id !== user.id || request.status !== "pending") {
-      return err(404, "طلب التحويل غير موجود أو منتهي");
+      /* multi-instance guard: the request may live on another instance —
+       * pull the shared state before answering 404 */
+      await refreshNow();
+      request = db.transferRequests.find(
+        (r) => r.id === requestId && r.sender_id === user.id && r.status === "pending",
+      );
+      if (!request) {
+        return err(404, "طلب التحويل غير موجود أو منتهي");
+      }
     }
 
     const receiver = db.users.find((u) => u.id === request.receiver_id);

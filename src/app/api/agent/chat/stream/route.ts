@@ -1,5 +1,6 @@
 import { err, getAuthUser, parseJsonBody, runRoute } from "@/lib/urpay-server/http";
 import { getDb, addAgentMessage } from "@/lib/urpay-server/store";
+import { persistState } from "@/lib/urpay-server/persist";
 import { runDueScheduled } from "@/lib/urpay-server/scheduler";
 import { runAgent, maskForCompare, TOOL_STEP_LABELS } from "@/lib/urpay-server/agent/engine";
 
@@ -79,6 +80,10 @@ export async function POST(req: Request) {
             detail: e instanceof Error ? e.message : "خطأ بالبث",
           });
         } finally {
+          /* the reply + any tool mutations (balances, txns) happened after
+           * runRoute already returned — persist them now that the stream is
+           * done, so the shared database stays in sync */
+          await persistState();
           if (!closed) {
             try {
               controller.close();
