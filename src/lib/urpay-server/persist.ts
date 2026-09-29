@@ -32,19 +32,28 @@
  *   1. Turso / libSQL row-mirror — env TURSO_DATABASE_URL (+ TURSO_AUTH_TOKEN).
  *      Row-level diff UPSERT/DELETE statements against one table.
  *   2. Vercel Blob state file — enabled automatically when the project has a
- *      Blob store connected (BLOB_READ_WRITE_TOKEN / VERCEL_OIDC_TOKEN /
- *      BLOB_STORE_ID are auto-attached by Vercel). The whole row table is
- *      stored as one JSON file; every write re-reads + merges the remote file
- *      first (read-merge-write) so concurrent instances rarely clobber each
- *      other. Works with both Private and Public stores (the access mode is
- *      probed once). ZERO manual setup: Vercel → Storage → Create → Blob →
- *      Connect to project → Redeploy.
+ *      Blob store connected (BLOB_READ_WRITE_TOKEN, or BLOB_STORE_ID + the
+ *      per-request OIDC token, are attached by Vercel to deployments created
+ *      AFTER the store is connected — a Redeploy is required). A manual
+ *      URPAY_BLOB_TOKEN (the store's rw token pasted by hand) is also
+ *      honored. The whole row table is stored as one JSON file; every write
+ *      re-reads + merges the remote file first (read-merge-write) so
+ *      concurrent instances rarely clobber each other. Works with both
+ *      Private and Public stores (the access mode is probed once).
+ *      ZERO manual setup: Vercel → Storage → Create → Blob → Connect to
+ *      project → Redeploy.
  *   3. memory — no driver configured (previous demo behavior).
+ *
+ *   IMPORTANT: VERCEL_OIDC_TOKEN alone must NOT activate the Blob driver —
+ *   it is attached to EVERY modern Vercel deployment regardless of Blob.
+ *   (5.zip activated on it and then reported a confusing mode "failed" on
+ *   store-less deployments; 6.zip only activates on real Blob credentials.)
  *
  *   Any driver failure (unreachable, bad token, missing package) fails OPEN:
  *   persistence is disabled for the process and the app keeps serving from
  *   the seeded in-memory store. /api/health reports the exact mode + error,
- *   and on Vercel in memory mode a client banner + login error explain that
+ *   /api/health?probe=1 runs a REAL write→read→delete round-trip, and on
+ *   Vercel in memory mode a client banner + login error explain that
  *   accounts are ephemeral until a Blob store is connected.
  *
  * LOCAL TESTING
@@ -114,6 +123,9 @@ interface PersistDriver {
   readAll(): Promise<RemoteRow[]>;
   /** Apply a diff; returns the effective post-write snapshot. */
   writeDiff(stmts: DiffStmts, current: SnapshotMap): Promise<SnapshotMap>;
+  /** Live write→read→delete round-trip; throws with the real error on failure.
+   * Used by /api/health?probe=1 so an operator can verify the store end-to-end. */
+  probe(): Promise<void>;
   /** Short health description. */
   describe(): { url: string };
 }
@@ -442,6 +454,9 @@ async function makeTursoDriver(): Promise<PersistDriver> {
       }
       return current;
     },
+    async probe() {
+      await client.execute("SELECT 1");
+    },
     describe() {
       return { url: c.url };
     },
@@ -458,19 +473,30 @@ type BlobGlobal = {
 };
 const bg = globalThis as unknown as BlobGlobal;
 
-/** Blob driver config: a fake dir for local E2E, real store when any Blob /
- * OIDC env var exists (Vercel auto-attaches them when a store is connected). */
-function blobConf(): { fakeDir: string } | { real: true } | null {
+/** Blob driver config: a fake dir for local E2E; a real store only when a
+ * genuine Blob credential is attached. Vercel attaches BLOB_READ_WRITE_TOKEN
+ * (classic flow) or BLOB_STORE_ID + per-request OIDC (new flow) to deployments
+ * CREATED AFTER the store is connected — connecting without a Redeploy leaves
+ * the running deployment with nothing, which is exactly what /api/health's
+ * env booleans reveal. URPAY_BLOB_TOKEN is the manual "link it myself" path
+ * (paste the store's read/write token by hand).
+ *
+ * NOTE: VERCEL_OIDC_TOKEN alone must NOT activate the driver — it is present
+ * on EVERY modern Vercel deployment regardless of Blob. */
+function blobConf(): { fakeDir: string } | { real: true; token?: string } | null {
   const fakeDir = process.env.URPAY_BLOB_FAKE_DIR?.trim();
   if (fakeDir) return { fakeDir };
-  const token =
-    process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
-    process.env.VERCEL_OIDC_TOKEN?.trim() ||
-    process.env.BLOB_STORE_ID?.trim();
-  return token ? { real: true } : null;
+  const manual = process.env.URPAY_BLOB_TOKEN?.trim();
+  if (manual) return { real: true, token: manual };
+  if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) return { real: true };
+  if (process.env.BLOB_STORE_ID?.trim()) return { real: true };
+  return null;
 }
 
-/** @vercel/blob module surface (only the pieces we call). */
+/** @vercel/blob module surface (only the pieces we call). A `token` option
+ * (manual URPAY_BLOB_TOKEN) is honored by put/get/del — resolveBlobAuth()
+ * checks options.token FIRST, before any env var. */
+type BlobTokenOpt = { token?: string };
 type BlobModule = {
   put: (
     pathname: string,
@@ -480,19 +506,20 @@ type BlobModule = {
       addRandomSuffix?: boolean;
       allowOverwrite?: boolean;
       contentType?: string;
-    },
+    } & BlobTokenOpt,
   ) => Promise<unknown>;
   get: (
     urlOrPathname: string,
     opts: {
       access: "private" | "public";
       useCache?: boolean;
-    },
+    } & BlobTokenOpt,
   ) => Promise<{
     statusCode: number;
     stream: ReadableStream<Uint8Array> | null;
     blob: { url: string; contentType: string };
   } | null>;
+  del: (urlOrPathname: string, opts?: BlobTokenOpt) => Promise<unknown>;
 };
 
 let blobModule: BlobModule | null = null;
@@ -527,6 +554,8 @@ function parseStateFile(text: string): RemoteRow[] {
 function makeBlobDriver(): PersistDriver {
   const c = blobConf()!;
   const fakePath = "fakeDir" in c ? `${c.fakeDir}/aurpay-state.json` : null;
+  // manual "link it myself" token — passed explicitly to every SDK call
+  const manualToken = "real" in c ? c.token : undefined;
 
   /* ---- raw file I/O (real store or local fake dir) ---- */
 
@@ -543,7 +572,11 @@ function makeBlobDriver(): PersistDriver {
     }
     const mod = await getBlobModule();
     const tryGet = async (access: "private" | "public") => {
-      const res = await mod.get(BLOB_PATHNAME, { access, useCache: false });
+      const res = await mod.get(BLOB_PATHNAME, {
+        access,
+        useCache: false,
+        token: manualToken,
+      });
       if (!res) return null; // not found — store reachable, state fresh
       if (!res.stream) throw new Error("blob stream missing (304?)");
       return await new Response(res.stream).text();
@@ -579,6 +612,7 @@ function makeBlobDriver(): PersistDriver {
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json",
+      token: manualToken,
     });
     const mode = bg.__urpayBlobAccess ?? "private";
     try {
@@ -624,6 +658,65 @@ function makeBlobDriver(): PersistDriver {
       }
       return eff;
     },
+    async probe() {
+      // REAL round-trip against the exact same layer the state file uses:
+      // put a tiny probe object → read it back → delete it. If the store is
+      // unreachable, the token is wrong or the access mode mismatches, the
+      // original error propagates to /api/health?probe=1.
+      const PROBE_PATH = "aurpay-probe.json";
+      const payload = JSON.stringify({ t: Date.now(), probe: true });
+      if (fakePath) {
+        const { writeFile, readFile, unlink, mkdir } = await import(
+          "node:fs/promises"
+        );
+        const { dirname } = await import("node:path");
+        const p = `${dirname(fakePath)}/aurpay-probe.json`;
+        await mkdir(dirname(p), { recursive: true });
+        await writeFile(p, payload, "utf8");
+        const back = await readFile(p, "utf8");
+        if (back !== payload) {
+          throw new Error("probe round-trip mismatch (local fake dir)");
+        }
+        await unlink(p);
+        return;
+      }
+      const mod = await getBlobModule();
+      const mode = bg.__urpayBlobAccess ?? "private";
+      const attempt = async (access: "private" | "public") => {
+        await mod.put(PROBE_PATH, payload, {
+          access,
+          addRandomSuffix: false,
+          allowOverwrite: true,
+          contentType: "application/json",
+          token: manualToken,
+        });
+        const res = await mod.get(PROBE_PATH, {
+          access,
+          useCache: false,
+          token: manualToken,
+        });
+        if (!res || !res.stream) {
+          throw new Error("probe file not readable after put");
+        }
+        const back = await new Response(res.stream).text();
+        if (back !== payload) {
+          throw new Error("probe round-trip mismatch");
+        }
+        await mod.del(PROBE_PATH, { token: manualToken });
+        bg.__urpayBlobAccess = access;
+      };
+      try {
+        await attempt(mode);
+      } catch (e) {
+        const alt: "private" | "public" =
+          mode === "private" ? "public" : "private";
+        try {
+          await attempt(alt);
+        } catch {
+          throw e; // original error — store truly unreachable
+        }
+      }
+    },
     describe() {
       return { url: fakePath ?? "vercel-blob:" + BLOB_PATHNAME };
     },
@@ -632,13 +725,22 @@ function makeBlobDriver(): PersistDriver {
 
 /* ---------------------------------------------------------------- status --- */
 
-/** Health-endpoint view of the persistence layer. */
+/** Health-endpoint view of the persistence layer.
+ * `env` exposes WHICH credentials this deployment can see (booleans only —
+ * never values): with a store connected but mode "memory" the false booleans
+ * prove the deployment predates the connection → Redeploy fixes it. */
 export function persistenceInfo(): {
   mode: "memory" | "turso" | "blob" | "failed" | "starting";
   url: string | null;
   error: string | null;
   serverless: boolean;
   hint: string | null;
+  env: {
+    blobToken: boolean;
+    blobStoreId: boolean;
+    oidc: boolean;
+    turso: boolean;
+  };
 } {
   const which = driverConf();
   const driver = g.__urpayIO;
@@ -665,7 +767,84 @@ export function persistenceInfo(): {
     error: g.__urpayPersistError ?? null,
     serverless: isServerless(),
     hint: modeWarning(),
+    env: {
+      blobToken:
+        !!process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
+        !!process.env.URPAY_BLOB_TOKEN?.trim(),
+      blobStoreId: !!process.env.BLOB_STORE_ID?.trim(),
+      oidc: !!process.env.VERCEL_OIDC_TOKEN?.trim(),
+      turso: !!process.env.TURSO_DATABASE_URL?.trim(),
+    },
   };
+}
+
+/** REAL end-to-end storage check for /api/health?probe=1: runs a
+ * write→read→delete round-trip through the ACTIVE driver and reports the
+ * raw error plus an Arabic `advice` naming the most likely fix. Never throws. */
+export async function probeStore(): Promise<{
+  ok: boolean;
+  mode: string;
+  ms: number;
+  error: string | null;
+  advice: string | null;
+}> {
+  const started = Date.now();
+  const which = driverConf();
+  if (!which) {
+    return {
+      ok: false,
+      mode: "memory",
+      ms: 0,
+      error: null,
+      advice:
+        "لا يوجد مخزن مشترك مربوط بهذه النسخة (وضع الذاكرة). " +
+        "من لوحة Vercel: تبويب Storage ← اختر مخزن Blob ← Connect to project " +
+        "← ثم Deployments ← ⋯ ← Redeploy، وأعد الفحص.",
+    };
+  }
+  try {
+    const io = await getDriver();
+    if (!io) {
+      throw new Error(
+        g.__urpayPersistError ?? "تعذّر تهيئة طبقة التخزين",
+      );
+    }
+    await io.probe();
+    return {
+      ok: true,
+      mode: which,
+      ms: Date.now() - started,
+      error: null,
+      advice:
+        which === "blob"
+          ? "مخزن Blob يستجيب للكتابة والقراءة والحذف — التخزين الدائم يعمل ✓"
+          : "قاعدة Turso تستجيب — التخزين الدائم يعمل ✓",
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const info = persistenceInfo();
+    let advice: string;
+    if (!info.env.blobToken && !info.env.blobStoreId && !info.env.turso) {
+      advice =
+        "متغيرات المخزن غير موجودة في هذه النسخة: إمّا المخزن غير مربوط " +
+        "بالمشروع، أو أنك ربطته ولم تعمل Redeploy بعدها. الحل: Storage ← " +
+        "Connect to project ← Deployments ← ⋯ ← Redeploy، ثم أعد الفحص.";
+    } else if (/401|unauthorized|token/i.test(msg)) {
+      advice =
+        "التوكن مرفوض — انسخ قيمة BLOB_READ_WRITE_TOKEN من صفحة المخزن " +
+        "(Storage ← المخزن ← .env.local) وأضفها يدويًا في Settings ← " +
+        "Environment Variables، ثم Redeploy.";
+    } else if (/not found|store/i.test(msg)) {
+      advice =
+        "المخزن غير موجود أو موقوف — تأكد من اختيار نفس المشروع عند " +
+        "Connect to project وأن المخزن بحالة Active.";
+    } else {
+      advice =
+        "فشل الوصول للمخزن — راجع الرسالة أعلاه وتأكد من حالة المخزن في " +
+        "تبويب Storage ثم أعد المحاولة.";
+    }
+    return { ok: false, mode: which, ms: Date.now() - started, error: msg, advice };
+  }
 }
 
 /** Warning shown when running on Vercel WITHOUT durable storage — the exact
